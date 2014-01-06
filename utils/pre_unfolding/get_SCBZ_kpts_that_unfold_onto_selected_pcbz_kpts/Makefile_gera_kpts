@@ -1,0 +1,68 @@
+# This makefile works with the GNU make command, the one find on
+# GNU/Linux systems and often called gmake on non-GNU systems
+# Adapted from file downloaded at http://www.webalice.it/o.drofa/davide/makefile-fortran/makefile-fortran.html
+# ======================================================================
+# Declarations
+# ======================================================================
+# The compiler
+FC = ifort
+
+# Needed flags
+FCFLAGS = -assume byterecl 
+
+
+# flags for debugging or for maximum performance, comment as necessary
+FCFLAGS += -openmp
+#FCFLAGS += -xHost
+FCFLAGS += -O2 -ipo
+#FCFLAGS += -O2 -xAVX
+#FCFLAGS += -O3 -ipo
+#FCFLAGS += -p
+#FCFLAGS += -warn unused
+#FCFLAGS += -threads
+#FCFLAGS += -assume buffered_io
+# flags forall (e.g. look for system .mod files, required in gfortran)
+##FCFLAGS += -I/usr/include
+
+# libraries needed for linking
+##LDFLAGS = -li_need_this_lib
+
+# Aliases
+READ_WAVECAR_MOD = read_wavecar_mod
+#READ_WAVECAR_MOD = read_wavecar_mod_sequential
+
+# List of executables to be built within the package
+SRC = main_get_SCBZ_kpts_that_unfold_onto_the_selected_pcbz_kpts.f90
+OBJ = ${SRC:.f90=.o}
+EXE = get_SCBZ_kpts_that_unfold_onto_the_selected_pcbz_kpts.x
+
+# "make" builds all
+all: $(EXE)
+
+band_unfolding_routines_mod.o: math_mod.o
+$(READ_WAVECAR_MOD).o: math_mod.o general_io_mod.o
+io_routines_mod.o: math_mod.o strings_mod.o general_io_mod.o $(READ_WAVECAR_MOD).o
+$(OBJ): math_mod.o io_routines_mod.o $(READ_WAVECAR_MOD).o band_unfolding_routines_mod.o
+$(EXE): math_mod.o band_unfolding_routines_mod.o general_io_mod.o $(READ_WAVECAR_MOD).o strings_mod.o io_routines_mod.o $(OBJ)
+
+# ======================================================================
+# General rules
+# ======================================================================
+$(EXE): $(OBJ)
+	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+
+%.o: %.f90
+	$(FC) $(FCFLAGS) -c $<
+
+%.o: %.F90
+	$(FC) $(FCFLAGS) -c $<
+
+# Utility targets
+.PHONY: clean veryclean
+
+clean:
+	rm -f *.o *.mod *.MOD
+
+veryclean: clean
+	rm -f *~ $(EXE)
+

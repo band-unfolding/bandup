@@ -1,0 +1,37 @@
+ SYSTEM = Graphene
+
+ Flags which affect the runtime for parallel jobs (and don't change the results)
+   ALGO = Fast
+   LPLANE = .TRUE.
+   NSIM = 1 ! NSIM bands are optimized at the same time, if IALGO = 48.
+   NPAR = 8 ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
+
+ Start parameter for this Run:
+   ISTART = 0  ! job   : 0-new  1-cont  2-samecut
+   ICHARG = 11  ! charge: 1-file 2-atom 10-const
+   LWAVE  = T  ! Write the WAVECAR file
+   LCHARG = F  ! Do not write CHGCAR
+
+ Electronic Relaxation
+   LREAL= Auto
+   ENCUT = 400.000
+   ENAUG = 644.873
+   EDIFF =  1E-7
+
+ Ionic Relaxation
+   IBRION = -1
+   ISIF = 2
+   NSW=0
+
+ Monopole, Dipole and Quadrupole corrections
+   IDIPOL = 3       ! Monopole/dipole and quadrupole corrections for the total energy
+   LDIPOL = .TRUE.  ! Potential correction mode
+   DIPOL = 0.5 0.5 0.5  ! Center of mass of cell (in fractional coordinates)
+
+ Band Structure related values
+   ISMEAR = 0 ! Gaussian smearing
+   SIGMA = 0.025
+
+ Precision
+   PREC = Normal
+
