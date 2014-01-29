@@ -87,7 +87,7 @@ cd ${plot_folder}
     if [ "$dir" == 'K-G_G-M_M-K' ]; then
         ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat -vmax 2 -vmin 0 --round_cb 0 --show --save &
     else
-        ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat -vmax 2 -vmin 0 --landscape --no_cb --no_ef --show --save &
+        ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat -vmax 2 -vmin 0 --landscape --no_cb --show --save &
     fi
 cd ${working_dir}
 

@@ -1,1 +1,3 @@
-Just copy the EBS file from step 5 here and execute the python script.
+Just copy the EBS file from step 4 here and execute the python script, as, for instance,
+
+./find_band_centers_and_broadenings.py unfolded_EBS_symmetry-averaged.dat -kpt k

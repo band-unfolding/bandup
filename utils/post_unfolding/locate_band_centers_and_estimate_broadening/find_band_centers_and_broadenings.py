@@ -45,7 +45,7 @@ prec_pos_band_centers = 0.01e-3 # in eV
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("input_file", nargs='?', default="EBS_K-G_G-M_M-K.dat", help="")
+parser.add_argument("input_file", nargs='?', default="unfolded_EBS_symmetry-averaged.dat", help="The name of the input file.")
 parser.add_argument("-kpt", default="g", help="")
 args = parser.parse_args()
 

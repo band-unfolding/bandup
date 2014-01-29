@@ -3,8 +3,8 @@
  Flags which affect the runtime for parallel jobs (and don't change the results)
    ALGO = Fast ! A faily robust mixture of both IALGO=38 and IALGO=48   
    LPLANE = .TRUE.
-   NSIM = 1 ! NSIM bands are optimized at the same time, if IALGO = 48.
-   NPAR = 8 ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
+   NSIM = 1  ! NSIM bands are optimized at the same time, if IALGO = 48.
+   NPAR = 5  ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
 
  Start parameter for this Run:
    ISTART = 0  ! job   : 0-new  1-cont  2-samecut
