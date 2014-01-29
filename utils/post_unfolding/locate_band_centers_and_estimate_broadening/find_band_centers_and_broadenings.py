@@ -22,6 +22,22 @@ import sys
 import os
 import heapq
 
+print ('===================================================================================== \n'
+       '             BandUP: Band Unfolding code for Plane-wave based calculations            \n'
+       '==================================================================================== \n'
+       'Copyright (C) 2013, 2014 Paulo V. C. Medeiros                                        \n'
+       '                         paume@ifm.liu.se                                            \n'
+       '                         Computational Physics Division                              \n'
+       '                         Department of Physics, Chemistry and Biology - IFM          \n'
+       '                         Linkoping University                                        \n'
+       '                         Sweden                                                      \n'
+       'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          \n'
+       '==================================================================================== \n'
+       '                                                                                     \n'
+       '            Post-processing utility "find_band_centers_and_broadenings.py"           \n'
+       '   >>> Obtaining Band Centers and Smearing Widths from the calculated delta_Ns <<<   \n'
+       '        (Phys. Rev. B 89, 041407(R) (2014), Supplemental Material, Section II.C)     \n')
+
 min_sum_dNs_for_a_band = 5.0e-2 # 1e-1 is OK
 # I used to set threshold_dN_2b_trial_band_center = 1e-1 or 2e-1 (work for most of the cases), but this is a complicated parameter...
 threshold_dN_2b_trial_band_center = 5.0e-2

@@ -1,0 +1,6 @@
+This script is adapted for graphene-like PCBZs.
+The algorithm, however, is general.
+Please adapt it to suit your need.
+Let us know if you have any problem!
+
+>> Just use the unfolded EBS calculated by BandUP as input.

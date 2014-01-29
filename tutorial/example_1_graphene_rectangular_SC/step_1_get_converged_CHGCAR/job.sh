@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --nodes 16
-#SBATCH -A liu5 -p green_risk
+#SBATCH --nodes 5
+#SBATCH -A liu5 -p green
 #SBATCH -J  GE0
 #SBATCH -t 1-00:00:00
 

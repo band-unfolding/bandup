@@ -1,0 +1,4 @@
+-2.4543  ! E-Fermi, in eV
+-25.0    ! Emin - E-Fermi, in eV
+7.0     ! Emax - E-Fermi, in eV
+0.05     ! Increment, in eV

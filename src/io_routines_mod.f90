@@ -1,4 +1,4 @@
-!! Copyright (C) 2013 Paulo V. C. Medeiros
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -14,7 +14,6 @@
 !!
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
-
 module io_routines
 use strings
 use general_io
@@ -24,67 +23,74 @@ use math
 implicit none
 PRIVATE
 PUBLIC :: print_welcome_messages,read_energy_info_for_band_search, read_unit_cell, &
-          print_folding_table_results, print_last_messages_before_unfolding, &
-          get_SCKPTS_contained_in_wavecar, define_pckpts_to_be_checked, &
-          say_goodbye_and_save_results, print_final_times
+          print_geom_unfolding_relations, print_last_messages_before_unfolding, &
+          get_SCKPTS_contained_in_wavecar, read_pckpts_selected_by_user, &
+          print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
+          print_final_times, package_version, write_band_struc
+
+character(len=30), parameter :: package_version="2.0, 2014-01-25"
+
 CONTAINS 
 
 
-subroutine print_welcome_messages(package_version, version_date)
+subroutine print_welcome_messages(package_version)
 implicit none
-character(len=*), intent(in), optional :: package_version,version_date
-write(*,'(A)')'=============================================================================='
-write(*,'(A)')'BandUP: Band Unfolding code for Plane-wave based calculations'
+character(len=*), intent(in), optional :: package_version
+write(*,'(A,/,A)')   '=====================================================================================', &
+                     '             BandUP: Band Unfolding code for Plane-wave based calculations           '
 if(present(package_version))then
-    write(*,'(A)') "Version "//trim(adjustl(package_version))
+    write(*,'(A)')   "                            V. "//trim(adjustl(package_version))
 endif
-if(present(version_date))then
-    write(*,'(A)') "Date: "//trim(adjustl(version_date))
-endif
-write(*,'(A)')'=============================================================================='
-write(*,'(6(A,/),A)')'Copyright (C) 2013 Paulo V. C. Medeiros',                                        &
-                   '                   paume@ifm.liu.se',                                            &
-                   '                   Computational Physics Division',                              &
-                   '                   Department of Physics, Chemistry and Biology - IFM',          &
-                   '                   Linköping University',                                        &
-                   '                   Sweden',                                                      & 
-                   '                   Visit http://www.ifm.liu.se/theomod/compphys/band-unfolding'
-write(*,'(A)')'=============================================================================='
+write(*,'(8(A,/),A)')'=====================================================================================', &
+                     'Copyright (C) 2013, 2014 Paulo V. C. Medeiros                                        ', &
+                     '                         paume@ifm.liu.se                                            ', &
+                     '                         Computational Physics Division                              ', &
+                     '                         Department of Physics, Chemistry and Biology - IFM          ', &
+                     '                         Linköping University                                        ', &
+                     '                         Sweden                                                      ', & 
+                     'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          ', &
+                     '====================================================================================='
 write(*,*)
 
 end subroutine print_welcome_messages
 
 
-subroutine print_folding_table_results(fold_into_each_other,list_SC_kpts_in_wavecar,pckpts_to_be_checked,b_matrix_pc,B_matrix_SC)
+subroutine print_geom_unfolding_relations(GUR,list_SC_kpts_in_wavecar,b_matrix_pc,B_matrix_SC)
 implicit none
-logical, dimension(:,:), intent(in) :: fold_into_each_other
-type(vec3d), dimension(:), intent(in) :: pckpts_to_be_checked, list_SC_kpts_in_wavecar
+type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR !! Geometric Unfolding Relations
+type(vec3d), dimension(:), intent(in) :: list_SC_kpts_in_wavecar
 real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
-integer :: n_input_pc_kpts, nkpts, n_folding_pckpts, &
-           i_SCKPT, ipc_kpt
-real(kind=dp), dimension(1:3) :: current_SCKPT, pc_kpt, folding_G
+integer :: nkpts, i_SCKPT, i_selc_pcbz_dir,i_needed_dirs,ipc_kpt
+real(kind=dp), dimension(1:3) :: current_SCKPT, actual_folding_SCKPT, pc_kpt, folding_G
 
 
-n_folding_pckpts = count(fold_into_each_other==.TRUE.)
-n_input_pc_kpts = size(pckpts_to_be_checked)
-nkpts = size(list_SC_kpts_in_wavecar)
-write(*,'(A,I0)')'Total # of pc-kpts to be checked: ',n_input_pc_kpts
-write(*,'(A,I0)')'Total # of SC-KPTS in  WAVECAR  : ',nkpts
-write(*,'(2(A,I0),A)')'A total of ',n_folding_pckpts,' pc-kpts (out of the ',n_input_pc_kpts,' checked) satisfy the folding condition:'
-do i_SCKPT=1,nkpts
-    do ipc_kpt=1,n_input_pc_kpts
-        if(fold_into_each_other(i_SCKPT,ipc_kpt))then
-            current_SCKPT = list_SC_kpts_in_wavecar(i_SCKPT)%coord(:)
-            pc_kpt(:) = pckpts_to_be_checked(ipc_kpt)%coord(:)
-            folding_G(:) = pc_kpt(:) - current_SCKPT(:)
-            call print_message_pckpt_folds(pc_kpt,current_SCKPT,folding_G,b_matrix_pc,B_matrix_SC)
-        endif
+    nkpts = size(list_SC_kpts_in_wavecar)
+    write(*,"(A)")"Summary of the points checked on the SCBZ and the pcbz:"
+    write(*,'(A,I0)')'    * Total # of SC-KPTS in the wavefunctions file: ',nkpts
+    write(*,'(A,I0)')'    * Total # of pc-kpts to be checked: ',GUR%n_pckpts
+    write(*,*)
+    write(*,"(A)")"Summary of the geometric folding relations:"
+    write(*,'(2(A,I0),A)')'    * A total of ',GUR%n_folding_pckpts,' pc-kpts (out of the ',GUR%n_pckpts,' checked) satisfy the folding condition:'
+    do i_SCKPT=1,nkpts
+        do i_selc_pcbz_dir=1,size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(:))
+            do i_needed_dirs=1,size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(:))
+                do ipc_kpt=1, size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(:))
+                    if(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds)then
+                        current_SCKPT = list_SC_kpts_in_wavecar(i_SCKPT)%coord(:)
+                        actual_folding_SCKPT = &
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords_actual_unfolding_K
+                        pc_kpt(:) = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:)
+                        folding_G(:) = pc_kpt(:) - actual_folding_SCKPT(:)
+                        call print_message_pckpt_folds(pc_kpt,current_SCKPT,i_SCKPT,actual_folding_SCKPT,folding_G,b_matrix_pc,B_matrix_SC)
+                    endif
+                enddo 
+            enddo
+        enddo
     enddo
-enddo
-write(*,'(A)')''
-write(*,'(A)')''
+    write(*,'(A)')''
+    write(*,'(A)')''
 
-end subroutine print_folding_table_results
+end subroutine print_geom_unfolding_relations
 
 
 subroutine read_energy_info_for_band_search(input_file,e_fermi,E_start,E_end,delta_e)
@@ -160,6 +166,7 @@ integer(8), intent(in) :: file_size
 real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
 real(kind=dp), intent(in) :: vbz,E_start,E_end,delta_e,e_fermi
 real(kind=dp) :: VSBZ
+logical :: using_omp
 
     write(*,*)
     write(*,'(A,f0.2,A)')'The wavefunction file is ',file_size/(2.0**30),' GB big. Only the necessary data will be read.'
@@ -176,21 +183,28 @@ real(kind=dp) :: VSBZ
     write(*,'(3(A,f0.5),A)')'Working within the energy interval ',E_start-e_fermi,' < E-EF < ',E_end-e_fermi,' in increments of ',delta_e,' eV'
     write(*,'(A,f0.5,A)')'The Fermi energy EF = ',e_fermi,' will be set to the zero of the energy scale in the output file.'
 
-    !$ write(*,*)
-    !$ write(*,*)
-    !$ write(*,'(A,A,I0,A)')'Some parts of the code have been parallelized with openmp and will be running using ', &
+    using_omp = .FALSE.
+    write(*,*)
+    write(*,*)
+    !$ using_omp = .TRUE.
+    !$ write(*,'(A,A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will be running using ', &
     !$                      'a maximum of ',omp_get_max_threads(),' thread(s).'
     !$ write(*,'(A)')"You can choose the maximum number of threads by setting the environment variable 'OMP_NUM_THREADS'"
+    if(.not. using_omp)then
+        write(*,'(A)')"OpenMP shared-memory parallelization has not been enabled (it is optional, don't worry).", &
+                      "To enable it, uncomment the line with the flag '-openmp' on the Makefile at BandUP/srci and run build.sh again.", & 
+                      "It won't change the results, but it might save you some time."
+    endif
 
     write(*,*)
     !! The following message should always be written to the standad output (in any modified version of BandUP)
-    !write(*,'(A)')         '=========================================================================================================================='
-    !write(*,'(5(A,/))')'NOTICE: If you use BandUP or any modified version of it, you should read and cite                       ', &
-    !                   '                                                                                                   ', &
-    !                   '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Physical Review B: Rapid Communications, ... (2014)', &
-    !                   '                                                                                               ', &
-    !                   '        and the appropriate references therein.'
-    !write(*,'(A)')         '=========================================================================================================================='
+    write(*,'(A)')       '=========================================================================================================================='
+    write(*,'(4(A,/),A)')'NOTICE: If you use BandUP or any modified/adapted version of it, please read and cite                       ', &
+                         '                                                                                                   ', &
+                         '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
+                         '                                                                                               ', &
+                         '        (http://dx.doi.org/10.1103/PhysRevB.89.041407) and the appropriate references therein.'
+    write(*,'(A)')       '=========================================================================================================================='
     !! End of message
     write(*,*)
     write(*,'(A)')'Band unfolding starts now.'
@@ -199,35 +213,48 @@ real(kind=dp) :: VSBZ
 end subroutine print_last_messages_before_unfolding
 
 
-
-subroutine print_message_pckpt_folds(pc_kpt,SCKPT,folding_G,b_matrix_pc,B_matrix_SC)
+subroutine print_message_pckpt_folds(pc_kpt,SCKPT,i_SCKPT,actual_folding_SCKPT,folding_G,b_matrix_pc,B_matrix_SC)
 implicit none
-real(kind=dp), dimension(1:3), intent(in) :: pc_kpt,SCKPT,folding_G
+integer, intent(in) :: i_SCKPT
+real(kind=dp), dimension(1:3), intent(in) :: pc_kpt,SCKPT,actual_folding_SCKPT,folding_G
 real(kind=dp), dimension(1:3, 1:3), intent(in) :: b_matrix_pc,B_matrix_SC
 real(kind=dp), dimension(1:3) :: pckpt_coords, coords
+logical :: using_symm_to_get_coeffs
+character(len=10) :: str_SCKPT_number
 
+    using_symm_to_get_coeffs = .not. same_vector(actual_folding_SCKPT(:), SCKPT)    
     write(*,*)
     write(*,*)
-
-    coords(:) = coords_cart_vec_in_new_basis(cart_vec=SCKPT(:),new_basis=B_matrix_SC)
-    write(*,'(A,3(f0.5,A))')'SCBZ wave-vector K = ',  &
+    str_SCKPT_number = ''
+    if(.not. using_symm_to_get_coeffs)then
+        write(str_SCKPT_number,"(A,I0,A)")'(',i_SCKPT,')'
+    endif
+    coords(:) = coords_cart_vec_in_new_basis(cart_vec=actual_folding_SCKPT(:),new_basis=B_matrix_SC)
+    write(*,'(A,3(f9.5,A))')'    SCBZ wave-vector K'//trim(adjustl(str_SCKPT_number))//' = ',  &
                                   coords(1),'*B1 + ',coords(2),'*B2 +',coords(3),'*B3'
-
+        
     pckpt_coords(:) = coords_cart_vec_in_new_basis(cart_vec=pc_kpt(:),new_basis=b_matrix_pc)
-    write(*,'(A,3(f0.5,A))')'unfolds onto pcbz wave-vector k = ',  &
+    write(*,'(A,3(f9.5,A))')'    unfolds onto pcbz wave-vector k = ',  &
                                   pckpt_coords(1),'*b1 + ',pckpt_coords(2),'*b2 + ',pckpt_coords(3),'*b3 = ' 
     pckpt_coords(:) =  coords_cart_vec_in_new_basis(cart_vec=pc_kpt(:),new_basis=B_matrix_SC)
-    write(*,'(A,3(f0.5,A))')'                                = ',  &
+    write(*,'(A,3(f9.5,A))')'                                    = ',  &
                                   pckpt_coords(1),'*B1 + ',pckpt_coords(2),'*B2+ ',pckpt_coords(3),'*B3'
 
     coords(:) = coords_cart_vec_in_new_basis(cart_vec=folding_G,new_basis=B_matrix_SC)
-    write(*,'(A,3(I0,A))')'k = K + G, unfolding vector G = ',  &
-                                  nint(coords(1)),'*B1 + ',nint(coords(2)),'*B2 + ',nint(coords(3)),'*B3.'
+    write(*,'(A,A,3(I0,A))')'    with the unfolding vector ',  &
+                                  'G = ',nint(coords(1)),'*B1 + ',nint(coords(2)),'*B2 + ',nint(coords(3)),'*B3.'
+    if(using_symm_to_get_coeffs)then
+        coords(:) = coords_cart_vec_in_new_basis(cart_vec=SCKPT(:),new_basis=B_matrix_SC)
+        write(*,'(A,/,A,I0,A,3(f9.5,A),/,A,I0,A)')'        *This SCBZ wave-vector belongs to the star of the SCBZ wave-vector',  &
+                                                  '                 K(',i_SCKPT,') = ', coords(1),'*B1 + ',coords(2),'*B2 +',coords(3),'*B3.', &
+                                                  '         The plane-wave coefficients for K(',i_SCKPT,') will be used.'
+    endif
 
 end subroutine print_message_pckpt_folds
 
 
 subroutine get_SCKPTS_contained_in_wavecar(nkpts,B_matrix_SC,list_SC_kpts_in_wavecar,nearest_neigh_dist_SC_kpts)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 integer, intent(in) :: nkpts
 real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
@@ -263,102 +290,108 @@ real(kind=dp) :: dist
 end subroutine get_SCKPTS_contained_in_wavecar
 
 
-subroutine write_band_struc(out_file,pc_kpts, E_vs_k, n_kpts_dirs, delta_Ns,EF,zero_of_kpts_scale)
+subroutine write_band_struc(out_file,pckpts_to_be_checked,energy_grid,delta_N,EF,zero_of_kpts_scale)
 implicit none
-character(len=*) :: out_file
-type(vec3d), dimension(:), intent(in) :: pc_kpts
-real*8, dimension(:,:), intent(in) :: E_vs_k
-integer, dimension(:), intent(in) :: n_kpts_dirs
-real*8, dimension(:,:), intent(in), optional :: delta_Ns
-real*8, intent(in), optional :: EF, zero_of_kpts_scale
-integer :: nbands, ndirections, iband, idir, i_1st_kpt_of_dir, ikpt_current_dir, ikpt
-real*8 :: coord_k, last_end_coord,e_fermi, origin_of_kpts_line
+character(len=*), intent(in) :: out_file
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
+real(kind=dp), dimension(:), intent(in) :: energy_grid
+type(delta_Ns_for_output), intent(in) :: delta_N
+real(kind=dp), dimension(1:3) :: pckpt, first_pckpt_dir
+real(kind=dp), intent(in), optional :: EF, zero_of_kpts_scale
+integer :: nener, iener, idir, ndirs, nkpts, ikpt
+real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
 
-e_fermi = 0.0d0
-if(present(EF))then
-     e_fermi = EF
-endif
-origin_of_kpts_line = 0.0d0
-if(present(zero_of_kpts_scale))then
-    origin_of_kpts_line = zero_of_kpts_scale
-endif
 
-nbands = size(E_vs_k(:,:), dim=1)
-ndirections = size(n_kpts_dirs, dim=1)
+    e_fermi = 0.0d0
+    if(present(EF))then
+         e_fermi = EF
+    endif
+    origin_of_kpts_line = 0.0d0
+    if(present(zero_of_kpts_scale))then
+        origin_of_kpts_line = zero_of_kpts_scale
+    endif
 
-open(unit=12,file=out_file)
-    write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
-    do iband=1, nbands
-        last_end_coord = origin_of_kpts_line
-        i_1st_kpt_of_dir = 1
-        do idir=1, ndirections
-            if(idir > 1)then
-                i_1st_kpt_of_dir = 1 + sum(n_kpts_dirs(1:idir-1))
-            endif
-            do ikpt_current_dir=1, n_kpts_dirs(idir)
-                ikpt = i_1st_kpt_of_dir + ikpt_current_dir - 1
-                coord_k = last_end_coord + norm(pc_kpts(ikpt)%coord(:) - pc_kpts(i_1st_kpt_of_dir)%coord(:))
-                    write(12,'(2(f8.4,2X),ES10.3)')coord_k, E_vs_k(iband,ikpt)-e_fermi, delta_Ns(iband,ikpt)
+    nener = size(energy_grid)
+    ndirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
+    coord_first_k_in_dir = origin_of_kpts_line
+    open(unit=12,file=out_file)
+        write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
+        do idir=1,ndirs
+            first_pckpt_dir(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(1)%coords(:)
+            nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(:))
+            do ikpt=1,nkpts
+                pckpt(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(ikpt)%coords(:)
+                do iener=1,nener
+                    coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
+                    write(12,'(2(f8.4,2X),ES10.3)')coord_k,energy_grid(iener)-e_fermi,delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener)
+                enddo
             enddo
-            last_end_coord = coord_k
+            coord_first_k_in_dir = coord_k
         enddo
-    enddo
-close(12)
+    close(12)
 
 end subroutine write_band_struc
 
 
 
-subroutine define_pckpts_to_be_checked(input_file, b_matrix_pc, list, n_kpts_dirs, min_dk,verbose,zero_of_kpts_scale)
+subroutine read_pckpts_selected_by_user(k_starts,k_ends,ndirs,n_kpts_dirs, &
+                                        input_file,b_matrix_pc, & 
+                                        zero_of_kpts_scale,verbose)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
+real(kind=dp), dimension(:,:), allocatable, intent(out) :: k_starts, k_ends
+integer, intent(out) :: ndirs
+integer, dimension(:), allocatable, intent(out) :: n_kpts_dirs
 character(len=*), intent(in) :: input_file
 real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc
-type(vec3d), dimension(:), allocatable, intent(out) :: list
-integer, intent(out), dimension(:), allocatable :: n_kpts_dirs
-real(kind=dp), intent(in), optional :: min_dk
-logical, intent(in), optional :: verbose
 real(kind=dp), intent(out), optional :: zero_of_kpts_scale
-integer :: ndirections, ios, last_ikpt, idir, ikpt, i
+logical, intent(in), optional :: verbose
+integer :: ios,idir,i
 character(len=1) :: coords_type_1st_letter
-real(kind=dp), dimension(1:3) :: line_vec
-real(kind=dp), dimension(:,:), allocatable :: read_k_start, k_start, read_k_end, k_end
+real(kind=dp), dimension(:,:), allocatable :: read_k_start, read_k_end
 real(kind=dp) :: a0, origin_of_kpts_line
-character(len=127) :: char_n_kpts_dirs, char_line_mode, aux_char
+character(len=127) :: char_n_kpts_dirs, char_line_mode, aux_char, char_kstart, char_kend
 logical :: opt_for_auto_pkpt_search, print_stuff
+
 
 print_stuff = .TRUE.
 if(present(verbose)) print_stuff = verbose
-
+!! Getting the number of directions
+ndirs = 0
 open(unit=03,file=input_file)
-    read(03,*)
-    read(03,*)
-    read(03,*)
-    read(03,*)
-    ndirections = 0
+    read(03,"(A)") aux_char
+    read(03,"(A)") aux_char
+    read(03,"(A)") aux_char
+    read(03,"(A)") aux_char
     ios=0
+    aux_char = ''
     do while (ios==0)
-        read(03,*,iostat=ios)
-        read(03,*,iostat=ios)
-        read(03,*,iostat=ios)
-        ndirections = ndirections + 1
+        read(03,"(A)",iostat=ios)char_kstart
+        read(03,"(A)",iostat=ios)char_kend
+        read(03,"(A)",iostat=ios)aux_char
+        if(trim(adjustl(char_kstart)) /= '' .and. trim(adjustl(char_kend)) /= '' .and. trim(adjustl(aux_char)) == '')then
+            ndirs = ndirs + 1
+        else
+            ios = 1
+        endif
     enddo
 close(03)
-
-allocate(n_kpts_dirs(1:ndirections))
-allocate(read_k_start(1:ndirections, 1:3), read_k_end(1:ndirections, 1:3))
-allocate(k_start(1:ndirections, 1:3), k_end(1:ndirections, 1:3))
+!! Actually reading the file now
+allocate(read_k_start(1:ndirs, 1:3), read_k_end(1:ndirs, 1:3))
 open(unit=03,file=input_file)
-    read(03,*)a0 ! Not normally present in the KPOINTS file, but it is needed here.
+    read(03,*)a0 ! Not normally present in the KPOINTS file, but needed here in order to return the kpts in cartesian coords.
     read(03,'(A)')char_n_kpts_dirs
     read(03,'(A)')char_line_mode
     read(03,'(A1)')coords_type_1st_letter
-    do idir=1,ndirections
+    do idir=1,ndirs
         read(03,*)(read_k_start(idir,i), i=1,3)
         read(03,*)(read_k_end(idir,i), i=1,3)
         read(03,*,iostat=ios)
     enddo
 close(03)
-
+!! Reading next the position where the user wants the kpoints string to begin at.
+!! This might be useful if you make separate calculations for each pcbz direction
+!! and want to combine them in a single file afterwards
 char_line_mode = trim(adjustl(char_line_mode))
 read(char_line_mode,*,iostat=ios)aux_char, origin_of_kpts_line
 if(ios /= 0)then
@@ -367,90 +400,123 @@ endif
 if(present(zero_of_kpts_scale))then
     zero_of_kpts_scale = origin_of_kpts_line
 endif
-
-do idir=1,ndirections
-    k_start(idir,:) = 0.0d0
-    k_end(idir,:) = 0.0d0
+!! Making sure the k-points are returned in cartesian coordinates
+allocate(k_starts(1:ndirs, 1:3), k_ends(1:ndirs, 1:3))
+do idir=1,ndirs
+    k_starts(idir,:) = 0.0d0
+    k_ends(idir,:) = 0.0d0
     if(upper_case(coords_type_1st_letter) == 'R')then
         do i=1,3
-            k_start(idir,:) = k_start(idir,:) + read_k_start(idir,i)*b_matrix_pc(i,:)
-            k_end(idir,:) = k_end(idir,:) + read_k_end(idir,i)*b_matrix_pc(i,:)
+            k_starts(idir,:) = k_starts(idir,:) + read_k_start(idir,i)*b_matrix_pc(i,:)
+            k_ends(idir,:) = k_ends(idir,:) + read_k_end(idir,i)*b_matrix_pc(i,:)
         enddo
     else
         if((upper_case(coords_type_1st_letter) /= 'C').and.(idir==1))then
             if(print_stuff) write(*,'(A)')'Assuming that the pc-kpts have been informed in cartesian coordinates.'
         endif
-        k_start(idir,:) = twopi*read_k_start(idir,:)/a0
-        k_end(idir,:) = twopi*read_k_end(idir,:)/a0
+        k_starts(idir,:) = twopi*read_k_start(idir,:)/a0
+        k_ends(idir,:) = twopi*read_k_end(idir,:)/a0
     endif
 enddo
-
+!! Defining the number of k-points requested along each direction
+allocate(n_kpts_dirs(1:ndirs))
 char_n_kpts_dirs = trim(adjustl(char_n_kpts_dirs))
 read(char_n_kpts_dirs,*,iostat=ios) n_kpts_dirs(1)
 if(ios == 0)then
     opt_for_auto_pkpt_search = .FALSE.
-    read(char_n_kpts_dirs,*,iostat=ios)(n_kpts_dirs(idir), idir=1,ndirections)
+    read(char_n_kpts_dirs,*,iostat=ios)(n_kpts_dirs(idir), idir=1,ndirs)
     if(ios /= 0)then
         n_kpts_dirs(:) = n_kpts_dirs(1)
     endif
 else
+    !! If the BandUP cannot find a (sequence of) number(s) on "char_n_kpts_dirs", then it assumes you want to 
+    !! perform an automatic scan for folding pckpts
+    !! This will probably not be used if you use the BandUP's pre-processing tool to get exactly the pckpts you want
     opt_for_auto_pkpt_search = .TRUE.
 endif
-
-do idir=1,ndirections
-    if(norm(k_start(idir,:)-k_end(idir,:))<epsilon(1.0d0))then
+!! If you want to parse only 1 pckpt, then use it as both the start and the end of the kpts line.
+do idir=1,ndirs
+    if(norm(k_starts(idir,:)-k_ends(idir,:))<epsilon(1.0d0))then
         n_kpts_dirs(idir) = 1
     endif
 enddo
-
-if(present(min_dk).and.opt_for_auto_pkpt_search)then
+!! Setting now the number of pckpts along each direction,
+!! according to whether the user has actually defined them or not
+if(opt_for_auto_pkpt_search)then
     if(print_stuff)then
-        write(*,'(A)')'Performing automatic search of folding pc-kpts in the directions specified in the input file.'
-        write(*,'(A,E10.3,A)')'The search of pc-kpts will be performed in intervals of ',min_dk,' A^-1.'
+        write(*,'(A)')'Checking automatically for folding pc-kpts along the directions specified in the input file.'
+        write(*,'(A,E10.3,A)')'The automatic scan for pc-kpts will be performed in intervals of ',min_dk,' A^-1.'
     endif
-    do idir=1, ndirections
-        n_kpts_dirs(idir) = ceiling(1.0d0 + norm(k_end(idir,:) - k_start(idir,:))/dabs(min_dk))
+    do idir=1, ndirs
+        n_kpts_dirs(idir) = ceiling(1.0d0 + norm(k_ends(idir,:) - k_starts(idir,:))/dabs(min_dk))
     enddo
-else
-    if(print_stuff) write(*,'(A)')'Searching folding pc-kpts only among the points specified in the input file.'
 endif
 if(print_stuff)then
-    do idir=1, ndirections
-        write(*,'(2(A,I0))')'               # of pc-kpts searched in direction ',idir,': ',n_kpts_dirs(idir)
+    do idir=1, ndirs
+        write(*,'(2(A,I0))')'               # of pc-kpts requested along pcbz direction ',idir,': ',n_kpts_dirs(idir)
     enddo
 endif
 
-if(allocated(list))then
-    deallocate(list)
-endif
-allocate(list(1:sum(n_kpts_dirs(:))))
-
-last_ikpt = 0
-do idir=1, ndirections
-    if(n_kpts_dirs(idir)>1)then
-        line_vec = (k_end(idir,:) - k_start(idir,:))/real(n_kpts_dirs(idir) - 1, kind=dp)
-    else
-        line_vec = 0.0d0
-    endif
-    do ikpt=1,n_kpts_dirs(idir)
-        list(last_ikpt + ikpt)%coord(:) = k_start(idir,:) + real(ikpt - 1,kind=dp)*line_vec(:)
-    enddo
-    last_ikpt = last_ikpt + n_kpts_dirs(idir)
-enddo
-
-end subroutine define_pckpts_to_be_checked
+end subroutine read_pckpts_selected_by_user
 
 
-subroutine say_goodbye_and_save_results(n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed, &
-                                  pc_E_vs_k, pc_delta_Ns, pckpts_to_be_checked, nkpts_dirs, zero_of_kpts_scale, &
-                                  e_fermi, output_file)
+subroutine print_symm_analysis_for_selected_pcbz_dirs(dirs_req_for_symmavgd_EBS_along_pcbz_dir, & 
+                                                      neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs)
 implicit none
-integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
-real(kind=dp), dimension(:,:), allocatable, intent(in) :: pc_E_vs_k, pc_delta_Ns
-type(vec3d), dimension(:), intent(in) :: pckpts_to_be_checked
-integer, dimension(:) :: nkpts_dirs
+type(irr_bz_directions), dimension(:), intent(in) :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
+integer, dimension(:), intent(in) :: neqv_dirs_pcbz,neqv_dirs_SCBZ,ncompl_dirs,n_irr_compl_dirs
+integer :: ndirs,idir,n_needed_dirs
+
+ndirs = size(dirs_req_for_symmavgd_EBS_along_pcbz_dir(:))
+write(*,*)
+write(*,"(A)")"Symmetry analysis for the selected pcbz directions:"
+do idir=1,ndirs
+    n_needed_dirs = size(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:))
+    write(*,"(A,I0,A)")"    >>> Direction #",idir,":"
+    if(n_needed_dirs > 1)then
+        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz(idir)," equivalent directions w.r.t. symmetry operations of the pcbz"
+        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ(idir)," equivalent directions w.r.t. symmetry operations of the SCBZ"
+        write(*,"(A,I0,A)")"        * ",ncompl_dirs(idir)," complementary directions will thus be considered in order to get a proper &
+                                                            symmetry-averaged EBS."
+        if(ncompl_dirs(idir) /= n_irr_compl_dirs(idir))then
+            write(*,"(A,I0,A)")"        * The number of irreducible complementary directions is ",n_irr_compl_dirs(idir),"." 
+        endif
+    else
+        write(*,"(A)")"        * Fine: no complementary directions are needed."
+    endif
+enddo
+write(*,*)
+
+end subroutine print_symm_analysis_for_selected_pcbz_dirs
+
+
+subroutine print_simm_ops(isym,trans,rot)
+implicit none
+integer, intent(in) :: isym
+integer, intent(in), dimension(1:3) :: trans
+integer, intent(in), dimension(1:3,1:3) :: rot
+
+    write(*,'(8X,A,I0,A)')'Symmetry op. #',isym,':'
+    write(*,'(12X,A,4(I0,A))')'T[',isym,'] = (',trans(1),', ',trans(2),', ',trans(3),')'
+    write(*,'(12X,A,4(I0,A))')'R[',isym,'](1,:) = (',rot(1,1),', ',rot(1,2),', ',rot(1,3),')'
+    write(*,'(12X,A,4(I0,A))')'R[',isym,'](2,:) = (',rot(2,1),', ',rot(2,2),', ',rot(2,3),')'
+    write(*,'(12X,A,4(I0,A))')'R[',isym,'](3,:) = (',rot(3,1),', ',rot(3,2),', ',rot(3,3),')'
+    write(*,*)
+
+end subroutine print_simm_ops
+
+
+subroutine say_goodbye_and_save_results(output_file_only_user_selec_direcs,output_file_symm_averaged_EBS, &
+                                        delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
+                                        pckpts_to_be_checked,energy_grid,e_fermi,zero_of_kpts_scale, &
+                                        n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed)
+implicit none
+character(len=*), intent(in) :: output_file_only_user_selec_direcs,output_file_symm_averaged_EBS
+type(delta_Ns_for_output), intent(in) :: delta_N_only_selected_dirs,delta_N_symm_avrgd_for_EBS
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
+real(kind=dp), dimension(:), intent(in) :: energy_grid
 real(kind=dp), intent(in) :: e_fermi, zero_of_kpts_scale
-character(len=*), intent(in) :: output_file
+integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
 
     write(*,*)
     write(*,*)
@@ -459,11 +525,15 @@ character(len=*), intent(in) :: output_file
     if(n_folding_pckpts_parsed /= n_folding_pckpts)then
         write(*,'(A,I0,A)')'From these points, ',n_folding_pckpts_parsed,' could be used.'
     endif
-    if(allocated(pc_E_vs_k).and.allocated(pc_delta_Ns))then
-        write(*,'(2A)')'Writing results to file ',trim(adjustl(output_file))
+    if(n_folding_pckpts_parsed > 0)then
+        !! Writing delta_N_only_selected_dirs
+        call write_band_struc(output_file_only_user_selec_direcs,pckpts_to_be_checked,energy_grid,delta_N_only_selected_dirs,EF=e_fermi,zero_of_kpts_scale=zero_of_kpts_scale)
+        write(*,'(3A)')'>>> The delta_Ns for the unfolded EBS calculated strictly along the requested directions have been saved to the file "', &
+                        trim(adjustl(output_file_only_user_selec_direcs)),'".'
+        !! Writing the delta_N_symm_avrgd_for_EBS
+        call write_band_struc(output_file_symm_averaged_EBS,pckpts_to_be_checked,energy_grid,delta_N_symm_avrgd_for_EBS,EF=e_fermi,zero_of_kpts_scale=zero_of_kpts_scale)
+        write(*,'(3A)')'>>> The symmetry-averaged delta_Ns for the unfolded EBS have been saved to the file "',trim(adjustl(output_file_symm_averaged_EBS)),'".'
         write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ',zero_of_kpts_scale,'.'
-        call write_band_struc(output_file,pckpts_to_be_checked(:), pc_E_vs_k(:,:), nkpts_dirs, pc_delta_Ns(:,:), EF=e_fermi, &
-                              zero_of_kpts_scale=zero_of_kpts_scale)
     else
         write(*,'(A)')'Nothing to be written to the output file.'
     endif

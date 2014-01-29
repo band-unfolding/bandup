@@ -10,19 +10,17 @@
 # ======================================================================
 # The compiler
 FC = ifort
-# Required flags: "-assume byterecl" is required for the compilation of the read_wavecar_mod module
+
+# Needed flags
 FCFLAGS = -assume byterecl 
-# Shared memory parallelization
-FCFLAGS += -openmp -parallel
-# Flags for maximum performance, portability, etc. Comment (or modify) as necessary.
-#FCFLAGS += -static
+
+# flags for debugging or for maximum performance, comment (or edit) as necessary
+FCFLAGS += -openmp
 FCFLAGS += -O2 -no-ipo # ipo was causing a few problems.
-# Enable/disable warnings and remarks
-FCFLAGS += -diag-disable remark
 
 # Aliases
 current_dir = $(shell pwd)
-BandUP_src_folder = $(current_dir)
+BandUP_src_folder = $(current_dir)/../../../src/
 spglib_folder = $(BandUP_src_folder)/external/spglib-1.5.2
 
 # libraries needed for linking
@@ -31,11 +29,10 @@ LIBS = $(spglib_folder)/src/.libs/libsymspg.a
 # Folders containing needed sources
 vpath %.f90 $(spglib_folder)/example
 vpath %.f90 $(BandUP_src_folder)
-
 # List of executables to be built within the package
-SRC = main_BandUP.f90
+SRC = main_get_SCKPTS_pre_BandUP.f90
 OBJ = ${SRC:.f90=.o}
-EXE = BandUP.x
+EXE = get_SCKPTS_pre_BandUP.x
 
 # "make" builds all
 all: $(EXE)
@@ -46,7 +43,6 @@ read_wavecar_mod.o: math_mod.o general_io_mod.o
 io_routines_mod.o: math_mod.o strings_mod.o general_io_mod.o read_wavecar_mod.o
 $(OBJ): spglib_f08.o math_mod.o io_routines_mod.o read_wavecar_mod.o band_unfolding_routines_mod.o
 $(EXE): spglib_f08.o math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o strings_mod.o io_routines_mod.o $(OBJ)
-
 # ======================================================================
 # General rules
 # ======================================================================

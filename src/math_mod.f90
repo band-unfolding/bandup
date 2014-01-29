@@ -1,4 +1,4 @@
-!! Copyright (C) 2013 Paulo V. C. Medeiros
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -14,26 +14,148 @@
 !!
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
-
 module math
+use spglib_f08
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: sp, dp, qp, pi, twopi, vec3d, &
-          time,cross, norm, angle, real_seq, delta,  &
-          get_rec_latt, coords_cart_vec_in_new_basis, vec_in_latt, &
-          reduce_point_to_bz, same_vector, divide_SCKPTS_evenly_among_MPI_tasks 
+PUBLIC :: sp, dp, pi, twopi, min_dk, tol_for_vec_equality, vec3d, star, &
+          time,cross, norm, angle, real_seq, delta, integral_delta_x_minus_x0, &
+          symmetry_operation, get_rec_latt, coords_cart_vec_in_new_basis, vec_in_latt, &
+          reduce_point_to_bz, same_vector, get_symm, get_star, get_irr_kpts, &
+          pt_eqv_by_point_group_symop, bz_direction, eqv_bz_directions, irr_bz_directions, &
+          get_all_irr_dirs_req_for_symmavgd_EBS, kpts_line, selected_pcbz_directions, &
+          geom_unfolding_relations_for_each_SCKPT, delta_Ns, allocate_delta_Ns_type, & 
+          delta_Ns_for_output, allocate_delta_Ns_for_output_type, &
+          divide_SCKPTS_evenly_among_MPI_tasks 
+
+!! Constants used throughout the code
 integer, parameter :: sp = selected_real_kind(6, 37)    ! Single precision
 integer, parameter :: dp = selected_real_kind(15, 307)  ! Double precision
-integer, parameter :: qp = selected_real_kind(33, 4931) ! Quadruple precision
+real(kind=dp), parameter :: pi = 4.*atan(1.), twopi = 2.*pi
+real(kind=dp), parameter :: min_dk=2D-5, tol_for_vec_equality=1D-5
+real(kind=dp), parameter :: two_m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
 
+!! Derived type definitions
 type :: vec3d
   real(kind=dp), dimension(1:3) :: coord
 end type vec3d
-real(kind=dp), parameter :: pi = 4.*atan(1.), twopi = 2.*pi
-real(kind=dp), parameter :: two_m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
 
+type :: symmetry_operation
+    integer, dimension(1:3) :: translation_fractional_coords
+    integer, dimension(1:3,1:3) :: rotation_fractional_coords
+    real(kind=dp), dimension(1:3) :: translation_cartesian_coords
+    real, dimension(1:3,1:3) :: rotation_cartesian_coords
+    real(kind=dp), dimension(1:3,1:3) :: basis
+end type symmetry_operation
+
+type :: star_point_properties
+    real(kind=dp), dimension(1:3) :: coord
+    integer :: symop  ! The index of the symmetry operation
+end type star_point_properties
+
+type :: star
+   integer :: neqv
+   type(star_point_properties), dimension(:), allocatable :: eqv_pt
+end type star
+
+type :: bz_direction
+    real(kind=dp), dimension(1:3) :: kstart, kend
+    integer :: neqv=1
+    real(kind=dp) :: weight=0.0d0
+end type bz_direction
+
+type :: eqv_bz_directions
+    integer :: neqv=1 ! Number of eqv. directions in the set.
+    type(bz_direction), dimension(:), allocatable :: eqv_dir
+end type eqv_bz_directions
+
+type :: irr_bz_directions
+    type(bz_direction), dimension(:), allocatable :: irr_dir
+end type irr_bz_directions
+
+type :: trial_folding_pckpt
+    real(kind=dp), dimension(1:3) :: coords_actual_unfolding_K,coords,Scoords,Sfolding_vec
+    logical :: folds
+end type trial_folding_pckpt
+
+type :: list_of_trial_folding_pckpts
+    type(trial_folding_pckpt), dimension(:), allocatable :: pckpt
+end type list_of_trial_folding_pckpts
+
+type :: needed_pcbz_dirs_for_EBS
+    type(list_of_trial_folding_pckpts), dimension(:), allocatable :: needed_dir
+end type needed_pcbz_dirs_for_EBS
+
+type :: selected_pcbz_directions
+    type(needed_pcbz_dirs_for_EBS), dimension(:), allocatable :: selec_pcbz_dir
+end type selected_pcbz_directions
+
+type :: geom_unfolding_relations_for_each_SCKPT
+    type(selected_pcbz_directions), dimension(:), allocatable :: SCKPT
+    integer :: n_pckpts,n_folding_pckpts
+end type geom_unfolding_relations_for_each_SCKPT
+
+!! Defining derived types to support a "delta_Ns" type.
+type :: delta_Ns_and_SFs_at_every_energy_grid_point_for_a_pckpt
+    real(kind=dp), dimension(:), allocatable :: dN,SF  !! delta_Ns and spectral functions at each point of the energy grid
+end type delta_Ns_and_SFs_at_every_energy_grid_point_for_a_pckpt
+
+type :: list_of_pckpts_for_SFs_and_delta_Ns
+    type(delta_Ns_and_SFs_at_every_energy_grid_point_for_a_pckpt), dimension(:), allocatable :: pckpt
+end type list_of_pckpts_for_SFs_and_delta_Ns
+
+type :: delta_N_and_SF_info_for_needed_pcbz_dirs_for_EBS
+    type(list_of_pckpts_for_SFs_and_delta_Ns), dimension(:), allocatable :: needed_dir
+end type delta_N_and_SF_info_for_needed_pcbz_dirs_for_EBS
+!! Defining now the "delta_Ns" type, which can also hold info about spectral functions SFs
+!! The structure of a variable delta_N of type(delta_Ns) is:
+!! delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%[ dN(iener) or SF(iener)]
+type :: delta_Ns
+    type(delta_N_and_SF_info_for_needed_pcbz_dirs_for_EBS), dimension(:), allocatable :: selec_pcbz_dir
+end type delta_Ns
+
+type :: delta_Ns_for_output
+    type(list_of_pckpts_for_SFs_and_delta_Ns), dimension(:), allocatable :: pcbz_dir
+end type delta_Ns_for_output
+
+
+!! Functions and subroutines
 CONTAINS
+
+subroutine allocate_delta_Ns_type(delta_N,pckpts_to_be_checked)
+implicit none
+type(delta_Ns), intent(out) :: delta_N
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked !! Geometric Unfolding Relations
+integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,n_needed_dirs,i_needed_dirs,nkpts
+
+    n_selec_pcbz_dir = size(pckpts_to_be_checked%selec_pcbz_dir(:))
+    allocate(delta_N%selec_pcbz_dir(1:n_selec_pcbz_dir))
+    do i_selc_pcbz_dir=1,n_selec_pcbz_dir
+        n_needed_dirs = size(pckpts_to_be_checked%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(:))
+        allocate(delta_N%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(1:n_needed_dirs))
+        do i_needed_dirs=1,n_needed_dirs
+            nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(:))
+            allocate(delta_N%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(1:nkpts))
+        enddo
+    enddo
+
+end subroutine allocate_delta_Ns_type
+
+subroutine allocate_delta_Ns_for_output_type(delta_N,pckpts_to_be_checked)
+implicit none
+type(delta_Ns_for_output), intent(out) :: delta_N
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked !! Geometric Unfolding Relations
+integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,nkpts
+
+    n_selec_pcbz_dir = size(pckpts_to_be_checked%selec_pcbz_dir(:))
+    allocate(delta_N%pcbz_dir(1:n_selec_pcbz_dir))
+    do i_selc_pcbz_dir=1,n_selec_pcbz_dir
+        nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(1)%pckpt(:))
+        allocate(delta_N%pcbz_dir(i_selc_pcbz_dir)%pckpt(1:nkpts))
+    enddo
+
+end subroutine allocate_delta_Ns_for_output_type
 
 function time() result(rtn)
 implicit none
@@ -89,6 +211,27 @@ integer :: i, n_terms
 
 end subroutine real_seq
 
+function kpts_line(kstart,kend,nk) result(line)
+implicit none
+type(vec3d), dimension(:), allocatable :: line
+real(kind=dp), dimension(1:3), intent(in) :: kstart, kend
+integer, intent(in) :: nk
+integer :: alloc_stat,ikpt
+real(kind=dp), dimension(1:3) :: line_vec
+
+    deallocate(line, stat=alloc_stat)
+    allocate(line(1:nk))
+    if(nk>1)then
+        line_vec = (kend - kstart)/real(nk - 1, kind=dp)
+    else
+        line_vec = 0.0d0
+    endif
+    do ikpt=1,nk
+        line(ikpt)%coord(:) = kstart + real(ikpt - 1,kind=dp)*line_vec(:)
+    enddo
+    return
+
+end function kpts_line
 
 function delta(x,FWHM,std_dev) result(rtn)
 implicit none
@@ -111,15 +254,20 @@ real(kind=dp), intent(in), optional :: std_dev, FWHM
 
 end function delta
 
-function integral_delta_of_x_minus_x0(x0,low_x,upp_x) result(rtn)
+
+function integral_delta_x_minus_x0(x0,lower_lim,upper_lim,std_dev) result(rtn)
 ! Consistently with the employed approx. by a Gaussian distribution
 implicit none
 real(kind=dp) :: rtn
-real(kind=dp), intent(in) :: x0,low_x,upp_x
+real(kind=dp), intent(in) :: x0,lower_lim,upper_lim,std_dev
+real(kind=dp) :: x1, x2
 
-   rtn = 0.5d0*(erf(upp_x-x0) - erf(low_x-x0))
 
-end function integral_delta_of_x_minus_x0
+    x1 = (lower_lim - x0)/(sqrt(2.0d0)*std_dev)
+    x2 = (upper_lim - x0)/(sqrt(2.0d0)*std_dev)
+    rtn = 0.5d0*(erf(x2) - erf(x1))
+
+end function integral_delta_x_minus_x0
 
 
 function inverse_of_3x3_matrix(matrix, success) result(inverse_matrix)
@@ -185,10 +333,10 @@ real*8, dimension(1:3,1:3), intent(in) :: new_basis
 real*8, dimension(1:3,1:3) :: aux_matrix
 integer :: i
 
-aux_matrix = inverse_of_3x3_matrix(transpose(new_basis))
-do i=1,3
-    coords(i) = dot_product(aux_matrix(i,:), cart_vec)
-enddo
+    aux_matrix = inverse_of_3x3_matrix(transpose(new_basis))
+    do i=1,3
+        coords(i) = dot_product(aux_matrix(i,:), cart_vec)
+    enddo
 
 end function coords_cart_vec_in_new_basis
 
@@ -226,6 +374,9 @@ end function same_vector
 
 
 function vec_in_latt(vec, latt, tolerance) result(rtn)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Checks if the vector "vec" belongs to the Bravais lattice spanned by the
+!! vectors latt(i,:), i=1,2,3.
 implicit none
 logical :: rtn
 real*8, dimension(1:3), intent(in) :: vec
@@ -256,10 +407,10 @@ do ig3=0,2*nb3max
     if (ig3.gt.nb3max) ig3p=ig3-2*nb3max-1  ! Trick to make the indices ig3p vary from 0 to nb3max and then from -nb3max to -1
     do ig2=0,2*nb2max
         ig2p=ig2
-        if (ig2.gt.nb2max) ig2p=ig2-2*nb2max-1 ! Trick to make the indices ig2p vary from 0 to nb2max and then from -nb2max to -1
+        if (ig2.gt.nb2max) ig2p=ig2-2*nb2max-1
         do ig1=0,2*nb1max
             ig1p=ig1
-            if (ig1.gt.nb1max) ig1p=ig1-2*nb1max-1 ! Trick to make the indices ig1p vary from 0 to nb1max and then from -nb1max to -1
+            if (ig1.gt.nb1max) ig1p=ig1-2*nb1max-1
             g(:) = ig1p*latt(1,:) + ig2p*latt(2,:) + ig3p*latt(3,:)
             if(same_vector(reduced_vec,g,tol))then
                 rtn = .TRUE.
@@ -274,6 +425,11 @@ end function vec_in_latt
 
 
 function point_is_in_bz(point,rec_latt,origin_point) result(rtn)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Checks if the point "point" belongs to the 1st Brillouin zone of a Bravais
+!! lattice for which the reciprocal lettice vectors are "rec_latt(i,:)", i=1,2,3
+!! The optional variable "origin_point" is to be used if you want the mesh to be
+!! centered in other point than (0,0,0).
 implicit none
 logical :: rtn
 real(kind=dp), dimension(1:3), intent(in) :: point
@@ -308,6 +464,10 @@ end function point_is_in_bz
 
 
 subroutine reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,frac_coords_reduc_vec)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Takes a point "point" and returns another point "point_reduced_to_bz" which
+!! is equivalent to "point", but lies inside the 1st BZ of the Bravais lattice
+!! with reciprocal lattice vectors "rec_latt(i,:)", i=1,2,3.
 implicit none
 real(kind=dp), dimension(1:3), intent(in) :: point
 real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
@@ -351,6 +511,676 @@ integer :: icoord, ig1, ig2, ig3
     endif
 
 end subroutine reduce_point_to_bz
+
+
+subroutine get_symm(nsym, symops, schoenflies, international_symb, symprec, lattice)
+implicit none
+integer, intent(out), optional :: nsym
+type(symmetry_operation), dimension(:), allocatable, optional, intent(out) :: symops
+character(len=10), intent(out), optional :: schoenflies
+character(len=11), intent(out), optional :: international_symb
+real(kind=dp), intent(in), optional :: symprec
+real(kind=dp), dimension(1:3,1:3), intent(in) ::lattice
+!! Parameters
+integer, parameter :: num_atoms=1
+integer, dimension(1:1), parameter :: atom_types=1
+real(kind=dp), dimension(1:3), parameter :: atomic_positions=0.0d0
+! Local variables
+type(SpglibDataset) :: symm_dataset
+real(kind=dp) :: symm_prec
+real(kind=dp), dimension(1:3,1:3) :: M, M_inv
+integer :: isym, alloc_stat, space_group_num
+character(len=10) :: schoenflies_notation
+
+    symm_prec=1D-6
+    if(present(symprec))then 
+        symm_prec=dabs(symprec)
+    endif
+    symm_dataset = spg_get_dataset(lattice, atomic_positions, atom_types, num_atoms, symm_prec)
+
+    if(present(nsym))then
+        nsym = symm_dataset % n_operations 
+    endif
+
+    if(present(symops))then
+        M = lattice ! Matrix that changes from the lattice basis to the canonical basis in 3D
+        M_inv = inverse_of_3x3_matrix(M) 
+        deallocate(symops,stat=alloc_stat)
+        allocate(symops(1:symm_dataset % n_operations))
+        do isym=1, symm_dataset % n_operations
+            symops(isym) % translation_fractional_coords(:) = symm_dataset % translations(:,isym)
+            symops(isym) % rotation_fractional_coords(:,:) = symm_dataset % rotations(:,:,isym)
+            symops(isym) % translation_cartesian_coords(:) = matmul(symops(isym) % translation_fractional_coords(:), M)
+            symops(isym) % rotation_cartesian_coords(:,:) = matmul(M_inv,matmul(symops(isym) % rotation_fractional_coords(:,:),M))
+        enddo
+    endif
+
+    if(present(schoenflies))then
+        schoenflies_notation = '     '
+        space_group_num = spg_get_schoenflies(schoenflies_notation, lattice, atomic_positions, atom_types, num_atoms, symm_prec)
+        schoenflies = schoenflies_notation(:len(schoenflies_notation)-1)
+    endif
+
+    if(present(international_symb))then
+        international_symb = symm_dataset % international_symbol(:len(symm_dataset % international_symbol)-1)
+    endif
+
+end subroutine get_symm
+
+
+function pt_eqv_by_point_group_symop(point,symops,isym,fractional_coords,invert_symop) result(eqv_point)
+implicit none
+real(kind=dp), dimension(1:3) :: eqv_point
+real(kind=dp), dimension(1:3), intent(in) :: point
+type(symmetry_operation), dimension(:), intent(in) :: symops
+logical, intent(in), optional :: fractional_coords,invert_symop
+integer, intent(in) :: isym
+logical :: frac_coords, invert
+
+        frac_coords = .FALSE.
+        if(present(fractional_coords))then
+            frac_coords = fractional_coords
+        endif
+        invert=.FALSE.
+        if(present(invert_symop))then
+            invert = invert_symop
+        endif
+
+        if(frac_coords)then
+            if(.not. invert)then
+                eqv_point(:) = matmul(point(:),symops(isym) % rotation_fractional_coords(:,:))
+            else
+                eqv_point(:) = matmul(point(:),inverse_of_3x3_matrix(1.0d0*symops(isym) % rotation_fractional_coords(:,:)))
+            endif
+        else
+            if(.not. invert)then
+                eqv_point(:) = matmul(point(:),symops(isym) % rotation_cartesian_coords(:,:))
+            else
+                eqv_point(:) = matmul(point(:),inverse_of_3x3_matrix(1.0d0*symops(isym) % rotation_cartesian_coords(:,:)))
+            endif
+        endif
+
+end function pt_eqv_by_point_group_symop
+
+subroutine get_star(star_of_pt,list_of_all_generated_points,points,lattice,tol_for_vec_equality,symprec,reduce_to_bz)
+!! The input list of points shall be in cartesian coordinates.
+!! The output list of points will be also given in cartesian coordinates.
+implicit none
+type :: symop_properties
+    real(kind=dp), dimension(1:3) :: coord
+    logical :: is_eqv_to_a_previous_symop
+    logical, dimension(:), allocatable :: eqv_to_symop
+end type symop_properties
+type :: degenerate_star
+    type(symop_properties), dimension(:), allocatable :: symop
+end type degenerate_star
+
+
+type(star), dimension(:), allocatable, intent(out), optional :: star_of_pt 
+type(vec3d), dimension(:), allocatable, intent(out), optional :: list_of_all_generated_points
+type(vec3d), dimension(:), intent(in) :: points
+real(kind=dp), dimension(1:3,1:3), intent(in) :: lattice
+real(kind=dp), intent(in), optional :: tol_for_vec_equality,symprec
+logical, intent(in), optional :: reduce_to_bz
+
+type(degenerate_star), dimension(:), allocatable :: possibly_degenerate_pts_eqv_to_pt
+type(star), dimension(:), allocatable :: reduced_points_eqv_to_pt 
+real(kind=dp), dimension(1:3) :: point,eqv_point,point_reduced_to_bz
+integer :: size_points,ipt,ipt2,nsym,isym,isym2,iupt,neqv,alloc_stat,n_generated_points,ieqv_pt
+real(kind=dp) :: tol,sym_prec
+logical :: reduce2bz
+type(symmetry_operation), dimension(:), allocatable :: symops
+
+    tol=1D-5
+    if(present(tol_for_vec_equality))then
+        tol = dabs(tol_for_vec_equality)
+    endif
+    sym_prec=1D-6
+    if(present(symprec))then
+        sym_prec = dabs(symprec)
+    endif
+    reduce2bz = .FALSE.
+    if(present(reduce_to_bz))then
+        reduce2bz = reduce_to_bz
+    endif
+
+    call get_symm(nsym=nsym, symops=symops, symprec=sym_prec, lattice=lattice)
+    size_points = size(points)
+
+    deallocate(possibly_degenerate_pts_eqv_to_pt,stat=alloc_stat)
+    allocate(possibly_degenerate_pts_eqv_to_pt(1:size_points))
+    do ipt=1, size_points
+        deallocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop,stat=alloc_stat)
+        allocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(1:nsym))
+        point(:) = points(ipt)%coord(:) ! In cartesian coords.
+        if(reduce2bz)then
+            call reduce_point_to_bz(point, lattice, point_reduced_to_bz) ! Mind that the subroutine returns the vector in cartesian coords.
+            point = point_reduced_to_bz
+        endif
+        point(:) = coords_cart_vec_in_new_basis(cart_vec=point(:),new_basis=lattice)  ! Changing now to fractional coords.
+        do isym=1, nsym
+            deallocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop,stat=alloc_stat)
+            allocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop(1:nsym))
+            eqv_point(:) = pt_eqv_by_point_group_symop(point=point,symops=symops,isym=isym, fractional_coords=.TRUE.)
+            possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:) = eqv_point(1)*lattice(1,:) + eqv_point(2)*lattice(2,:) + eqv_point(3)*lattice(3,:) ! Cartesian 
+        enddo
+
+        do isym=1,nsym
+            possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%is_eqv_to_a_previous_symop = .FALSE.
+            do isym2=1,nsym
+                possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop(isym2) = (isym==isym2)
+            enddo
+        enddo
+
+        do isym=1,nsym-1
+            do isym2=isym+1,nsym
+                if(same_vector(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%coord(:),possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:),tol))then
+                    possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop(isym2) = .TRUE.
+                    possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%eqv_to_symop(isym) = .TRUE.
+                    possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%is_eqv_to_a_previous_symop = .TRUE.
+                endif
+            enddo
+        enddo
+    enddo
+ 
+    deallocate(reduced_points_eqv_to_pt,stat=alloc_stat)
+    allocate(reduced_points_eqv_to_pt(1:size_points))
+    do ipt=1,size_points
+        neqv = count(.not. possibly_degenerate_pts_eqv_to_pt(ipt)%symop(:)%is_eqv_to_a_previous_symop)
+        deallocate(reduced_points_eqv_to_pt(ipt)%eqv_pt,stat=alloc_stat)
+        allocate(reduced_points_eqv_to_pt(ipt)%eqv_pt(1:neqv))
+        reduced_points_eqv_to_pt(ipt)%neqv = neqv
+        iupt = 0
+        do isym=1, nsym
+            if(.not. possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%is_eqv_to_a_previous_symop)then
+                iupt = iupt + 1 !! iupt = index of "unique" pt
+                reduced_points_eqv_to_pt(ipt)%eqv_pt(iupt)%coord(:) = possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:)
+                reduced_points_eqv_to_pt(ipt)%eqv_pt(iupt)%symop = isym
+            endif
+        enddo
+    enddo
+
+    if(present(star_of_pt))then
+        deallocate(star_of_pt,stat=alloc_stat)
+        allocate(star_of_pt(1:size(reduced_points_eqv_to_pt)))
+        star_of_pt = reduced_points_eqv_to_pt
+    endif
+
+    if(present(list_of_all_generated_points))then
+        n_generated_points = sum(reduced_points_eqv_to_pt(:)%neqv)
+        allocate(list_of_all_generated_points(1:n_generated_points))
+        ipt2=0
+        do ipt=1,size(reduced_points_eqv_to_pt(:))
+            do ieqv_pt=1,reduced_points_eqv_to_pt(ipt)%neqv
+                ipt2 = ipt2 + 1
+                list_of_all_generated_points(ipt2)%coord(:) = reduced_points_eqv_to_pt(ipt)%eqv_pt(ieqv_pt)%coord(:)
+            enddo
+        enddo
+    endif
+
+end subroutine get_star
+
+subroutine get_irr_kpts(n_irr_kpts,irr_kpts_list,kpts_list,rec_latt,reduce_to_bz,symprec)
+implicit none
+integer, intent(out) :: n_irr_kpts
+real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
+type(vec3d), dimension(:), intent(in) :: kpts_list
+type(vec3d), dimension(:), allocatable, intent(out) :: irr_kpts_list
+logical, intent(in), optional :: reduce_to_bz
+real(kind=dp), optional :: symprec
+
+real(kind=dp), dimension(1:3) :: point, previous_point, point_reduced_to_SCBZ
+type(symmetry_operation), dimension(:), allocatable :: symops
+integer :: ikpt,ikpt2,nsym,isym
+logical :: reduce2bz,eqv_to_previous_kpt
+real(kind=dp) :: sprec
+
+    reduce2bz = .FALSE.
+    if(present(reduce_to_bz))then
+        reduce2bz = reduce_to_bz
+    endif
+
+    sprec=1D-6
+    if(present(symprec))then
+        sprec = symprec
+    endif
+
+    call get_symm(nsym=nsym, symops=symops,symprec=sprec, lattice=rec_latt(:,:))
+    n_irr_kpts = 0
+    allocate(irr_kpts_list(1:size(kpts_list)))
+    do ikpt = 1, size(irr_kpts_list)
+        irr_kpts_list(ikpt)%coord(:) = 0.0d0
+    enddo
+    do ikpt=1, size(kpts_list)
+        if(reduce2bz)then
+            call reduce_point_to_bz(kpts_list(ikpt)%coord(:), rec_latt, point_reduced_to_SCBZ)  ! In cartesian coords.
+            point(:) = point_reduced_to_SCBZ(:)
+        else
+            point(:) = kpts_list(ikpt)%coord(:) 
+        endif
+        eqv_to_previous_kpt = .FALSE.
+        if(n_irr_kpts>0)then
+            do ikpt2 = n_irr_kpts,1,-1
+                do isym=1,nsym
+                    previous_point(:) = pt_eqv_by_point_group_symop(point=irr_kpts_list(ikpt2)%coord(:), symops=symops,isym=isym, fractional_coords=.TRUE.)
+                    previous_point = previous_point(1)*rec_latt(1,:) + previous_point(2)*rec_latt(2,:) +previous_point(3)*rec_latt(3,:)
+                    if(same_vector(point,previous_point,sprec))then 
+                        eqv_to_previous_kpt = .TRUE.
+                        exit
+                    endif
+                enddo
+                if(eqv_to_previous_kpt) exit
+            enddo
+        endif
+        if(.not.eqv_to_previous_kpt)then
+            point(:) = coords_cart_vec_in_new_basis(cart_vec=point_reduced_to_SCBZ,new_basis=rec_latt)  ! Now in fractional coords.
+            n_irr_kpts = n_irr_kpts + 1
+            irr_kpts_list(n_irr_kpts)%coord(:) = point(:) ! In fractional coords.
+        endif
+    enddo
+
+end subroutine get_irr_kpts
+
+
+subroutine get_symops_pc_minus_symops_SC(symops_pcbz_minus_SCBZ, rec_latt_pc, rec_latt_SC, symprec)
+implicit none
+type(symmetry_operation), dimension(:), allocatable, intent(out) :: symops_pcbz_minus_SCBZ
+real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt_pc, rec_latt_SC
+real(kind=dp), intent(in), optional :: symprec
+type(symmetry_operation), dimension(:), allocatable :: symops_pc, symops_SC
+integer :: nsym_pc, nsym_SC,nsym_diff,isym_pc,isym_SC,isym_diff
+real(kind=dp), dimension(1:3,1:3) :: diff
+real(kind=dp) :: sprec
+logical, dimension(:), allocatable :: common_rotation
+!integer :: i
+
+    sprec = 1D-6
+    if(present(symprec))then
+        sprec = symprec
+    endif
+
+    call get_symm(nsym=nsym_pc, symops=symops_pc, symprec=sprec, lattice=rec_latt_pc)
+    call get_symm(nsym=nsym_SC, symops=symops_SC, symprec=sprec, lattice=rec_latt_SC)
+    allocate(common_rotation(1:nsym_pc))
+    common_rotation(:) = .FALSE.
+    do isym_pc=1,nsym_pc
+        do isym_SC=1,nsym_SC
+            diff(:,:) = symops_pc(isym_pc)%rotation_cartesian_coords(:,:) - symops_SC(isym_SC)%rotation_cartesian_coords(:,:)
+            if(frobenius_norm(diff) < sprec)then
+                common_rotation(isym_pc) = .TRUE.
+                exit
+            endif    
+        enddo
+    enddo
+
+    nsym_diff = count(common_rotation(:) == .FALSE.)
+    allocate(symops_pcbz_minus_SCBZ(1:nsym_diff))
+    isym_diff = 0
+    do isym_pc=1,nsym_pc
+        if(.not. common_rotation(isym_pc))then
+            isym_diff = isym_diff + 1
+            symops_pcbz_minus_SCBZ(isym_diff) = symops_pc(isym_pc)
+        endif
+    enddo
+
+end subroutine get_symops_pc_minus_symops_SC
+
+
+function trace(square_matrix) result(rtn)
+implicit none
+real(kind=dp) :: rtn
+real(kind=dp), dimension(:,:) :: square_matrix
+integer :: i, dimens
+
+    dimens=size(square_matrix,dim=1)
+    rtn = 0.0d0
+    do i=1,dimens
+        rtn = rtn + square_matrix(i,i)
+    enddo
+
+end function trace
+
+
+function frobenius_inner_product(A,B) result(rtn)
+implicit none
+real(kind=dp), intent(in), dimension(:,:) :: A, B
+real(kind=dp) :: rtn
+
+   rtn = trace(matmul(A,transpose(B))) 
+
+end function frobenius_inner_product
+
+
+function frobenius_norm(A) result(rtn)
+implicit none
+real(kind=dp), intent(in), dimension(:,:) :: A
+real(kind=dp) :: rtn
+
+    rtn = dsqrt(frobenius_inner_product(A,A))
+
+end function frobenius_norm
+
+
+subroutine get_compl_pcbz_direcs(compl_pcdirs,ncompl,dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ,symprec)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+implicit none
+type(eqv_bz_directions), intent(out) :: compl_pcdirs
+integer, intent(out) :: ncompl
+type(eqv_bz_directions), intent(in) :: dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ
+real(kind=dp), intent(in), optional :: symprec
+real(kind=dp) :: sprec
+integer :: neqv_pc,neqv_SC,ieqv_pc,ieqv_SC,icompl
+real(kind=dp), dimension(1:3) :: kstart_pc,kend_pc,kstart_SC,kend_SC
+logical, dimension(:), allocatable :: direc_also_eqv_in_SC
+
+
+    ncompl = 0
+    sprec=1D-6
+    if(present(symprec))then
+        sprec=symprec
+    endif
+    neqv_pc = size(dirs_eqv_in_pcbz%eqv_dir(:))
+    neqv_SC = size(dirs_eqv_in_SCBZ%eqv_dir(:))
+    allocate(direc_also_eqv_in_SC(1:neqv_pc))
+    direc_also_eqv_in_SC(:) = .FALSE.
+    do ieqv_pc=1,neqv_pc
+        kstart_pc(:) = dirs_eqv_in_pcbz%eqv_dir(ieqv_pc)%kstart(:)
+        kend_pc(:) = dirs_eqv_in_pcbz%eqv_dir(ieqv_pc)%kend(:)
+        do ieqv_SC=1,neqv_SC
+            kstart_SC = dirs_eqv_in_SCBZ%eqv_dir(ieqv_SC)%kstart(:)
+            kend_SC = dirs_eqv_in_SCBZ%eqv_dir(ieqv_SC)%kend
+            if(same_vector(kstart_pc,kstart_SC) .and. same_vector(kend_pc,kend_SC))then
+                direc_also_eqv_in_SC(ieqv_pc) = .TRUE.
+                exit
+            endif
+        enddo
+    enddo
+    ncompl = count(.not. direc_also_eqv_in_SC)
+    if(ncompl /= 0)then
+        allocate(compl_pcdirs%eqv_dir(1:ncompl))
+        icompl = 0
+        do ieqv_pc=1,neqv_pc
+            if(.not. direc_also_eqv_in_SC(ieqv_pc))then
+                icompl = icompl + 1
+                compl_pcdirs%eqv_dir(icompl) = dirs_eqv_in_pcbz%eqv_dir(ieqv_pc)
+            endif
+        enddo
+    endif
+
+end subroutine get_compl_pcbz_direcs
+
+subroutine get_irr_bz_directions(irr_dirs,nirr,list_of_dirs,symm_ops,rec_latt,symprec)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+implicit none
+type(irr_bz_directions), intent(out) :: irr_dirs
+integer, intent(out) :: nirr
+type(eqv_bz_directions), intent(in) :: list_of_dirs
+type(symmetry_operation), dimension(:), optional, intent(in) :: symm_ops
+real(kind=dp), dimension(1:3,1:3), intent(in), optional :: rec_latt
+real(kind=dp), intent(in), optional :: symprec
+real(kind=dp) :: sprec
+logical, dimension(:,:), allocatable ::  dirs_are_eqv
+logical, dimension(:), allocatable :: dir_eqv_to_a_previous_one
+integer :: ndirs,idir,idir2
+real(kind=dp), dimension(1:3) :: current_kstart,current_kend,next_kstart,next_kend
+type(symmetry_operation), dimension(:), allocatable :: symops
+
+    nirr = 0
+    sprec=1D-6
+    if(present(symprec))then
+        sprec=symprec
+    endif
+    if(present(symm_ops))then
+        allocate(symops(1:size(symm_ops)))
+        symops=symm_ops
+    else
+        call get_symm(symops=symops, symprec=sprec, lattice=rec_latt)
+    endif
+
+    ndirs = size(list_of_dirs%eqv_dir(:))
+    allocate(dirs_are_eqv(1:ndirs,1:ndirs))
+    dirs_are_eqv(:,:) = .FALSE.
+    allocate(dir_eqv_to_a_previous_one(1:ndirs))
+    dir_eqv_to_a_previous_one(:) = .FALSE.
+    do idir=1,ndirs-1
+        dirs_are_eqv(idir,idir) = .TRUE.
+        if(dir_eqv_to_a_previous_one(idir)) cycle
+        current_kstart = list_of_dirs%eqv_dir(idir)%kstart
+        current_kend = list_of_dirs%eqv_dir(idir)%kend
+        do idir2=idir+1,ndirs
+            if(dir_eqv_to_a_previous_one(idir2)) cycle
+            next_kstart = list_of_dirs%eqv_dir(idir2)%kstart
+            next_kend = list_of_dirs%eqv_dir(idir2)%kend
+            if(direcs_are_eqv(current_kstart,current_kend,next_kstart,next_kend,symops))then
+                dir_eqv_to_a_previous_one(idir2) = .TRUE.
+                dirs_are_eqv(idir,idir2) = .TRUE.
+                dirs_are_eqv(idir2,idir) = dirs_are_eqv(idir,idir2)
+            endif
+        enddo
+    enddo
+    dirs_are_eqv(ndirs,ndirs) = .TRUE.
+    nirr = count(.not. dir_eqv_to_a_previous_one)
+    if(nirr > 0)then
+        allocate(irr_dirs%irr_dir(1:nirr))
+        idir2 = 0
+        do idir=1,ndirs
+            if(.not. dir_eqv_to_a_previous_one(idir))then
+                idir2 = idir2 + 1
+                irr_dirs%irr_dir(idir2) = list_of_dirs%eqv_dir(idir)
+                irr_dirs%irr_dir(idir2)%neqv = count(dirs_are_eqv(idir,:))
+            endif
+        enddo
+    endif
+
+end subroutine get_irr_bz_directions
+
+
+subroutine get_eqv_bz_dirs(eqv_dirs,kstart,kend,symm_ops,rec_latt,symprec) 
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+implicit none
+type(eqv_bz_directions), intent(out) :: eqv_dirs
+real(kind=dp), dimension(1:3), intent(in) :: kstart,kend
+type(symmetry_operation), dimension(:), optional, intent(in) :: symm_ops
+real(kind=dp), dimension(1:3,1:3), intent(in), optional :: rec_latt
+real(kind=dp), intent(in), optional :: symprec
+real(kind=dp) :: sprec
+logical, dimension(:,:), allocatable ::  same_dirs
+logical, dimension(:), allocatable :: repeated_dir
+integer :: isym,nsym,n_eqv_dirs_full_star,ieqv_dir,ieqv_dir2,n_eqv_dirs,i_eqv_dirs_full_star
+real(kind=dp), dimension(1:3) :: current_kstart,current_kend,next_kstart,next_kend
+type(eqv_bz_directions) :: full_star_of_eqv_dirs
+type(symmetry_operation), dimension(:), allocatable :: symops
+
+    sprec=1D-6
+    if(present(symprec))then
+        sprec=symprec
+    endif
+    if(present(symm_ops))then
+        allocate(symops(1:size(symm_ops)))
+        symops=symm_ops
+        nsym = size(symops)
+    else
+        call get_symm(nsym=nsym, symops=symops, symprec=sprec, lattice=rec_latt)
+    endif
+
+    n_eqv_dirs_full_star = nsym
+    allocate(full_star_of_eqv_dirs%eqv_dir(1:n_eqv_dirs_full_star))
+    do isym=1,nsym
+        full_star_of_eqv_dirs%eqv_dir(isym)%kstart(:) = pt_eqv_by_point_group_symop(point=kstart,symops=symops,isym=isym)
+        full_star_of_eqv_dirs%eqv_dir(isym)%kend(:) = pt_eqv_by_point_group_symop(point=kend,symops=symops,isym=isym)
+    enddo
+    allocate(repeated_dir(1:n_eqv_dirs_full_star))
+    allocate(same_dirs(1:n_eqv_dirs_full_star,1:n_eqv_dirs_full_star))
+    repeated_dir(:) = .FALSE.
+    same_dirs(:,:) = .FALSE.
+    do ieqv_dir=1,n_eqv_dirs_full_star-1
+        if(repeated_dir(ieqv_dir)) cycle
+        current_kstart = full_star_of_eqv_dirs%eqv_dir(ieqv_dir)%kstart(:)
+        current_kend = full_star_of_eqv_dirs%eqv_dir(ieqv_dir)%kend(:)
+        do ieqv_dir2=ieqv_dir+1,n_eqv_dirs_full_star
+            if(repeated_dir(ieqv_dir2)) cycle
+            next_kstart = full_star_of_eqv_dirs%eqv_dir(ieqv_dir2)%kstart(:)
+            next_kend = full_star_of_eqv_dirs%eqv_dir(ieqv_dir2)%kend(:)
+            if(same_vector(current_kstart,next_kstart,sprec) .and. same_vector(current_kend,next_kend,sprec))then
+                repeated_dir(ieqv_dir2) = .TRUE.
+                same_dirs(ieqv_dir,ieqv_dir2) = .TRUE.
+                same_dirs(ieqv_dir2,ieqv_dir) = same_dirs(ieqv_dir,ieqv_dir2)
+            endif
+        enddo        
+    enddo
+    n_eqv_dirs = count(.not. repeated_dir)
+
+    eqv_dirs%neqv = n_eqv_dirs
+    allocate(eqv_dirs%eqv_dir(1:n_eqv_dirs))
+    ieqv_dir = 0
+    do i_eqv_dirs_full_star=1,n_eqv_dirs_full_star
+        if(.not. repeated_dir(i_eqv_dirs_full_star))then
+            ieqv_dir = ieqv_dir + 1
+            eqv_dirs%eqv_dir(ieqv_dir) = full_star_of_eqv_dirs%eqv_dir(i_eqv_dirs_full_star)
+        endif
+    enddo
+    
+end subroutine get_eqv_bz_dirs
+
+function points_are_eqv(v1,v2,symops,symprec) result(rtn)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+implicit none
+logical :: rtn
+real(kind=dp), dimension(1:3), intent(in) :: v1, v2
+type(symmetry_operation), dimension(:), intent(in) :: symops
+real(kind=dp), intent(in), optional :: symprec
+integer :: nsym,isym
+real(kind=dp), dimension(1:3) :: eqv_v1
+real(kind=dp) :: sprec
+
+    rtn = .FALSE.
+
+    sprec = 1D-6
+    if(present(symprec))then
+        sprec = symprec
+    endif
+
+    nsym = size(symops)
+    do isym=1,nsym
+        eqv_v1 = pt_eqv_by_point_group_symop(point=v1,symops=symops,isym=isym)
+        if(same_vector(eqv_v1,v2,sprec))then
+            rtn = .TRUE.
+            return
+        endif
+    enddo
+
+end function points_are_eqv
+
+function direcs_are_eqv(start1,end1,start2,end2,symops,symprec) result(rtn)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+implicit none
+logical :: rtn
+real(kind=dp), dimension(1:3), intent(in) :: start1,end1,start2,end2
+type(symmetry_operation), dimension(:), intent(in) :: symops
+real(kind=dp), intent(in), optional :: symprec
+real(kind=dp) :: sprec
+
+    rtn = .FALSE.
+
+    sprec = 1D-6
+    if(present(symprec))then
+        sprec = symprec
+    endif
+
+    if(dabs(norm(end1 - start1) - norm(end2 - start2)) <= sprec)then
+        rtn = (points_are_eqv(start1,start2,symops) .and. points_are_eqv(end1,end2,symops))
+    endif
+
+
+end function direcs_are_eqv
+
+
+
+subroutine get_all_irr_dirs_req_for_symmavgd_EBS(dirs_req_for_symmavgd_EBS_along_pcbz_dir, n_dirs_for_EBS_along_pcbz_dir, &
+                                                 neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs, &
+                                                 b_matrix_pc,B_matrix_SC,k_starts,k_ends)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+implicit none
+type(irr_bz_directions), dimension(:), allocatable, intent(out) :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
+integer, dimension(:), allocatable, intent(out) :: n_dirs_for_EBS_along_pcbz_dir,neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs
+real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
+real(kind=dp), dimension(:,:), intent(in) :: k_starts,k_ends
+type(symmetry_operation), dimension(:), allocatable :: symops_SC, symops_pc
+type(eqv_bz_directions), dimension(:), allocatable :: dirs_eqv_in_SC_to_selec_pcbz_dir,dirs_eqv_in_pc_to_selec_pcbz_dir,complementary_pcdirs_for_pcdir
+type(irr_bz_directions), dimension(:), allocatable :: irr_compl_pcdirs_for_pcdir
+integer :: idir,ndirs,n_eqv_dirs_in_pcbz,n_eqv_dirs_in_SCBZ,n_req_dirs,i_req_dir
+
+
+ndirs = size(k_starts(:,:),dim=1)
+
+call get_symm(symops=symops_SC, lattice=B_matrix_SC)
+call get_symm(symops=symops_pc, lattice=b_matrix_pc)
+allocate(dirs_eqv_in_SC_to_selec_pcbz_dir(1:ndirs), dirs_eqv_in_pc_to_selec_pcbz_dir(1:ndirs))
+!! Getting all the pcbz directions that are equivalent to each of the selected pcbz directions:
+do idir=1,ndirs
+    !! (1) By symmetry operations of the SCBZ
+    call get_eqv_bz_dirs(eqv_dirs=dirs_eqv_in_SC_to_selec_pcbz_dir(idir),&
+                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_SC)
+    !! (2) By symmetry operations of the pcbz
+    call get_eqv_bz_dirs(eqv_dirs=dirs_eqv_in_pc_to_selec_pcbz_dir(idir),&
+                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_pc)
+enddo
+!! Getting all the pcbz directions that are:
+!!     >>> Eqv. to the selected ones by sym. ops. of the pcbz 
+!!                         and 
+!!     >>> NOT eqv. to the selected ones by sym. ops. of the SCBZ
+!! I call them >>> complementary pcbz directions <<<
+allocate(complementary_pcdirs_for_pcdir(1:ndirs),ncompl_dirs(1:ndirs))
+do idir=1,ndirs
+    call get_compl_pcbz_direcs(compl_pcdirs=complementary_pcdirs_for_pcdir(idir), ncompl=ncompl_dirs(idir), &
+                               dirs_eqv_in_pcbz=dirs_eqv_in_pc_to_selec_pcbz_dir(idir), &
+                               dirs_eqv_in_SCBZ=dirs_eqv_in_SC_to_selec_pcbz_dir(idir))
+enddo
+!! Getting now the irreducible complementary pcbz directions
+allocate(irr_compl_pcdirs_for_pcdir(1:ndirs),n_irr_compl_dirs(1:ndirs))
+do idir=1,ndirs
+    if(ncompl_dirs(idir) > 0)then
+        call get_irr_bz_directions(irr_dirs=irr_compl_pcdirs_for_pcdir(idir), nirr=n_irr_compl_dirs(idir), &
+                                   list_of_dirs=complementary_pcdirs_for_pcdir(idir),symm_ops=symops_SC)
+    else
+        n_irr_compl_dirs(idir) = 0
+    endif
+enddo
+!! Finally getting all directions required for a symmetry-averaged EBS along the selected pcbz directions
+allocate(neqv_dirs_pcbz(1:ndirs), neqv_dirs_SCBZ(1:ndirs))
+allocate(dirs_req_for_symmavgd_EBS_along_pcbz_dir(1:ndirs))
+allocate(n_dirs_for_EBS_along_pcbz_dir(1:ndirs))
+do idir=1,ndirs
+    n_eqv_dirs_in_pcbz = size(dirs_eqv_in_pc_to_selec_pcbz_dir(idir)%eqv_dir(:))
+    n_req_dirs = 1 + n_irr_compl_dirs(idir)
+    n_dirs_for_EBS_along_pcbz_dir(idir) = n_req_dirs
+    allocate(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1:n_req_dirs))
+    
+    dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%kstart = k_starts(idir,:) 
+    dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%kend = k_ends(idir,:) 
+    n_eqv_dirs_in_SCBZ = size(dirs_eqv_in_SC_to_selec_pcbz_dir(idir)%eqv_dir(:))
+    dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%neqv = n_eqv_dirs_in_SCBZ
+    dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%weight = real(n_eqv_dirs_in_SCBZ,kind=dp)/real(n_eqv_dirs_in_pcbz,kind=dp)
+    if(n_req_dirs > 1)then
+        do i_req_dir=2,n_req_dirs
+            dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir) = irr_compl_pcdirs_for_pcdir(idir)%irr_dir(i_req_dir-1)
+            n_eqv_dirs_in_SCBZ = dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir)%neqv
+            dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir)%weight = real(n_eqv_dirs_in_SCBZ,kind=dp)/real(n_eqv_dirs_in_pcbz,kind=dp)
+        enddo
+    endif
+
+    if(abs(sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight) - 1.0d0) > 1D-3)then
+        write(*,"(A,I0,A)")"ERROR: The weights for the pcbz directions that are equivalent to the selected pcbz direction #",idir," do not add up to 1."
+        write(*,"(A)")     "       This is necessary in order to obtain properly symmetry-averaged EBS."
+        write(*,"(A)")     "Stopping now."
+        stop
+    endif
+    neqv_dirs_pcbz(idir) = n_eqv_dirs_in_pcbz
+    neqv_dirs_SCBZ(idir) = size(dirs_eqv_in_SC_to_selec_pcbz_dir(idir)%eqv_dir)
+enddo
+
+
+end subroutine get_all_irr_dirs_req_for_symmavgd_EBS
 
 
 subroutine divide_SCKPTS_evenly_among_MPI_tasks(SCKPTS_for_task,nkpts,ntasks)
