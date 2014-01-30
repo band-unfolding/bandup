@@ -45,8 +45,8 @@ prec_pos_band_centers = 0.01e-3 # in eV
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("input_file", nargs='?', default="unfolded_EBS_symmetry-averaged.dat", help="The name of the input file.")
-parser.add_argument("-kpt", default="g", help="")
+parser.add_argument('input_file', nargs='?', default='unfolded_EBS_symmetry-averaged.dat', help='The name of the input file.')
+parser.add_argument('-kpt', default='g', help='')
 args = parser.parse_args()
 
 # Reading input file
@@ -54,7 +54,7 @@ min_dN = 1e-5  # 1e-4 should be OK
 input_file=args.input_file
 args.kpt = args.kpt.lower()[0]
 
-print "Reading input file (",input_file,")"
+print 'Reading input file (%s)' % input_file
 # It is faster to read the file manually instead of using np.loadtxt, because we can skip vaues that won't be used
 kpts = []
 energies = []
@@ -94,7 +94,7 @@ chosen_kpt_coord = high_sym_kpts[high_sym_kpts_dict[args.kpt]]
 
 available_kpt_closest_to_the_chosen = min(kpts, key=lambda x:abs(x-chosen_kpt_coord))
 chosen_kpt = available_kpt_closest_to_the_chosen
-print "Parsing results for kpt coord = ", chosen_kpt," A**-1."
+print 'Parsing results for kpt coord = ', chosen_kpt,' A**-1.'
 
 unique_kpts_coords = np.unique(kpts).tolist()
 min_d_kpts = min([abs(unique_kpts_coords[ikpt+1] - unique_kpts_coords[-1]) for ikpt in range(len(unique_kpts_coords) - 1)])
@@ -137,7 +137,7 @@ min_sum_dNs_for_a_band = abs(min_sum_dNs_for_a_band)
 threshold_dN_2b_trial_band_center = abs(threshold_dN_2b_trial_band_center)
 if(min_sum_dNs_for_a_band < threshold_dN_2b_trial_band_center):
     min_sum_dNs_for_a_band = threshold_dN_2b_trial_band_center
-    print "WARNING: Resetting min_sum_dNs_for_a_band because it is smaller than threshold_dN_2b_trial_band_center."
+    print 'WARNING: Resetting min_sum_dNs_for_a_band because it is smaller than threshold_dN_2b_trial_band_center.'
 
 guess_band_centers = band_centers_1st_guesses
 n_guesses_bc_start = len(guess_band_centers)
@@ -199,19 +199,19 @@ while(not converged):
 
         n_guesses_bc_end = len(band_centers)
         if(count>0):
-            print "Positions of the band centers converged to a precision of",1000.0 * prec_pos_band_centers,"meV after",count,"self-consistent steps."
+            print 'Positions of the band centers converged to a precision of', 1000.0 * prec_pos_band_centers, 'meV after',count,'self-consistent steps.'
         if(n_guesses_bc_end != n_guesses_bc_start):
-            print "The # of band centers has been reduced from",n_guesses_bc_start,"(starting guess based on the values of delta_N) to",n_guesses_bc_end,"."
+            print 'The # of band centers has been reduced from', n_guesses_bc_start, '(starting guess based on the values of delta_N) to' ,n_guesses_bc_end, '.'
     else:
         guess_band_centers = refined_band_centers
         refined_band_centers = []
 
 
-print "#Band center #Band width (meV) #Sum of dN"
+print '#Band center #Band width (meV) #Sum of dN'
 for iband in range(len(band_centers)):
     b_weight = np.sum(weights_of_E_around_band_centers[iband])
     bc, bwidth = weighted_avg_and_std(values=enegies_spread_in_band[iband], weights=weights_of_enegies_spread_in_band[iband])
-    print " %0.2f        %3i             %0.1f" % (bc, 1000.0 * bwidth, round(b_weight,1))
+    print ' %0.2f        %3i             %0.1f' % (bc, 1000.0 * bwidth, round(b_weight,1))
 
 
 sys.exit(0)
