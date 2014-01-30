@@ -307,7 +307,7 @@ if(args.icolormap != None):
 print 'Generating the plot...'
 ki = np.linspace(xmin,xmax,2*len(set(KptsCoords))+1,endpoint=True)
 Ei = np.arange(ymin,ymax+energy_tolerance_for_hist2d,energy_tolerance_for_hist2d)
-grid_freq = griddata((KptsCoords, energies), delta_Ns, (ki[None,:], Ei[:,None]), method='cubic',fill_value=0.0)
+grid_freq = griddata((KptsCoords, energies), delta_Ns, (ki[None,:], Ei[:,None]), method='linear',fill_value=0.0)
 grid_freq = grid_freq.clip(0.0) # Values smaller than zero are just noise.
 
 n_levels = args.n_levels
