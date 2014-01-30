@@ -25,30 +25,30 @@ from os.path import join, realpath, dirname
 import sys
 
 parser = argparse.ArgumentParser()
-parser.add_argument("input_file", default="unfolded_band_structure.dat", nargs='?', help="")
-parser.add_argument("output_file", nargs='?', default=None,help="")
-parser.add_argument("-kpts","--kpoints_file", default="KPOINTS_prim_cell.in")
-parser.add_argument("-efile","--energy_info_file", default="energy_info.in")
-parser.add_argument("-shift_k","--shift_kpts_coords", type=float, help="", default=0.0)
-parser.add_argument("-shift_e","--shift_energy", type=float, help="", default=0.0)
-parser.add_argument("--no_ef", help="Hides the E-Fermi line.", action="store_true")
-parser.add_argument("--no_cb", help="Hides the colorbar.", action="store_true")
-parser.add_argument("-vmax","--maxval_for_colorbar", type=float, help="Value the last color of the colormap will be normalized to.")
-parser.add_argument("-vmin","--minval_for_colorbar", type=float, help="Value the first color of the colormap will be normalized to.")
-parser.add_argument("-nlev","--n_levels", type=int, default=1001, help="Number of different levels used.")
-parser.add_argument("-ar","--aspect_ratio", default="3.0/4.0", help="Aspect ratio for the generated plot.")
-parser.add_argument("-res","--fig_resolution", default="m", choices=['l','m','h'], help="Resolution for the generated plot: l = 100 dpi, m = 300 dpi, h = 600 dpi.")
-parser.add_argument("-icmap","--icolormap", type=int, default=None)
+parser.add_argument('input_file', default='unfolded_band_structure.dat', nargs='?', help='')
+parser.add_argument('output_file', nargs='?', default=None, help='')
+parser.add_argument('-kpts', '--kpoints_file', default='KPOINTS_prim_cell.in')
+parser.add_argument('-efile', '--energy_info_file', default='energy_info.in')
+parser.add_argument('-shift_k', '--shift_kpts_coords', type=float, help='', default=0.0)
+parser.add_argument('-shift_e', '--shift_energy', type=float, help='', default=0.0)
+parser.add_argument('--no_ef', help='Hides the E-Fermi line.', action='store_true')
+parser.add_argument('--no_cb', help='Hides the colorbar.', action='store_true')
+parser.add_argument('-vmax', '--maxval_for_colorbar', type=float, help='Value the last color of the colormap will be normalized to.')
+parser.add_argument('-vmin', '--minval_for_colorbar', type=float, help='Value the first color of the colormap will be normalized to.')
+parser.add_argument('-nlev', '--n_levels', type=int, default=1001, help='Number of different levels used.')
+parser.add_argument('-ar', '--aspect_ratio', default='3.0/4.0', help='Aspect ratio for the generated plot.')
+parser.add_argument('-res', '--fig_resolution', default='m', choices=['l','m','h'], help='Resolution for the generated plot: l = 100 dpi, m = 300 dpi, h = 600 dpi.')
+parser.add_argument('-icmap', '--icolormap', type=int, default=None)
 possible_fig_orientations = parser.add_mutually_exclusive_group()
-possible_fig_orientations.add_argument("--landscape", action="store_true")
-possible_fig_orientations.add_argument("--portrait", action="store_true")
-parser.add_argument("-fmt","--file_format",default="png",choices=["png","eps","pdf","jpg","tif"])
-parser.add_argument("--round_cb", type=int, default=1, help="Number of digits displayed in the colobar ticks.")
+possible_fig_orientations.add_argument('--landscape', action='store_true')
+possible_fig_orientations.add_argument('--portrait', action='store_true')
+parser.add_argument('-fmt', '--file_format', default='png', choices=['png', 'eps', 'pdf', 'jpg', 'tif'])
+parser.add_argument('--round_cb', type=int, default=1, help='Number of digits displayed in the colobar ticks.')
 show_cb_label_options = parser.add_mutually_exclusive_group()
-show_cb_label_options.add_argument("--cb_label", action="store_true", help="Show the colorbar label.")
-show_cb_label_options.add_argument("--cb_label_full", action="store_true", help="Show the colorbar label (full).")
-parser.add_argument("--save", help="Saves the figue to a file.", action="store_true", default=False)
-parser.add_argument("--show", help="Shows the figue.", action="store_true", default=False)
+show_cb_label_options.add_argument('--cb_label', action='store_true', help='Show the colorbar label.')
+show_cb_label_options.add_argument('--cb_label_full', action='store_true', help='Show the colorbar label (full).')
+parser.add_argument('--save', help='Saves the figue to a file.', action='store_true', default=False)
+parser.add_argument('--show', help='Shows the figue.', action='store_true', default=False)
 args = parser.parse_args()
 
 print ('===================================================================================== \n'
@@ -67,7 +67,7 @@ print ('========================================================================
        '            >>> Visualizing the unfolded EBSs produced by BandUP <<<                  \n'
        '                                                                                      \n')
 
-indent="    "
+indent='    '
 ############################################################################################################
 
 title_of_the_plot = ''
@@ -117,7 +117,7 @@ else:
 
 # Reading data from input file
 mypath = realpath(join(getcwd(), dirname(__file__)))
-print "Reading input file (",myfile,")"
+print 'Reading input file "%s"' % myfile
 KptsCoords, energies, delta_Ns = np.loadtxt(join(mypath,myfile),usecols=(0,1,2),unpack=True)
 print indent + '* Max. delta_N:          ',np.max(delta_Ns)
 print indent + '* Min. non-zero delta_N: ',np.min(delta_Ns[np.nonzero(delta_Ns)])
@@ -168,11 +168,11 @@ try:
     energy_tolerance_for_hist2d = float(energy_info_file_lines[3].split()[0])  # 0.175 seemed fine.
 except:
     energy_tolerance_for_hist2d = (0.4E-2)*(ymax - ymin)
-    print "Automatically setting the size of the energy intervals to 0.4E-2*(Emax - Emin) = ",energy_tolerance_for_hist2d,' eV.'
+    print 'Automatically setting the size of the energy intervals to 0.4E-2*(Emax - Emin) = ', energy_tolerance_for_hist2d,' eV.'
 
 size_of_old_data = float(len(KptsCoords))
 if xmin>KptsCoords.min() or xmax<KptsCoords.max() or ymin>energies.min() or ymax<energies.max():
-    print "Trying to reduce data so that only the nedded part of it is parsed."
+    print 'Trying to reduce data such that only the needed part of it is parsed.'
     new_KptsCoords = []
     new_energies = []
     new_delta_Ns = []
@@ -186,7 +186,7 @@ if xmin>KptsCoords.min() or xmax<KptsCoords.max() or ymin>energies.min() or ymax
     energies = np.array(new_energies)
     delta_Ns = np.array(new_delta_Ns)
 size_of_new_data = float(len(KptsCoords))
-print indent + "* Done. Working with ","%.*f" % (2, 100.0*size_of_new_data/size_of_old_data),"% of the data read in."
+print indent + '* Done. Working with %.2f' % (100.0*size_of_new_data/size_of_old_data), '% of the data read in.' 
 
 # Determining the positions of high-symmetry BZ points on the plot
 kpts_file_lines = []
@@ -255,7 +255,7 @@ for idir in range(ndirections):
 pos_high_symm_lines = [zero_of_kpts_line]
 for idir in range(0,ndirections):
     pos_high_symm_lines.append(pos_high_symm_lines[-1] + np.linalg.norm(k_end[idir] - k_start[idir]))
-print "Positions of the high-symmetry lines in the  k-axis: ", pos_high_symm_lines
+print 'Positions of the high-symmetry lines in the  k-axis: ', pos_high_symm_lines
 # End of determining the positions of high-symmetry BZ points on the plot
 # Labeling the high-symmetry BZ points
 labels_high_symm_lines = [label_k_start[0]]
@@ -304,7 +304,7 @@ if(args.icolormap != None):
 
 # Building the countour plot from the read data
 # define grid.
-print "Generating the plot..."
+print 'Generating the plot...'
 ki = np.linspace(xmin,xmax,2*len(set(KptsCoords))+1,endpoint=True)
 Ei = np.arange(ymin,ymax+energy_tolerance_for_hist2d,energy_tolerance_for_hist2d)
 grid_freq = griddata((KptsCoords, energies), delta_Ns, (ki[None,:], Ei[:,None]), method='cubic',fill_value=0.0)
@@ -317,13 +317,13 @@ if(args.maxval_for_colorbar != None or args.minval_for_colorbar != None):
     maxval_for_colorbar = args.maxval_for_colorbar
     minval_for_colorbar = args.minval_for_colorbar
 if manually_normalize_colorbar_min_and_maxval:
-    print indent + "* Renormalizing color scale:"
+    print indent + '* Renormalizing color scale:'
     if(minval_for_colorbar != None):
-        print 2 * indent + "Previous vmin = ", "%.*f" % (1, np.min(grid_freq)), ", new vmin = ", minval_for_colorbar
+        print 2 * indent + 'Previous vmin = %.1f, new vmin = %.1f' % (np.min(grid_freq), minval_for_colorbar)
     else:
         minval_for_colorbar = np.min(grid_freq)
     if(maxval_for_colorbar != None):
-        print 2 * indent + "revious vmax = ", "%.*f" % (1, np.max(grid_freq)), ", new vmax = ", maxval_for_colorbar
+        print 2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (np.max(grid_freq), maxval_for_colorbar)
     else:
         maxval_for_colorbar = np.max(grid_freq)
 
@@ -353,10 +353,10 @@ if show_E_f and E_f>=ymin and E_f<=ymax:
 x_tiks_positions = [kx for kx in pos_high_symm_lines if kx-xmax<=1E-2 and kx >= xmin]
 x_tiks_labels = [labels_high_symm_lines[i] for i in range(len(labels_high_symm_lines)) if pos_high_symm_lines[i] in x_tiks_positions]
 
-x_tiks_labels = [xlabel for xlabel in x_tiks_labels if xlabel != ""]
+x_tiks_labels = [xlabel for xlabel in x_tiks_labels if xlabel]
 if x_tiks_labels:
-    print indent + "* x-ticks placed at ", x_tiks_positions
-    print indent + "Labels:",x_tiks_labels
+    print indent + '* x-ticks placed at ', x_tiks_positions
+    print indent + 'Labels:', x_tiks_labels
     plt.xticks(x_tiks_positions, x_tiks_labels, fontsize=tick_marks_size)
 else:
     x_axis_label = '$k \hspace{0.25} (\AA^{-1})$'
@@ -376,7 +376,7 @@ if show_colorbar:
  
     cb_yticks = [image.norm.vmin, 0.5*(image.norm.vmin+image.norm.vmax), image.norm.vmax]
     def round(f,n):
-                return "%.*f" % ( n, f )
+                return '%.*f' % (n, f)
     cb_ytick_labels = [round(item,abs(args.round_cb)) for item in cb_yticks]
     cb = plt.colorbar(image, ax=ax, ticks=cb_yticks, orientation=cb_orientation, pad=cb_pad)
     cb.set_ticklabels(cb_ytick_labels)
@@ -384,10 +384,10 @@ if show_colorbar:
    
     color_bar_label = None
     if args.cb_label: 
-        color_bar_label = ("$Colorscale: \hspace{0.5} \delta N(\\vec{k}; \hspace{0.25} \epsilon)$ ") 
+        color_bar_label = ('$Color scale: \hspace{0.5} \delta N(\\vec{k}; \hspace{0.25} \epsilon)$ ') 
     if args.cb_label_full: 
-        color_bar_label = ("$Colorscale: \hspace{0.5} \delta N(\\vec{k}; \hspace{0.25} \epsilon);$ "+ 
-                          "$\delta\epsilon="+round(0,1000.0*energy_tolerance_for_hist2d)+"\\hspace{0.25} meV.$")
+        color_bar_label = ('$Colors cale: \hspace{0.5} \delta N(\\vec{k}; \hspace{0.25} \epsilon);$ '+ 
+                          '$\delta\epsilon='+round(0,1000.0*energy_tolerance_for_hist2d)+'\\hspace{0.25} meV.$')
 
     if cb_orientation=='vertical':
         cb_label_rotation = 90
@@ -429,11 +429,11 @@ if (args.save):
     else:
         print indent + 'Assuming medium-resolution (300 dpi) for the figure.'
         fig_resolution_in_dpi = 300
-    print indent + "Savig figure to file ",output_file_name," ..."
+    print indent + 'Savig figure to file "%s" ...' % output_file_name
     plt.savefig(output_file_name, dpi=fig_resolution_in_dpi, bbox_inches='tight')
-    print indent + " * Done."
+    print indent + ' * Done.'
 
 if args.show:
-    print indent + "Showing figure..."
+    print indent + 'Showing figure...'
     plt.show()
-    print "Done."
+    print 'Done.'
