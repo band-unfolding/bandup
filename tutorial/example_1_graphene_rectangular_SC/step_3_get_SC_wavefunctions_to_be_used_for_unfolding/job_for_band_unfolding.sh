@@ -45,8 +45,6 @@ do
         echo "NGX = ${NGX}; NGY = ${NGY}; NGZ = ${NGZ}" >> INCAR
         echo "NGXF = ${NGXF}; NGYF = ${NGYF}; NGZF = ${NGZF} " >> INCAR
 
-        ulimit -s unlimited
-        export OMP_NUM_THREADS=1
         mpprun  $vasp > std_out_vasp_direc_${direc}
 
         shopt -s extglob

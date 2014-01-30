@@ -4,7 +4,6 @@
    ALGO = Fast ! A faily robust mixture of both IALGO=38 and IALGO=48   
    LPLANE = .TRUE.
    NSIM = 1  ! NSIM bands are optimized at the same time, if IALGO = 48.
-   NPAR = 5  ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
 
  Start parameter for this Run:
    ISTART = 0  ! job   : 0-new  1-cont  2-samecut
@@ -26,15 +25,9 @@
 
  DOS related values
    ISMEAR = -5
-   LORBIT=11 ! Write the DOSCAR and lm decomposed PROCAR files
 
  Evaluate projections operators in real-space or in reciprocal space
    LREAL = Auto  ! Projection done in real space, with fully automatic optimization of projection operators. Do not use for small cells.
-
- Monopole, Dipole and Quadrupole corrections
-   IDIPOL = 3       ! Monopole/dipole and quadrupole corrections for the total energy.
-   LDIPOL = .TRUE.  ! Potential correction mode. A linear electrostatic potential is added to the local potential, correcting the errors introduced by the PBC.
-   DIPOL = 0.50000   0.50000   0.50000 ! Cell's center of mass (in fractional coordinates). Should be set if LDIPOL = .TRUE. is used.
 
  Precision
    PREC = Normal

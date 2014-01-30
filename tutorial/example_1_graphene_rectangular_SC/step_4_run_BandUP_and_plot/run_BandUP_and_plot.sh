@@ -14,9 +14,9 @@ sc_calc_folder="${working_dir}/../step_1_get_converged_CHGCAR"
 band_calc_K_G_G_M_M_K_folder="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding/to_unfold_onto_pcbz_direc_K-G_G-M_M-K"
 band_calc_perp_to_K_G_and_tc_K_folder="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding/to_unfold_onto_pcbz_direc_perp_to_K-G_and_touching_K"
 
-E_Fermi_SC=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[3]}'`
-E_Fermi_K_G_G_M_M_K=`grep 'E-fermi' "${band_calc_K_G_G_M_M_K_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[3]}'`
-E_Fermi_perp_to_K_G_and_touching_K=`grep 'E-fermi' "${band_calc_perp_to_K_G_and_tc_K_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[3]}'`
+E_Fermi_SC=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
+E_Fermi_K_G_G_M_M_K=`grep 'E-fermi' "${band_calc_K_G_G_M_M_K_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
+E_Fermi_perp_to_K_G_and_touching_K=`grep 'E-fermi' "${band_calc_perp_to_K_G_and_tc_K_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
 all_E_Fermis=($E_Fermi_SC $E_Fermi_K_G_G_M_M_K $E_Fermi_perp_to_K_G_and_touching_K)
 IFS=$'\n'
 E_Fermi=`echo "${all_E_Fermis[*]}" | sort -nr | head -n1`

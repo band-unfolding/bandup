@@ -378,7 +378,7 @@ if show_colorbar:
     def round(f,n):
                 return "%.*f" % ( n, f )
     cb_ytick_labels = [round(item,abs(args.round_cb)) for item in cb_yticks]
-    cb = plt.colorbar(image, ax=ax, ticks=cb_yticks, use_gridspec=True, orientation=cb_orientation, pad=cb_pad)
+    cb = plt.colorbar(image, ax=ax, ticks=cb_yticks, orientation=cb_orientation, pad=cb_pad)
     cb.set_ticklabels(cb_ytick_labels)
     cb.ax.tick_params(labelsize=colorbar_tick_marks_size)
    
@@ -403,7 +403,7 @@ plt.tick_params(\
     left='off',     
     right='off',         
     labelbottom='on')
-plt.tight_layout()
+#plt.tight_layout()
 
 #print fig.canvas.get_supported_filetypes()
 if(not args.save and not args.show):
