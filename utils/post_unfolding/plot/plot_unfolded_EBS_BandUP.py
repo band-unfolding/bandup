@@ -379,7 +379,7 @@ if show_colorbar:
         cb_pad=0.005
     else:
         cb_pad=0.06
- 
+
     cb_yticks = np.arange(int(image.norm.vmin), int(image.norm.vmax) + 1, 1)
     def round(f,n):
                 return '%.*f' % (n, f)
@@ -442,4 +442,3 @@ if args.show:
     print indent + 'Showing figure...'
     plt.show()
     print indent + '* Done with showing figure.'
-
