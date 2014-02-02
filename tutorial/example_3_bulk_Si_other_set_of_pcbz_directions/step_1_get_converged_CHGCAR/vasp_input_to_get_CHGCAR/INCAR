@@ -1,0 +1,26 @@
+ SYSTEM = Bulk Silicon - Self Consistent calculation
+
+ Flags which affect the runtime for parallel jobs (and don't change the results)
+   ALGO = Fast ! A faily robust mixture of both IALGO=38 and IALGO=48   
+   LPLANE = .TRUE.
+
+ Start parameter for this Run:
+   ISTART = 0  ! job   : 0-new  1-cont  2-samecut
+   ICHARG = 2  ! charge: 1-file 2-atom 10-const
+   LWAVE  = F  ! Write or not WAVECAR
+   LCHARG = T  ! Write CHGCAR
+
+ Electronic Relaxation
+   EDIFF =  1E-6
+   NELMIN = 8 ! do a minimum of eight electronic steps
+
+ Ionic Relaxation
+   IBRION = -1 ! No update. Ions are not moved. 
+   ISIF = 2
+   NSW = 0
+
+ DOS related values
+   ISMEAR = -5
+
+ Precision
+   PREC = Normal

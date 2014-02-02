@@ -1,6 +1,6 @@
 !    Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !
-!    This file is part of the BandUP code: Band Unfolding code for Plane wave based calculations.
+!    This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !
 !    BandUP is free software: you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -98,11 +98,11 @@ logical :: get_all_kpts_needed_for_EBS_averaging
     if(get_all_kpts_needed_for_EBS_averaging .and. (.not. int_symb_SCBZ == int_symb_pcbz))then
         write(*,"(A)")                "===================================================================================================="
         write(*,"(A)")                "NOTICE:"
-        write(*,'(A,/,A,/,A,/,A,/,A)')"       The reason we have considered more pcbz directions than what you asked for is that, since", &
+        write(*,'(A,/,A,/,A,/,A,/,A)')"       We have considered more pcbz directions than what you asked for. The reason is that, since", &
                                       "       the symmetry groups of the SCBZ and the pcbz are not equal, the pc-kpts in such directions", &
                                       "       will not necessarily be equivalent by symmetry operations of the SCBZ. This should not be", &
                                       "       forgotten when calculating the EBS.", &
-                                      "       Don't worry, though. Only the irreducible complementary directions have been considered."
+                                      "       Don't worry, though. Only irreducible complementary directions (if any) have been considered."
         write(*,"(A)")                "===================================================================================================="
     endif
     !!! Writing results to the output file
@@ -120,7 +120,7 @@ logical :: get_all_kpts_needed_for_EBS_averaging
         write(03,'(A)')''
         write(03,'(A)')''
         write(03,'(A)')'! The above SCKPTS (and/or some other SCKPTS related to them by symm. ops. of the SCBZ)' 
-        write(03,'(A)')'! unfold onto the pckpts listed below (selected by you): '
+        write(03,'(A)')'! unfold onto the pckpts listed below (selected by you) (and/or some other pckpts related to them by symm. ops. of the pcbz): '
         write(03,'(A)')'! (Fractional coords. w.r.t. the pcrl vectors) '
         open(unit=04, file=input_file_pc_kpts)
             ios=0

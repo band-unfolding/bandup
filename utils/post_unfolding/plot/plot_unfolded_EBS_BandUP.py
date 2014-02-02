@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # Copyright (C) 2013 Paulo V. C. Medeiros, Jonas Bjork
-# This file is part of the BandUP code: Band Unfolding code for Plane-wave based calculations.
+# This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 # BandUP is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ from os.path import join, realpath, dirname
 import sys
 
 parser = argparse.ArgumentParser()
-parser.add_argument('input_file', default='unfolded_band_structure.dat', nargs='?', help='')
+parser.add_argument('input_file', default='unfolded_EBS_symmetry-averaged.dat', nargs='?', help='')
 parser.add_argument('output_file', nargs='?', default=None, help='')
 parser.add_argument('-kpts', '--kpoints_file', default='KPOINTS_prim_cell.in')
 parser.add_argument('-efile', '--energy_info_file', default='energy_info.in')
@@ -51,7 +51,8 @@ parser.add_argument('--save', help='Saves the figue to a file.', action='store_t
 parser.add_argument('--show', help='Shows the figue.', action='store_true', default=False)
 args = parser.parse_args()
 
-print ('===================================================================================== \n'
+print ('                                                                                      \n'
+       '===================================================================================== \n'
        '             BandUP: Band Unfolding code for Plane-wave based calculations            \n'
        '===================================================================================== \n'
        'Copyright (C) 2013, 2014 Paulo V. C. Medeiros, Jonas Bjork                            \n'
@@ -140,6 +141,10 @@ for line_number in range(len(KptsCoords)-1):
         new_energies.append(energies[line_number])
         new_KptsCoords.append(KptsCoords[line_number])
         new_delta_Ns.append(delta_Ns[line_number])
+# Appending the last point
+new_energies.append(energies[-1])
+new_KptsCoords.append(KptsCoords[-1])
+new_delta_Ns.append(delta_Ns[-1])
 
 KptsCoords = np.array(new_KptsCoords)
 energies = np.array(new_energies)
@@ -165,7 +170,7 @@ with open(args.energy_info_file) as energy_info_file:
         xmin, xmax = xmax, xmin
 
 try:
-    energy_tolerance_for_hist2d = float(energy_info_file_lines[3].split()[0])  # 0.175 seemed fine.
+    energy_tolerance_for_hist2d = float(energy_info_file_lines[3].split()[0])
 except:
     energy_tolerance_for_hist2d = (0.4E-2)*(ymax - ymin)
     print 'Automatically setting the size of the energy intervals to 0.4E-2*(Emax - Emin) = ', energy_tolerance_for_hist2d,' eV.'
@@ -185,8 +190,8 @@ if xmin>KptsCoords.min() or xmax<KptsCoords.max() or ymin>energies.min() or ymax
     KptsCoords = np.array(new_KptsCoords)
     energies = np.array(new_energies)
     delta_Ns = np.array(new_delta_Ns)
-size_of_new_data = float(len(KptsCoords))
-print indent + '* Done. Working with %.2f' % (100.0*size_of_new_data/size_of_old_data), '% of the data read in.' 
+    size_of_new_data = float(len(KptsCoords))
+    print indent + '* Done. Working with %.2f' % (100.0*size_of_new_data/size_of_old_data), '% of the data read in.' 
 
 # Determining the positions of high-symmetry BZ points on the plot
 kpts_file_lines = []
@@ -263,7 +268,7 @@ for idir in range(1,ndirections):
     if (label_k_start[idir] == label_k_end[idir-1]):
         labels_high_symm_lines.append(label_k_start[idir])
     else:
-        labels_high_symm_lines.append(label_k_end[idir-1]+', '+label_k_start[idir])
+        labels_high_symm_lines.append(label_k_end[idir-1]+','+label_k_start[idir])
 labels_high_symm_lines += [label_k_end[-1]]
 def convert_to_symbols(list):
     dict = {'G':'$\Gamma$', 'GAMMA':'$\Gamma$'}
@@ -306,8 +311,8 @@ if(args.icolormap != None):
 # define grid.
 print 'Generating the plot...'
 ki = np.linspace(xmin,xmax,2*len(set(KptsCoords))+1,endpoint=True)
-Ei = np.arange(ymin,ymax+energy_tolerance_for_hist2d,energy_tolerance_for_hist2d)
-grid_freq = griddata((KptsCoords, energies), delta_Ns, (ki[None,:], Ei[:,None]), method='cubic',fill_value=0.0)
+Ei = np.arange(ymin,ymax + energy_tolerance_for_hist2d,energy_tolerance_for_hist2d)
+grid_freq = griddata((KptsCoords, energies), delta_Ns, (ki[None,:], Ei[:,None]), method='linear',fill_value=0.0)
 grid_freq = grid_freq.clip(0.0) # Values smaller than zero are just noise.
 
 n_levels = args.n_levels
@@ -326,6 +331,7 @@ if manually_normalize_colorbar_min_and_maxval:
         print 2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (np.max(grid_freq), maxval_for_colorbar)
     else:
         maxval_for_colorbar = np.max(grid_freq)
+    print 2 * indent + 'The previous vmin and vmax might be slightly different from the min and max delta_Ns due to the interpolation scheme used fot the plot.'
 
     grid_freq = grid_freq.clip(minval_for_colorbar, maxval_for_colorbar) # #>vmax will be set to vmax, and #<vmin will be set to vmin 
     v = np.linspace(minval_for_colorbar, maxval_for_colorbar, n_levels, endpoint=True)
@@ -364,7 +370,7 @@ else:
     ax.set_xlabel(x_axis_label, fontsize=xaxis_labels_size)
     plt.xticks(fontsize=tick_marks_size)
 ax.tick_params(axis='x', pad=10)
-for line_position in pos_high_symm_lines:
+for line_position in [pos for pos in pos_high_symm_lines if pos > xmin and pos < xmax]:
     plt.axvline(x=line_position, c=color_v_and_h_lines, linestyle='-', lw=line_width_high_symm_points)
 # Color bar
 show_colorbar = not args.no_cb
@@ -372,9 +378,9 @@ if show_colorbar:
     if cb_orientation=='vertical':
         cb_pad=0.005
     else:
-        cb_pad=0.05
+        cb_pad=0.06
  
-    cb_yticks = [image.norm.vmin, 0.5*(image.norm.vmin+image.norm.vmax), image.norm.vmax]
+    cb_yticks = np.arange(int(image.norm.vmin), int(image.norm.vmax) + 1, 1)
     def round(f,n):
                 return '%.*f' % (n, f)
     cb_ytick_labels = [round(item,abs(args.round_cb)) for item in cb_yticks]
@@ -403,7 +409,6 @@ plt.tick_params(\
     left='off',     
     right='off',         
     labelbottom='on')
-#plt.tight_layout()
 
 #print fig.canvas.get_supported_filetypes()
 if(not args.save and not args.show):
@@ -431,9 +436,10 @@ if (args.save):
         fig_resolution_in_dpi = 300
     print indent + 'Savig figure to file "%s" ...' % output_file_name
     plt.savefig(output_file_name, dpi=fig_resolution_in_dpi, bbox_inches='tight')
-    print indent + ' * Done.'
+    print indent + ' * Done saving file',output_file_name,'.'
 
 if args.show:
     print indent + 'Showing figure...'
     plt.show()
-    print 'Done.'
+    print indent + '* Done with showing figure.'
+

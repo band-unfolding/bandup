@@ -1,6 +1,6 @@
 !    Copyright (C) 2013 Paulo V. C. Medeiros
 !
-!    This file is part of the BandUP code: A Band Unfolding code for Plane wave based calculations.
+!    This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !
 !    BandUP is free software: you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by

@@ -98,12 +98,13 @@ do i_SCKPT=1,nkpts
                     folding_G(:) = symmetrized_unf_pc_kpt(:) - current_SCKPT(:)
                     ! Reading WAVECAR file
                     if(.not.coeffs_read_once_for_current_SCKPT)then
+                        write(*,"(A,I0,A)")'Reading plane-wave coefficients for SC-Kpoint K(',i_SCKPT,') from the wavefunctions file... '
                         deallocate(ener_SC_bands,coefficients,iall_G,stat=alloc_stat)
                         call read_from_wavefunc_file(spin_channel=1,i_selected_kpt=i_SCKPT, kpt_frac_coords=current_SCKPT_coords, &
                                                      energies_bands=ener_SC_bands, n_plane_waves=nplane, &
                                                      coeff=coefficients,i_allg_in_file=iall_G, &
                                                      elapsed_time=elapsed,add_elapsed_time_to=total_time_reading_wavecar)
-                        write(*,'(A,I0,A,f0.1,A)')'Info for SC-Kpoint K(',i_SCKPT,') read from the wavefunctions file in ',elapsed,'s.'
+                        write(*,'(A,f0.1,A)')'    * Done in ',elapsed,'s.'
                         n_bands_SC_calculation = size(coefficients,dim=2)
                         coeffs_read_once_for_current_SCKPT = .TRUE.
                     endif

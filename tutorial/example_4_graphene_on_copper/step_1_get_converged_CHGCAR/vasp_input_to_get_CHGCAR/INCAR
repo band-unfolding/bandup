@@ -1,0 +1,47 @@
+ SYSTEM = Graphene@Cu(111) - E0
+
+ Flags which affect the runtime for parallel jobs (and don't change the results)
+   ALGO = Fast ! A faily robust mixture of both IALGO=38 and IALGO=48   
+   LPLANE = .TRUE.
+   NSIM = 1  ! NSIM bands are optimized at the same time, if IALGO = 48.
+   NPAR = 12 ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
+
+ Start parameter for this Run:
+   ISTART = 0  ! job   : 0-new  1-cont  2-samecut
+   ICHARG = 2  ! charge: 1-file 2-atom 10-const
+   LWAVE  = F  ! Write or not WAVECAR
+   LCHARG = T  ! Write CHGCAR
+
+ Electronic Relaxation
+   EDIFF =  1E-5
+   NELMIN = 8 ! do a minimum of eight electronic steps
+   ENCUT = 500.000
+   ENAUG = 644.873
+   LMAXMIX = 4 ! Controls up to which l quantum number the onsite PAW charge densities are passed through the charge density mixer and written to the CHGCAR file
+
+ vdW settings
+   LUSE_VDW = .TRUE.
+   AGGAC = 0.0000    ! Removing PBE correlation correction, since only LDA correlation is used in the vdW-DF functionals
+   GGA = MK          ! selects the optB86b exchange functional
+   PARAM1 = 0.1234   ! parameters for the optB86b exchange functional
+   PARAM2 = 1.0000   ! parameters for the optB86b exchange functional
+
+ Ionic Relaxation
+   IBRION = -1 ! No update. Ions are not moved. 
+   ISIF = 2
+   NSW = 0
+
+ DOS related values
+   ISMEAR = -5  ! Tetrahedron method with Blochl corrections (use a Gamma-centered k-mesh)
+   LORBIT=11 ! Write the DOSCAR and lm decomposed PROCAR files
+
+ Evaluate projections operators in real-space or in reciprocal space
+   LREAL = Auto  ! Projection done in real space, with fully automatic optimization of projection operators. Do not use for small cells.
+
+ Monopole, Dipole and Quadrupole corrections
+   IDIPOL = 3       ! Monopole/dipole and quadrupole corrections for the total energy. The dipole moment will be calculated only parallel to the direction of the 3rd vector.
+   LDIPOL = .TRUE.  ! Potential correction mode. A linear electrostatic potential is added to the local potential, correcting the errors introduced by the PBC.
+   DIPOL = 0.50000   0.50000   0.50000 ! Cell's center of mass (in direct, fractional coordinates). Should be set if LDIPOL = .TRUE. is used.
+
+ Precision
+   PREC = Accurate

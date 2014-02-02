@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #  Copyright (C) 2013 Paulo V. C. Medeiros
 #
-#  This file is part of the BandUP code: Band Unfolding code for Plane-wave based calculations.
+#  This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 #  BandUP is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,8 @@ import sys
 import os
 import heapq
 
-print ('===================================================================================== \n'
+print ('                                                                                      \n'
+       '===================================================================================== \n'
        '             BandUP: Band Unfolding code for Plane-wave based calculations            \n'
        '==================================================================================== \n'
        'Copyright (C) 2013, 2014 Paulo V. C. Medeiros                                        \n'

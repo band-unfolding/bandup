@@ -1,0 +1,28 @@
+ SYSTEM = Graphene
+
+ Flags which affect the runtime for parallel jobs (and don't change the results)
+   ALGO = Fast
+   LPLANE = .TRUE.
+
+ Start parameter for this Run:
+   ISTART = 0  ! job   : 0-new  1-cont  2-samecut
+   ICHARG = 11  ! charge: 1-file 2-atom 10-const
+   LWAVE  = T  ! Write the WAVECAR file
+   LCHARG = F  ! Do not write CHGCAR
+
+ Electronic Relaxation
+   EDIFF =  1E-7
+
+ Ionic Relaxation
+   IBRION = -1
+   ISIF = 2
+   NSW=0
+
+ Band Structure related values
+   ISMEAR = 0 ! Gaussian smearing
+   SIGMA = 0.025
+   NBANDS = 48
+
+ Precision
+   PREC = Normal
+
