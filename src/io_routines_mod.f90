@@ -28,7 +28,7 @@ PUBLIC :: print_welcome_messages,read_energy_info_for_band_search, read_unit_cel
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.0, 2014-01-25"
+character(len=30), parameter :: package_version="2.0.1, 2014-03-24"
 
 CONTAINS 
 
@@ -473,16 +473,16 @@ write(*,"(A)")"Symmetry analysis for the selected pcbz directions:"
 do idir=1,ndirs
     n_needed_dirs = size(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:))
     write(*,"(A,I0,A)")"    >>> Direction #",idir,":"
+    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz(idir)," equivalent directions w.r.t. symmetry operations of the pcbz"
+    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ(idir)," equivalent directions w.r.t. symmetry operations of the SCBZ"
     if(n_needed_dirs > 1)then
-        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz(idir)," equivalent directions w.r.t. symmetry operations of the pcbz"
-        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ(idir)," equivalent directions w.r.t. symmetry operations of the SCBZ"
-        write(*,"(A,I0,A)")"        * ",ncompl_dirs(idir)," complementary directions will thus be considered in order to get a proper &
+        write(*,"(A,I0,A)")"        * ",ncompl_dirs(idir)," complementary pcbz directions will need to be considered in order to get a proper &
                                                             symmetry-averaged EBS."
         if(ncompl_dirs(idir) /= n_irr_compl_dirs(idir))then
             write(*,"(A,I0,A)")"        * The number of irreducible complementary directions is ",n_irr_compl_dirs(idir),"." 
         endif
     else
-        write(*,"(A)")"        * Fine: no complementary directions are needed."
+        write(*,"(A)")"        * No complementary pcbz directions are needed."
     endif
 enddo
 write(*,*)

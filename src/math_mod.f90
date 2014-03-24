@@ -773,7 +773,7 @@ real(kind=dp) :: sprec
             enddo
         endif
         if(.not.eqv_to_previous_kpt)then
-            point(:) = coords_cart_vec_in_new_basis(cart_vec=point_reduced_to_SCBZ,new_basis=rec_latt)  ! Now in fractional coords.
+            point(:) = coords_cart_vec_in_new_basis(cart_vec=point,new_basis=rec_latt)  ! Now in fractional coords.
             n_irr_kpts = n_irr_kpts + 1
             irr_kpts_list(n_irr_kpts)%coord(:) = point(:) ! In fractional coords.
         endif
@@ -861,12 +861,13 @@ real(kind=dp) :: rtn
 end function frobenius_norm
 
 
-subroutine get_compl_pcbz_direcs(compl_pcdirs,ncompl,dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ,symprec)
+subroutine get_compl_pcbz_direcs(compl_pcdirs,ncompl,dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ,symops_SC,symprec)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 type(eqv_bz_directions), intent(out) :: compl_pcdirs
 integer, intent(out) :: ncompl
 type(eqv_bz_directions), intent(in) :: dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ
+type(symmetry_operation), dimension(:), intent(in) :: symops_SC
 real(kind=dp), intent(in), optional :: symprec
 real(kind=dp) :: sprec
 integer :: neqv_pc,neqv_SC,ieqv_pc,ieqv_SC,icompl
@@ -881,6 +882,7 @@ logical, dimension(:), allocatable :: direc_also_eqv_in_SC
     endif
     neqv_pc = size(dirs_eqv_in_pcbz%eqv_dir(:))
     neqv_SC = size(dirs_eqv_in_SCBZ%eqv_dir(:))
+
     allocate(direc_also_eqv_in_SC(1:neqv_pc))
     direc_also_eqv_in_SC(:) = .FALSE.
     do ieqv_pc=1,neqv_pc
@@ -888,8 +890,8 @@ logical, dimension(:), allocatable :: direc_also_eqv_in_SC
         kend_pc(:) = dirs_eqv_in_pcbz%eqv_dir(ieqv_pc)%kend(:)
         do ieqv_SC=1,neqv_SC
             kstart_SC = dirs_eqv_in_SCBZ%eqv_dir(ieqv_SC)%kstart(:)
-            kend_SC = dirs_eqv_in_SCBZ%eqv_dir(ieqv_SC)%kend
-            if(same_vector(kstart_pc,kstart_SC) .and. same_vector(kend_pc,kend_SC))then
+            kend_SC = dirs_eqv_in_SCBZ%eqv_dir(ieqv_SC)%kend(:)
+            if(direcs_are_eqv(kstart_pc,kend_pc,kstart_SC,kend_SC,symops_SC,sprec))then
                 direc_also_eqv_in_SC(ieqv_pc) = .TRUE.
                 exit
             endif
@@ -981,15 +983,16 @@ implicit none
 type(eqv_bz_directions), intent(out) :: eqv_dirs
 real(kind=dp), dimension(1:3), intent(in) :: kstart,kend
 type(symmetry_operation), dimension(:), optional, intent(in) :: symm_ops
-real(kind=dp), dimension(1:3,1:3), intent(in), optional :: rec_latt
+real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
 real(kind=dp), intent(in), optional :: symprec
 real(kind=dp) :: sprec
-logical, dimension(:,:), allocatable ::  same_dirs
+logical, dimension(:,:), allocatable :: same_dirs,pairs_start_end_lead_to_eqv_dir
 logical, dimension(:), allocatable :: repeated_dir
-integer :: isym,nsym,n_eqv_dirs_full_star,ieqv_dir,ieqv_dir2,n_eqv_dirs,i_eqv_dirs_full_star
+integer :: isym,nsym,n_eqv_dirs_full_star,ieqv_dir,ieqv_dir2,n_eqv_dirs,i_eqv_dirs_full_star,istart,iend
 real(kind=dp), dimension(1:3) :: current_kstart,current_kend,next_kstart,next_kend
 type(eqv_bz_directions) :: full_star_of_eqv_dirs
 type(symmetry_operation), dimension(:), allocatable :: symops
+type(vec3d), dimension(:), allocatable :: full_star_of_eqv_starts, full_star_of_eqv_ends
 
     sprec=1D-6
     if(present(symprec))then
@@ -1003,12 +1006,36 @@ type(symmetry_operation), dimension(:), allocatable :: symops
         call get_symm(nsym=nsym, symops=symops, symprec=sprec, lattice=rec_latt)
     endif
 
-    n_eqv_dirs_full_star = nsym
-    allocate(full_star_of_eqv_dirs%eqv_dir(1:n_eqv_dirs_full_star))
+    allocate(full_star_of_eqv_starts(1:nsym))
+    allocate(full_star_of_eqv_ends(1:nsym))
     do isym=1,nsym
-        full_star_of_eqv_dirs%eqv_dir(isym)%kstart(:) = pt_eqv_by_point_group_symop(point=kstart,symops=symops,isym=isym)
-        full_star_of_eqv_dirs%eqv_dir(isym)%kend(:) = pt_eqv_by_point_group_symop(point=kend,symops=symops,isym=isym)
+        full_star_of_eqv_starts(isym)%coord(:) = pt_eqv_by_point_group_symop(point=kstart,symops=symops,isym=isym)
+        full_star_of_eqv_ends(isym)%coord(:) = pt_eqv_by_point_group_symop(point=kend,symops=symops,isym=isym)
     enddo
+    
+    allocate(pairs_start_end_lead_to_eqv_dir(1:nsym,1:nsym))
+    pairs_start_end_lead_to_eqv_dir(:,:) = .FALSE.
+    do istart=1,nsym
+        current_kstart = full_star_of_eqv_starts(istart)%coord(:)
+        do iend=1,nsym
+            current_kend = full_star_of_eqv_ends(iend)%coord(:)
+            pairs_start_end_lead_to_eqv_dir(istart,iend) = direcs_are_eqv(kstart,kend,current_kstart,current_kend,symops,sprec) 
+        enddo
+    enddo
+    n_eqv_dirs_full_star = count(pairs_start_end_lead_to_eqv_dir == .TRUE.)
+
+    allocate(full_star_of_eqv_dirs%eqv_dir(1:n_eqv_dirs_full_star))
+    ieqv_dir=0
+    do istart=1,nsym
+        do iend=1,nsym
+            if(pairs_start_end_lead_to_eqv_dir(istart,iend))then
+                ieqv_dir = ieqv_dir + 1
+                full_star_of_eqv_dirs%eqv_dir(ieqv_dir)%kstart(:) = full_star_of_eqv_starts(istart)%coord(:)
+                full_star_of_eqv_dirs%eqv_dir(ieqv_dir)%kend(:) = full_star_of_eqv_ends(iend)%coord(:)
+            endif
+        enddo
+    enddo
+
     allocate(repeated_dir(1:n_eqv_dirs_full_star))
     allocate(same_dirs(1:n_eqv_dirs_full_star,1:n_eqv_dirs_full_star))
     repeated_dir(:) = .FALSE.
@@ -1029,7 +1056,6 @@ type(symmetry_operation), dimension(:), allocatable :: symops
         enddo        
     enddo
     n_eqv_dirs = count(.not. repeated_dir)
-
     eqv_dirs%neqv = n_eqv_dirs
     allocate(eqv_dirs%eqv_dir(1:n_eqv_dirs))
     ieqv_dir = 0
@@ -1108,23 +1134,32 @@ real(kind=dp), dimension(:,:), intent(in) :: k_starts,k_ends
 type(symmetry_operation), dimension(:), allocatable :: symops_SC, symops_pc
 type(eqv_bz_directions), dimension(:), allocatable :: dirs_eqv_in_SC_to_selec_pcbz_dir,dirs_eqv_in_pc_to_selec_pcbz_dir,complementary_pcdirs_for_pcdir
 type(irr_bz_directions), dimension(:), allocatable :: irr_compl_pcdirs_for_pcdir
-integer :: idir,ndirs,n_eqv_dirs_in_pcbz,n_eqv_dirs_in_SCBZ,n_req_dirs,i_req_dir
+integer :: idir,ndirs,n_eqv_dirs_in_pcbz,n_eqv_dirs_in_SCBZ,n_req_dirs,i_req_dir,nsym_SC,nsym_pc
+character(len=10) :: schoenflies_SC, schoenflies_pc
+character(len=11) :: int_symb_pcbz, int_symb_SCBZ
 
+
+call get_symm(symops=symops_SC,lattice=B_matrix_SC,nsym=nsym_SC,schoenflies=schoenflies_SC,international_symb=int_symb_SCBZ)
+call get_symm(symops=symops_pc,lattice=b_matrix_pc,nsym=nsym_pc,schoenflies=schoenflies_pc,international_symb=int_symb_pcbz)
+
+write(*,*)
+write(*,'(A,I0,A)')'Found ',nsym_SC,' symmetry operations for the SCBZ.'
+write(*,'(5A)')'    * Symmetry group of the SCBZ: ',trim(adjustl(schoenflies_SC)),'(',trim(adjustl(int_symb_SCBZ)),').'
+write(*,'(A,I0,A)')'Found ',nsym_pc,' symmetry operations for the pcbz.'
+write(*,'(5A)')'    * Symmetry group of the pcbz: ',trim(adjustl(schoenflies_pc)),'(',trim(adjustl(int_symb_pcbz)),').'
 
 ndirs = size(k_starts(:,:),dim=1)
-
-call get_symm(symops=symops_SC, lattice=B_matrix_SC)
-call get_symm(symops=symops_pc, lattice=b_matrix_pc)
 allocate(dirs_eqv_in_SC_to_selec_pcbz_dir(1:ndirs), dirs_eqv_in_pc_to_selec_pcbz_dir(1:ndirs))
 !! Getting all the pcbz directions that are equivalent to each of the selected pcbz directions:
 do idir=1,ndirs
     !! (1) By symmetry operations of the SCBZ
     call get_eqv_bz_dirs(eqv_dirs=dirs_eqv_in_SC_to_selec_pcbz_dir(idir),&
-                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_SC)
+                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_SC,rec_latt=B_matrix_SC)
     !! (2) By symmetry operations of the pcbz
     call get_eqv_bz_dirs(eqv_dirs=dirs_eqv_in_pc_to_selec_pcbz_dir(idir),&
-                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_pc)
+                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_pc,rec_latt=b_matrix_pc)
 enddo
+
 !! Getting all the pcbz directions that are:
 !!     >>> Eqv. to the selected ones by sym. ops. of the pcbz 
 !!                         and 
@@ -1134,7 +1169,7 @@ allocate(complementary_pcdirs_for_pcdir(1:ndirs),ncompl_dirs(1:ndirs))
 do idir=1,ndirs
     call get_compl_pcbz_direcs(compl_pcdirs=complementary_pcdirs_for_pcdir(idir), ncompl=ncompl_dirs(idir), &
                                dirs_eqv_in_pcbz=dirs_eqv_in_pc_to_selec_pcbz_dir(idir), &
-                               dirs_eqv_in_SCBZ=dirs_eqv_in_SC_to_selec_pcbz_dir(idir))
+                               dirs_eqv_in_SCBZ=dirs_eqv_in_SC_to_selec_pcbz_dir(idir),symops_SC=symops_SC)
 enddo
 !! Getting now the irreducible complementary pcbz directions
 allocate(irr_compl_pcdirs_for_pcdir(1:ndirs),n_irr_compl_dirs(1:ndirs))
@@ -1154,25 +1189,30 @@ do idir=1,ndirs
     n_eqv_dirs_in_pcbz = size(dirs_eqv_in_pc_to_selec_pcbz_dir(idir)%eqv_dir(:))
     n_req_dirs = 1 + n_irr_compl_dirs(idir)
     n_dirs_for_EBS_along_pcbz_dir(idir) = n_req_dirs
+
     allocate(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1:n_req_dirs))
     
     dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%kstart = k_starts(idir,:) 
     dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%kend = k_ends(idir,:) 
     n_eqv_dirs_in_SCBZ = size(dirs_eqv_in_SC_to_selec_pcbz_dir(idir)%eqv_dir(:))
+
     dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%neqv = n_eqv_dirs_in_SCBZ
-    dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%weight = real(n_eqv_dirs_in_SCBZ,kind=dp)/real(n_eqv_dirs_in_pcbz,kind=dp)
+    dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(1)%weight = &
+        real(n_eqv_dirs_in_pcbz - ncompl_dirs(idir),kind=dp)/real(n_eqv_dirs_in_pcbz,kind=dp)
     if(n_req_dirs > 1)then
         do i_req_dir=2,n_req_dirs
             dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir) = irr_compl_pcdirs_for_pcdir(idir)%irr_dir(i_req_dir-1)
             n_eqv_dirs_in_SCBZ = dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir)%neqv
-            dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir)%weight = real(n_eqv_dirs_in_SCBZ,kind=dp)/real(n_eqv_dirs_in_pcbz,kind=dp)
+            dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(i_req_dir)%weight = &
+                real(irr_compl_pcdirs_for_pcdir(idir)%irr_dir(i_req_dir-1)%neqv,kind=dp)/real(n_eqv_dirs_in_pcbz,kind=dp)
         enddo
     endif
 
     if(abs(sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight) - 1.0d0) > 1D-3)then
-        write(*,"(A,I0,A)")"ERROR: The weights for the pcbz directions that are equivalent to the selected pcbz direction #",idir," do not add up to 1."
-        write(*,"(A)")     "       This is necessary in order to obtain properly symmetry-averaged EBS."
-        write(*,"(A)")     "Stopping now."
+        write(*,"(A,I0,A)")  "ERROR: The weights for the pcbz directions that are equivalent to the selected pcbz direction #",idir," do not add up to 1."
+        write(*,"(A)")       "       This is necessary in order to obtain properly symmetry-averaged EBS."
+        write(*,"(A,f0.3,A)")"       The sum of the weights was ",sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight)," instead."
+        write(*,"(A)")       "Stopping now."
         stop
     endif
     neqv_dirs_pcbz(idir) = n_eqv_dirs_in_pcbz

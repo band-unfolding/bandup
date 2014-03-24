@@ -80,7 +80,7 @@ logical :: get_all_kpts_needed_for_EBS_averaging
     if(get_all_kpts_needed_for_EBS_averaging  .and. (.not. int_symb_SCBZ == int_symb_pcbz))then
         !! Obtaining all pckpts that are equivalent to the selected ones by symm. ops. of the pcbz
         !! This is needed when the SC and the pc do not possess the same symmetry, in which cases
-        !! they will not be equivalent w.r.t. symm. ops. of the  SCBZ
+        !! they will not necessarily be equivalent w.r.t. symm. ops. of the  SCBZ
         call get_star(list_of_all_generated_points=considered_kpts_list, points=list, lattice=b_matrix_pc(:,:))
     else
         allocate(considered_kpts_list(1:size(list)))
