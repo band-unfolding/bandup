@@ -19,21 +19,21 @@ use spglib_f08
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: sp, dp, pi, twopi, min_dk, tol_for_vec_equality, vec3d, star, &
-          time,cross, norm, angle, real_seq, delta, integral_delta_x_minus_x0, &
+PUBLIC :: sp, dp, pi, twopi, min_dk, tol_for_vec_equality, tol_for_int_commens_test, vec3d, &
+          star, time, n_digits_integer, cross, norm, angle, real_seq, delta, integral_delta_x_minus_x0, &
           symmetry_operation, get_rec_latt, coords_cart_vec_in_new_basis, vec_in_latt, &
           reduce_point_to_bz, same_vector, get_symm, get_star, get_irr_kpts, &
           pt_eqv_by_point_group_symop, bz_direction, eqv_bz_directions, irr_bz_directions, &
           get_all_irr_dirs_req_for_symmavgd_EBS, kpts_line, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, delta_Ns, allocate_delta_Ns_type, & 
           delta_Ns_for_output, allocate_delta_Ns_for_output_type, &
-          divide_SCKPTS_evenly_among_MPI_tasks 
+          check_if_pc_and_SC_are_commensurate, divide_SCKPTS_evenly_among_MPI_tasks 
 
 !! Constants used throughout the code
 integer, parameter :: sp = selected_real_kind(6, 37)    ! Single precision
 integer, parameter :: dp = selected_real_kind(15, 307)  ! Double precision
 real(kind=dp), parameter :: pi = 4.*atan(1.), twopi = 2.*pi
-real(kind=dp), parameter :: min_dk=2D-5, tol_for_vec_equality=1D-5
+real(kind=dp), parameter :: min_dk=2D-5, tol_for_vec_equality=1D-5, tol_for_int_commens_test=1D-5
 real(kind=dp), parameter :: two_m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
 
 !! Derived type definitions
@@ -123,6 +123,40 @@ end type delta_Ns_for_output
 !! Functions and subroutines
 CONTAINS
 
+subroutine check_if_pc_and_SC_are_commensurate(commensurate,M,b_matrix_pc,B_matrix_SC,tol)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+! Calculates the matrix M so that  
+! A[i] = sum(M_{ij}*a[j]; j=1,2,3),
+! where 'A' and 'a' are the real space lattice vectors of the SC and pc, respectively. 
+! The subroutine then uses M to check if the PC and SC are commensurate.
+! I decided to work with the reciprocal lattice vectors instead just because it makes it easier to 
+! incorporate the subroutine into the main code of BandUP.
+! The only additional op. is a 3x3 matrix transposition, which is really not expensive.
+implicit none
+logical, intent(out) :: commensurate
+real(kind=dp), dimension(1:3,1:3), intent(out) :: M
+real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
+real(kind=dp), intent(in), optional :: tol
+integer, dimension(1:3,1:3) :: int_M
+real(kind=dp), dimension(1:3,1:3) :: residue_M
+real(kind=dp) :: max_residue
+
+    commensurate = .TRUE.
+    max_residue = tol_for_int_commens_test
+    if(present(tol))then
+        max_residue = dabs(tol)
+    endif
+    M = transpose(matmul(b_matrix_pc,inverse_of_3x3_matrix(B_matrix_SC)))
+    int_M = nint(M)
+    residue_M = dabs(M - int_M)
+    if(any(residue_M > max_residue))then
+        commensurate = .FALSE.
+    endif
+
+end subroutine check_if_pc_and_SC_are_commensurate
+
+
+
 subroutine allocate_delta_Ns_type(delta_N,pckpts_to_be_checked)
 implicit none
 type(delta_Ns), intent(out) :: delta_N
@@ -168,6 +202,29 @@ integer :: count, count_rate
    rtn = count/count_rate
 
 end function time
+
+
+function n_digits_integer(int_number, add_one_if_negative) result(n_digits)
+implicit none
+integer :: n_digits
+integer, intent(in) :: int_number
+logical, intent(in), optional :: add_one_if_negative
+logical :: count_minus_sign
+
+    count_minus_sign = .FALSE.
+    if(present(add_one_if_negative)) count_minus_sign = add_one_if_negative
+
+    n_digits = 0
+    do 
+        n_digits = n_digits + 1
+        if (mod(int_number, 10**n_digits) == int_number) exit
+    enddo
+    if(count_minus_sign .and. (int_number<0))then
+        n_digits = n_digits + 1
+    endif
+
+end function n_digits_integer
+
 
 function cross(b,c) result(a)
 implicit none
@@ -1210,7 +1267,7 @@ do idir=1,ndirs
 
     if(abs(sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight) - 1.0d0) > 1D-3)then
         write(*,"(A,I0,A)")  "ERROR: The weights for the pcbz directions that are equivalent to the selected pcbz direction #",idir," do not add up to 1."
-        write(*,"(A)")       "       This is necessary in order to obtain properly symmetry-averaged EBS."
+        write(*,"(A)")       "       This is necessary in order to obtain a properly symmetry-averaged EBS."
         write(*,"(A,f0.3,A)")"       The sum of the weights was ",sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight)," instead."
         write(*,"(A)")       "Stopping now."
         stop

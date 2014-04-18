@@ -22,13 +22,14 @@ use math
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: print_welcome_messages,read_energy_info_for_band_search, read_unit_cell, &
+PUBLIC :: print_welcome_messages,print_message_commens_test, &
+          read_energy_info_for_band_search, read_unit_cell, &
           print_geom_unfolding_relations, print_last_messages_before_unfolding, &
           get_SCKPTS_contained_in_wavecar, read_pckpts_selected_by_user, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.0.1, 2014-03-24"
+character(len=30), parameter :: package_version="2.1.0, 2014-04-18"
 
 CONTAINS 
 
@@ -53,6 +54,78 @@ write(*,'(8(A,/),A)')'==========================================================
 write(*,*)
 
 end subroutine print_welcome_messages
+
+
+subroutine print_message_commens_test(commensurate,M,stop_if_not_commens)
+implicit none
+logical, intent(in) :: commensurate, stop_if_not_commens
+real(kind=dp), dimension(1:3,1:3), intent(in) :: M
+character(len=127) :: message_header,message_footer,message_footer2, &
+                      str_n_char_float_format,str_n_decimals,float_format,format_string
+integer :: i, j, n_decimals, max_n_digits_before_dec_point, n_digits, n_char_float_format
+
+if(stop_if_not_commens)then
+    message_header = '                                     ERROR!!                                         '
+    message_footer = ' Stopping now.'
+else
+    message_header = '                               >>> WARNING!! <<<                                     '
+    message_footer = ' >>> The results might not be what you expect. Continue only if you are really sure. '
+    message_footer2= "     My advice: Always use commensurate SC and PC, and never continue if they're not."
+endif
+
+write(*,*)''
+if(.not. commensurate)then
+    write(*,*)''
+    write(*,'(10(A,/))')'=====================================================================================', &
+                                                          message_header                                       , &
+                        '=====================================================================================', &
+                        '  The SC and the reference PC that you have chosen are not commensurate!             ', &
+                        '  The choice of the reference PC vectors is very important and can change a lot the  ', &
+                        '  results of the unfolding. It is particularly important to always verify that the SC', & 
+                        '  and the reference PC are commensurate. If this condition is not fulfilled, then the', &
+                        '  calculated spectral weigths will most likely be very small, which might therefore  ', & 
+                        '  cause the values of the unfolded delta_Ns to be also quite small.                  ', &
+                        '====================================================================================='
+    write(*,*)''
+endif
+
+if(commensurate)then
+    n_decimals = 1
+else
+    n_decimals = 6
+endif
+
+max_n_digits_before_dec_point = 0
+do i=1,3
+    do j=1,3
+        n_digits = n_digits_integer(int(aint(M(i,j))), add_one_if_negative=.TRUE.)
+        if(n_digits > max_n_digits_before_dec_point) max_n_digits_before_dec_point = n_digits
+    enddo
+enddo
+n_char_float_format = max_n_digits_before_dec_point + n_decimals + 1
+
+write(str_n_decimals,*) n_decimals
+write(str_n_char_float_format,*) n_char_float_format
+float_format = 'f' // trim(adjustl(str_n_char_float_format)) // '.' // trim(adjustl(str_n_decimals))
+format_string = '(2(A,/),3(3(A,' // adjustl(trim(float_format)) // '),A,/))'
+
+write(*,format_string)' The following relation holds between the real space vectors of the chosen SC and PC:', &
+                      '                                                                                     ', &
+                      '      A[1] = (',M(1,1),')*a[1] + (',M(1,2),')*a[2] + (',M(1,3),')*a[3]               ', & 
+                      '      A[2] = (',M(2,1),')*a[1] + (',M(2,2),')*a[2] + (',M(2,3),')*a[3]               ', & 
+                      '      A[3] = (',M(3,1),')*a[1] + (',M(3,2),')*a[2] + (',M(3,3),')*a[3]               '
+if(commensurate)then
+    write(*,'(A)')    '      * The SC and the reference PC are commensurate. Good!'
+else
+    write(*,*)''
+    write(*,'(A)')message_footer
+    write(*,'(A)')message_footer2
+    write(*,'(A)')'====================================================================================='
+endif
+write(*,*)''
+write(*,*)''
+
+end subroutine print_message_commens_test
 
 
 subroutine print_geom_unfolding_relations(GUR,list_SC_kpts_in_wavecar,b_matrix_pc,B_matrix_SC)
@@ -453,7 +526,11 @@ if(opt_for_auto_pkpt_search)then
 endif
 if(print_stuff)then
     do idir=1, ndirs
-        write(*,'(2(A,I0))')'               # of pc-kpts requested along pcbz direction ',idir,': ',n_kpts_dirs(idir)
+        if(opt_for_auto_pkpt_search)then
+            write(*,'(2(A,I0))')'      # of pc-kpts requested along pcbz direction ',idir,': ',n_kpts_dirs(idir)
+        else
+            write(*,'(2(A,I0))')'# of pc-kpts requested along pcbz direction ',idir,': ',n_kpts_dirs(idir)
+        endif
     enddo
 endif
 

@@ -1,5 +1,0 @@
-To compile BandUP, run the "build.sh" script: ./build.sh
-A folder named "BandUP_bin" will be created.
-    * You'll find the executable for BandUP in it.
-
-Let us know if you have problems! 

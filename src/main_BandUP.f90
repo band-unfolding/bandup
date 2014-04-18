@@ -42,10 +42,10 @@ real(kind=dp) :: e_fermi,ecut, vbz, &
                  time_calc_spectral_weights,time_calc_spectral_function,time_spent_calculating_delta_Ns
 real(kind=dp), dimension(1:3) :: symmetrized_unf_pc_kpt, current_SCKPT_coords, current_SCKPT, folding_G
 real(kind=dp), dimension(:), allocatable :: spectral_weight, energy_grid
-real(kind=dp), dimension(1:3,1:3) :: dir_latt_pc, b_matrix_pc,B_matrix_SC
+real(kind=dp), dimension(1:3,1:3) :: dir_latt_pc,b_matrix_pc,B_matrix_SC,matrix_M
 real(kind=dp), dimension(:,:), allocatable :: k_starts,k_ends
-logical :: calc_spec_func_explicitly,stop_when_a_pckpt_cannot_be_parsed,pckpt_folds, &
-           coeffs_read_once_for_current_SCKPT, wavecar_contains_needed_coeffs
+logical :: calc_spec_func_explicitly,stop_when_a_pckpt_cannot_be_parsed,stop_if_not_commensurate,pckpt_folds, &
+           coeffs_read_once_for_current_SCKPT, wavecar_contains_needed_coeffs, are_commens
 type(irr_bz_directions), dimension(:), allocatable :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
 type(geom_unfolding_relations_for_each_SCKPT) :: GUR !! Geometric Unfolding Relations
 type(selected_pcbz_directions) :: pckpts_to_be_checked
@@ -54,6 +54,7 @@ type(delta_Ns_for_output) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_
 !!*****************************************************************************************************************************************
 calc_spec_func_explicitly = .FALSE.
 stop_when_a_pckpt_cannot_be_parsed = .FALSE.
+stop_if_not_commensurate = .FALSE.
 !$ call omp_set_dynamic(.FALSE.)
 stime = time()
 total_time_reading_wavecar = 0.0d0
@@ -65,6 +66,10 @@ call print_welcome_messages(package_version)
 call read_from_wavefunc_file(rec_latt_B_matrix=B_matrix_SC, total_nkpts=nkpts, ENCUT=ecut,file_size_in_bytes=file_size)
 call read_unit_cell(input_file=input_file_prim_cell, latt=dir_latt_pc(:,:))
 call get_rec_latt(latt=dir_latt_pc,rec_latt=b_matrix_pc,rec_latt_vol=vbz)
+call check_if_pc_and_SC_are_commensurate(commensurate=are_commens, M=matrix_M, &
+                                         b_matrix_pc=b_matrix_pc, B_matrix_SC=B_matrix_SC,tol=tol_for_int_commens_test)
+call print_message_commens_test(commensurate=are_commens,M=matrix_M,stop_if_not_commens=stop_if_not_commensurate) 
+if(stop_if_not_commensurate .and. .not. are_commens) stop
 call get_SCKPTS_contained_in_wavecar(nkpts,B_matrix_SC,list_of_SCKPTS)
 call read_pckpts_selected_by_user(k_starts=k_starts, k_ends=k_ends, ndirs=n_selec_pcbz_dirs, n_kpts_dirs=n_pckpts_dirs, &
                                   input_file=input_file_pc_kpts,b_matrix_pc=b_matrix_pc(:,:), &

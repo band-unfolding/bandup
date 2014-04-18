@@ -271,7 +271,7 @@ for idir in range(1,ndirections):
         labels_high_symm_lines.append(label_k_end[idir-1]+','+label_k_start[idir])
 labels_high_symm_lines += [label_k_end[-1]]
 def convert_to_symbols(list):
-    dict = {'G':'$\Gamma$', 'GAMMA':'$\Gamma$'}
+    dict = {'G':'$\Gamma$', 'GAMMA':'$\Gamma$','DELTA':'$\Delta$','LAMBDA':'$\Lambda$','SIGMA':'$\Sigma$'}
     for i in range(len(list)):
         if dict.has_key(list[i].upper()):
             list[i] = dict[list[i].upper()]
@@ -331,7 +331,7 @@ if manually_normalize_colorbar_min_and_maxval:
         print 2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (np.max(grid_freq), maxval_for_colorbar)
     else:
         maxval_for_colorbar = np.max(grid_freq)
-    print 2 * indent + 'The previous vmin and vmax might be slightly different from the min and max delta_Ns due to the interpolation scheme used fot the plot.'
+    print 2 * indent + 'The previous vmin and vmax might be slightly different from the min and max delta_Ns due to the interpolation scheme used for the plot.'
 
     grid_freq = grid_freq.clip(minval_for_colorbar, maxval_for_colorbar) # #>vmax will be set to vmax, and #<vmin will be set to vmin 
     v = np.linspace(minval_for_colorbar, maxval_for_colorbar, n_levels, endpoint=True)

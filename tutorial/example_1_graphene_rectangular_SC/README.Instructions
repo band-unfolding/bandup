@@ -1,3 +1,9 @@
 Go through steps 1-5, and execute the scripts in each folder.
 You might need to adapt some of them to your own computer/environment.
+
+* Another even simpler case you can try is, for instance, an NxN graphene SC, with N = 1, 2, 3, ...
+  We haven't included such examples in the tutorial because: 
+      (i)   The current example is a bit more general (PC and SC have different symmetries)
+      (ii)  The results would be quite redundant anyway.
+
 Let us know if you have problems!

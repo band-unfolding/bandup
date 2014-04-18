@@ -20,7 +20,7 @@ use math
 implicit none
 character(len=127) :: input_file_prim_cell, input_file_supercell, input_file_pc_kpts, outpt_file_SC_kpts, outpt_file_SC_kpts_not_reduced
 real(kind=dp), dimension(:,:), allocatable :: k_starts, k_ends
-real(kind=dp), dimension(1:3,1:3) :: dir_latt_pc, dir_latt_SC, b_matrix_pc, B_matrix_SC
+real(kind=dp), dimension(1:3,1:3) :: dir_latt_pc, dir_latt_SC, b_matrix_pc, B_matrix_SC, matrix_M
 real(kind=dp), dimension(1:3) :: point
 integer, dimension(:), allocatable :: n_pckpts_dirs
 integer :: n_irr_unfolding_SCKPTS,ikpt,i,ios,nkpts,start_k,end_k,n_selec_pcbz_dirs,idir
@@ -33,9 +33,10 @@ character(len=11) :: int_symb_pcbz, int_symb_SCBZ
 character(len=10) :: schoenflies_notation_pc, schoenflies_notation_SC
 real(kind=dp), parameter :: symprec = 1d-6
 integer :: num_symm_op_pcbz, num_symm_op_SCBZ
-logical :: get_all_kpts_needed_for_EBS_averaging
+logical :: get_all_kpts_needed_for_EBS_averaging,stop_if_not_commensurate,are_commens
 !!!**********************************************************************************************
 
+    stop_if_not_commensurate = .FALSE.
     get_all_kpts_needed_for_EBS_averaging = .TRUE.
     input_file_prim_cell = 'prim_cell_lattice.in'
     input_file_supercell = 'supercell_lattice.in'
@@ -49,22 +50,33 @@ logical :: get_all_kpts_needed_for_EBS_averaging
     write(*,*)
     call read_unit_cell(input_file=input_file_prim_cell,latt=dir_latt_pc(:,:))
     call get_rec_latt(latt=dir_latt_pc,rec_latt=b_matrix_pc)
+    call read_unit_cell(input_file=input_file_supercell,latt=dir_latt_SC(:,:))
+    call get_rec_latt(latt=dir_latt_SC,rec_latt=B_matrix_SC)
+
+    ! Checking if the SC and PC are commensurate
+    call check_if_pc_and_SC_are_commensurate(commensurate=are_commens, M=matrix_M, &
+                                             b_matrix_pc=b_matrix_pc,B_matrix_SC=B_matrix_SC,tol=tol_for_int_commens_test)
+    if(are_commens)then
+        call print_message_commens_test(commensurate=are_commens,M=matrix_M,stop_if_not_commens=stop_if_not_commensurate)
+    else
+        if(stop_if_not_commensurate)then
+            call print_message_commens_test(commensurate=are_commens,M=matrix_M,stop_if_not_commens=stop_if_not_commensurate)
+            stop
+        endif
+    endif
+
     ! Symmetry analysis for the pcbz
     call get_symm(nsym=num_symm_op_pcbz, symops=symops_pc, & 
                   schoenflies=schoenflies_notation_pc, international_symb=int_symb_pcbz, &
                   symprec=symprec, lattice=b_matrix_pc(:,:))
     write(*,'(A,I0,A)')'Found ',num_symm_op_pcbz,' symmetry operations for the pcbz.' 
     write(*,'(5A)')'    * Space group of the pcbz: ',trim(adjustl(schoenflies_notation_pc)),'(',trim(adjustl(int_symb_pcbz)),').'
-    ! End of symmetry analysis for the pcbz
-    call read_unit_cell(input_file=input_file_supercell,latt=dir_latt_SC(:,:))
-    call get_rec_latt(latt=dir_latt_SC,rec_latt=B_matrix_SC)
     ! Symmetry analysis for the SCBZ
     call get_symm(nsym=num_symm_op_SCBZ, symops=symops_SC, & 
                   schoenflies=schoenflies_notation_SC, international_symb=int_symb_SCBZ, &
                   symprec=symprec, lattice=B_matrix_SC(:,:))
     write(*,'(A,I0,A)')'Found ',num_symm_op_SCBZ,' symmetry operations for the SCBZ.' 
     write(*,'(5A)')'    * Space group of the SCBZ: ',trim(adjustl(schoenflies_notation_SC)),'(',trim(adjustl(int_symb_SCBZ)),').'
-    ! End of symmetry analysis for the SCBZ
     !! Reading selected pckpts from the input file
     call read_pckpts_selected_by_user(k_starts=k_starts, k_ends=k_ends, ndirs=n_selec_pcbz_dirs, n_kpts_dirs=n_pckpts_dirs, &
                                       input_file=input_file_pc_kpts,b_matrix_pc=b_matrix_pc(:,:))
@@ -130,5 +142,9 @@ logical :: get_all_kpts_needed_for_EBS_averaging
             enddo
         close(04)
     close(03)
+
+    if(.not. are_commens)then
+        call print_message_commens_test(commensurate=are_commens,M=matrix_M,stop_if_not_commens=stop_if_not_commensurate)
+    endif
 
 end program get_wavefunc_SCKPTS_needed_for_EBS
