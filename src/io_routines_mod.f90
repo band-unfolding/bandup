@@ -29,7 +29,7 @@ PUBLIC :: print_welcome_messages,print_message_commens_test, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.1.0, 2014-04-18"
+character(len=30), parameter :: package_version="2.1.1, 2014-04-19"
 
 CONTAINS 
 
@@ -94,17 +94,17 @@ if(commensurate)then
 else
     n_decimals = 6
 endif
+write(str_n_decimals,*) n_decimals
 
 max_n_digits_before_dec_point = 0
 do i=1,3
     do j=1,3
-        n_digits = n_digits_integer(int(aint(M(i,j))), add_one_if_negative=.TRUE.)
+        n_digits = n_digits_integer(nint(M(i,j)), add_one_if_negative=.TRUE.)
         if(n_digits > max_n_digits_before_dec_point) max_n_digits_before_dec_point = n_digits
     enddo
 enddo
 n_char_float_format = max_n_digits_before_dec_point + n_decimals + 1
 
-write(str_n_decimals,*) n_decimals
 write(str_n_char_float_format,*) n_char_float_format
 float_format = 'f' // trim(adjustl(str_n_char_float_format)) // '.' // trim(adjustl(str_n_decimals))
 format_string = '(2(A,/),3(3(A,' // adjustl(trim(float_format)) // '),A,/))'
