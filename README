@@ -1,0 +1,67 @@
+=====================================================================================
+             BandUP: Band Unfolding code for Plane-wave based calculations           
+              Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          
+=====================================================================================
+Copyright (C) 2013, 2014 Paulo V. C. Medeiros - paume@ifm.liu.se
+
+BandUP is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+BandUP is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+
+
+===================================================================================
+How to compile BandUP
+===================================================================================
+    * To compile BandUP, run the "build.sh" script: ./build.sh
+    * A folder named "BandUP_bin" will be created.
+        * You'll find the executable for BandUP in it.
+    * This should work in most Unix environments with Intel compilers installed. 
+        * Do check, however, the system requirements below if you have any problem.
+
+
+===================================================================================
+System requirements:
+===================================================================================
+    * Preferably Linux
+        * I've also had success with Mac OS X
+        * Might work in other environments based on Unix
+    * Fortran 90 and C compilers
+        * Preferably Intel compilers (ifort and icc), version 12.1.4 (or higher)
+    * Python 2.7 (or higher) for the post-processing utilities
+        * You will need to have the following packages installed 
+          (you probably already have most of them):
+            * numpy 
+            * scipy
+            * math
+            * matplotlib
+            * argparse
+            * heapq
+        * Please let me know if I've forgotten to list any other package!
+            
+
+
+===================================================================================
+Please mind that:
+===================================================================================
+    * Although I've tried to make the compilation as simple as possible - and it has 
+      indeed worked fine so far with many combinations of compilers, computers, and 
+      operating systems, I cannot guarantee that it will always work smoothly. 
+      You might eventually need to play a bit with the scripts, and, very rarely, 
+      with the Makefiles and source code.
+    * In the calculations and tests I've performed with BandUP so far, I've basically 
+      used intel compilers (v. 12.1.4). I *believe* that you should have no problems 
+      using other versions of ifort/icc (and *maybe* even other non-intel compilers), 
+      but I cannot, unfortunatelly, guarantee that it will work in 100% of the cases.
+    * Of course, I'll try my best to help you out in case you do have problems.
+
+Let us know if you have problems! 
+
