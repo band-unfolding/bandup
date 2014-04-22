@@ -568,7 +568,7 @@ integer :: icoord, ig1, ig2, ig3, igmax
     if(.not.point_has_been_reduced)then
         write(*,'(A)')'ERROR (reduce_point_to_bz): Failed to reduce a k-point to the 1st Brillouin zone.'
         write(*,'(3(A,f0.5),A)')'    * Fractional coordinates of the point: (', &
-                                 frac_coords_point(1),', ',frac_coords_point(2),', ',frac_coords_point(2),').' ! debug
+                                 frac_coords_point(1),', ',frac_coords_point(2),', ',frac_coords_point(2),').'
         write(*,'(A)')'Stopping now.'
         stop
     endif
