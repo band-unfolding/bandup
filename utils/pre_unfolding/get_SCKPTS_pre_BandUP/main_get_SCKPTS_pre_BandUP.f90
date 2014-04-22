@@ -105,17 +105,18 @@ logical :: get_all_kpts_needed_for_EBS_averaging,stop_if_not_commensurate,are_co
     call get_irr_kpts(n_irr_kpts=n_irr_unfolding_SCKPTS,irr_kpts_list=irr_unfolding_SCKPTS, &
                       kpts_list=considered_kpts_list,rec_latt=B_matrix_SC,reduce_to_bz=.TRUE.)
      
-    write(*,'(A,I0,A)')'A total of ',n_irr_unfolding_SCKPTS," irreducible SCKPTS are needed to obtain an EBS along the selected direction(s) of the reference pcbz."
+    write(*,'(A,I0,A)')'A total of ',n_irr_unfolding_SCKPTS, &
+                       " irreducible SCKPTS are needed to obtain an EBS along the selected direction(s) of the reference pcbz."
     write(*,"(3A)")'>>> The SCBZ-Kpoints you will need to run your plane-wave calculation have been stored in the file "',trim(adjustl(outpt_file_SC_kpts)),'".'
     if(get_all_kpts_needed_for_EBS_averaging .and. (.not. int_symb_SCBZ == int_symb_pcbz))then
-        write(*,"(A)")                "===================================================================================================="
-        write(*,"(A)")                "NOTICE:"
-        write(*,'(A,/,A,/,A,/,A,/,A)')"       We have considered more pcbz directions than what you asked for. The reason is that, since", &
-                                      "       the symmetry groups of the SCBZ and the pcbz are not equal, the pc-kpts in such directions", &
-                                      "       will not necessarily be equivalent by symmetry operations of the SCBZ. This should not be", &
-                                      "       forgotten when calculating the EBS.", &
-                                      "       Don't worry, though. Only irreducible complementary directions (if any) have been considered."
-        write(*,"(A)")                "===================================================================================================="
+        write(*,"(7(A,/),A)")"====================================================================================================", &
+                             "NOTICE:                                                                                             ", &
+                             "       We have considered more pcbz directions than what you asked for. We did this because the SCBZ", &
+                             "       and the pcbz belong to different symmetry groups, and, therefore, some pcbz directions that  ", &
+                             "       are equivalent by symmetry operations of the pcbz might not be equivalent by symmetry ops. of", & 
+                             "       the SCBZ. This should not be forgotten when calculating the EBS.                             ", &
+                             "       Don't worry, though. Only irreducible complementary directions (if any) have been kept.      ", &
+                             "===================================================================================================="
     endif
     !!! Writing results to the output file
     open(unit=03, file=outpt_file_SC_kpts)

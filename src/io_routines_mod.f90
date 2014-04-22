@@ -29,7 +29,7 @@ PUBLIC :: print_welcome_messages,print_message_commens_test, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.1.1, 2014-04-19"
+character(len=30), parameter :: package_version="2.1.2, 2014-04-23"
 
 CONTAINS 
 
@@ -61,8 +61,9 @@ implicit none
 logical, intent(in) :: commensurate, stop_if_not_commens
 real(kind=dp), dimension(1:3,1:3), intent(in) :: M
 character(len=127) :: message_header,message_footer,message_footer2, &
-                      str_n_char_float_format,str_n_decimals,float_format,format_string
-integer :: i, j, n_decimals, max_n_digits_before_dec_point, n_digits, n_char_float_format
+                      str_n_char_float_format,str_n_decimals,format_string
+character(len=127), dimension(1:3) :: float_format
+integer :: i, j, n_decimals, max_n_digits_before_dec_point, n_digits
 
 if(stop_if_not_commens)then
     message_header = '                                     ERROR!!                                         '
@@ -96,19 +97,19 @@ else
 endif
 write(str_n_decimals,*) n_decimals
 
-max_n_digits_before_dec_point = 0
-do i=1,3
-    do j=1,3
+do j=1,3 ! Allowing for a different format for each column
+    max_n_digits_before_dec_point = 0
+    do i=1,3
         n_digits = n_digits_integer(nint(M(i,j)), add_one_if_negative=.TRUE.)
         if(n_digits > max_n_digits_before_dec_point) max_n_digits_before_dec_point = n_digits
     enddo
+    write(str_n_char_float_format,*) max_n_digits_before_dec_point + n_decimals + 1    
+    float_format(j) = 'f' // trim(adjustl(str_n_char_float_format)) // '.' // trim(adjustl(str_n_decimals))
 enddo
-n_char_float_format = max_n_digits_before_dec_point + n_decimals + 1
-
-write(str_n_char_float_format,*) n_char_float_format
-float_format = 'f' // trim(adjustl(str_n_char_float_format)) // '.' // trim(adjustl(str_n_decimals))
-format_string = '(2(A,/),3(3(A,' // adjustl(trim(float_format)) // '),A,/))'
-
+format_string = '(2(A,/),3(A,' // adjustl(trim(float_format(1))) // &
+                         ',A,' // adjustl(trim(float_format(2))) // &
+                         ',A,' // adjustl(trim(float_format(3))) // &
+                         ',A,/))'
 write(*,format_string)' The following relation holds between the real space vectors of the chosen SC and PC:', &
                       '                                                                                     ', &
                       '      A[1] = (',M(1,1),')*a[1] + (',M(1,2),')*a[2] + (',M(1,3),')*a[3]               ', & 

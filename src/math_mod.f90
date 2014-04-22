@@ -508,7 +508,7 @@ do ig3=-1,1
 
             if(ig1==0 .and. ig2==0 .and. ig3==0) cycle
             g(:) = origin(:) + ig1*rec_latt(1,:) + ig2*rec_latt(2,:) + ig3*rec_latt(3,:)
-            if(norm(point(:) - g(:)) < norm(point(:) - origin(:)))then
+            if(norm(point(:) - origin(:)) > norm(point(:) - g(:)))then
                 rtn = .FALSE.
                 return
             endif
@@ -532,7 +532,7 @@ real(kind=dp), dimension(1:3), intent(out) :: point_reduced_to_bz
 real(kind=dp), dimension(1:3), optional, intent(out) :: frac_coords_reduc_vec
 logical :: point_has_been_reduced
 real(kind=dp), dimension(1:3) :: frac_coords_point, g, reduc_vec
-integer :: icoord, ig1, ig2, ig3
+integer :: icoord, ig1, ig2, ig3, igmax
 
     point_has_been_reduced = .FALSE.
     if(.not.point_is_in_bz(point,rec_latt))then
@@ -541,9 +541,12 @@ integer :: icoord, ig1, ig2, ig3
         do icoord=1,3
             point_reduced_to_bz(:) = point_reduced_to_bz(:) + modulo(frac_coords_point(icoord),1.0d0)*rec_latt(icoord,:)
         enddo
-        do ig3=-1,1
-            do ig2=-1,1
-                do ig1=-1,1
+        ! I think that igmax = 1 should have been enough, but I had a problem with a big supercell, which was solved increasing igmax to 2. Don't know why.
+        ! The final result is trustworthy anyway, and the additional cost is not much.
+        igmax = 2 
+        do ig3=-igmax,igmax
+            do ig2=-igmax,igmax
+                do ig1=-igmax,igmax
                     g(:) = ig1*rec_latt(1,:) + ig2*rec_latt(2,:) + ig3*rec_latt(3,:)
                     if(point_is_in_bz(point_reduced_to_bz - g(:),rec_latt))then
                         point_reduced_to_bz(:) = point_reduced_to_bz(:) - g(:)
@@ -563,7 +566,10 @@ integer :: icoord, ig1, ig2, ig3
         point_has_been_reduced = .TRUE.
     endif
     if(.not.point_has_been_reduced)then
-        write(*,*)'ERROR (reduce_point_to_bz): Point has not been reduced. Stopping now.'
+        write(*,'(A)')'ERROR (reduce_point_to_bz): Failed to reduce a k-point to the 1st Brillouin zone.'
+        write(*,'(3(A,f0.5),A)')'    * Fractional coordinates of the point: (', &
+                                 frac_coords_point(1),', ',frac_coords_point(2),', ',frac_coords_point(2),').' ! debug
+        write(*,'(A)')'Stopping now.'
         stop
     endif
 
