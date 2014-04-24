@@ -200,13 +200,33 @@ with open(args.kpoints_file,'r') as kpts_file:
         if line.strip(): 
             # Skipping blank lines
             kpts_file_lines.append(line)
-latt_param_kpts_file = np.float(kpts_file_lines[0].split()[0])
+
+# Checking if the parameter a0 has been passed in the first line of the k-points file (old format)
+try:
+    a0_informed_in_old_format = True
+    latt_param_kpts_file_old_format = np.float(kpts_file_lines[0].split()[0])
+except:
+    a0_informed_in_old_format = False
+
 try:
     zero_of_kpts_line = np.float(kpts_file_lines[2].split()[1])
 except:
     zero_of_kpts_line = 0.0
 
 coords_type = kpts_file_lines[3].strip()
+# Checking if the parameter a0 has been passed after the "cartesian" flag
+try:
+    a0_informed_in_new_format = True
+    latt_param_kpts_file_new_format = np.float(kpts_file_lines[3].split()[1]) 
+except:
+    a0_informed_in_new_format = False
+
+a0_informed_in_kpts_file = a0_informed_in_new_format or a0_informed_in_old_format
+# If both old and new formats to inform a0 in the k-points file are used, then the new format holds.
+if(a0_informed_in_old_format):
+    latt_param_kpts_file = latt_param_kpts_file_old_format
+if(a0_informed_in_new_format):
+    latt_param_kpts_file = latt_param_kpts_file_new_format
 
 read_k_start = []
 label_k_start = []
@@ -247,15 +267,22 @@ b_matrix_pc = [b1, b2, b3]
 k_start = [np.zeros(3) for dir in range(ndirections)]
 k_end = [np.zeros(3) for dir in range(ndirections)]
 for idir in range(ndirections):
-    if(coords_type[0].upper() == 'R'):
+    if(coords_type[0].upper() == 'C'):
+        if(not a0_informed_in_kpts_file):
+            print 'ERROR: You have selected cartesian coordinates in your input k-points file, but you have not passed a scaling parameter "a0".'
+            print '       The actuall coordiates of the k-points are given by: ki[actual] = two_pi*ki[passed in file]/a0.'
+            print '       Please write the value of a0 after your tag "' + coords_type + '", and run the code again.'
+            print 'Stopping now.'
+            sys.exit(0)
+        k_start[idir] = (2.0*np.pi)*read_k_start[idir]/latt_param_kpts_file
+        k_end[idir] = (2.0*np.pi)*read_k_end[idir]/latt_param_kpts_file
+    else:
+        if((coords_type[0].upper() != 'R') and (idir==0)):
+            print 'WARNING: Assuming that the pc-kpts have been informed in fractional (reciprocal) coordinates.'
         for i in range(3):
             k_start[idir] += read_k_start[idir,i]*b_matrix_pc[i]
             k_end[idir] += read_k_end[idir,i]*b_matrix_pc[i]
-    else:
-        if((coords_type[0].upper() != 'C') and (idir==0)):
-            print 'WARNING: Assuming that the pc-kpts have been informed in cartesian coordinates.'
-        k_start[idir] = (2.0*np.pi)*read_k_start[idir]/latt_param_kpts_file
-        k_end[idir] = (2.0*np.pi)*read_k_end[idir]/latt_param_kpts_file
+
 
 pos_high_symm_lines = [zero_of_kpts_line]
 for idir in range(0,ndirections):

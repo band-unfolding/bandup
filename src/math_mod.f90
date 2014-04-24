@@ -505,9 +505,10 @@ endif
 do ig3=-1,1
     do ig2=-1,1
         do ig1=-1,1
-
             if(ig1==0 .and. ig2==0 .and. ig3==0) cycle
-            g(:) = origin(:) + ig1*rec_latt(1,:) + ig2*rec_latt(2,:) + ig3*rec_latt(3,:)
+            g(:) = origin(:) + real(ig1,kind=dp)*rec_latt(1,:) + &
+                               real(ig2,kind=dp)*rec_latt(2,:) + & 
+                               real(ig3,kind=dp)*rec_latt(3,:)
             if(norm(point(:) - origin(:)) > norm(point(:) - g(:)))then
                 rtn = .FALSE.
                 return
@@ -520,7 +521,7 @@ enddo
 end function point_is_in_bz
 
 
-subroutine reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,frac_coords_reduc_vec)
+recursive subroutine reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,max_index_lin_comb_RL_vecs)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !! Takes a point "point" and returns another point "point_reduced_to_bz" which
 !! is equivalent to "point", but lies inside the 1st BZ of the Bravais lattice
@@ -528,49 +529,52 @@ subroutine reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,frac_coords_red
 implicit none
 real(kind=dp), dimension(1:3), intent(in) :: point
 real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
-real(kind=dp), dimension(1:3), intent(out) :: point_reduced_to_bz
-real(kind=dp), dimension(1:3), optional, intent(out) :: frac_coords_reduc_vec
+real(kind=dp), dimension(1:3), intent(out) :: point_reduced_to_bz ! Returned in cartesian coordinates!
+integer, intent(in), optional :: max_index_lin_comb_RL_vecs
 logical :: point_has_been_reduced
-real(kind=dp), dimension(1:3) :: frac_coords_point, g, reduc_vec
-integer :: icoord, ig1, ig2, ig3, igmax
+real(kind=dp), dimension(1:3) :: frac_coords_point, nearest_G, ref_G, trial_nearest_G
+integer :: ig1, ig2, ig3, igmax
 
-    point_has_been_reduced = .FALSE.
-    if(.not.point_is_in_bz(point,rec_latt))then
-        frac_coords_point = coords_cart_vec_in_new_basis(cart_vec=point, new_basis=rec_latt)
-        point_reduced_to_bz(:) = 0.0d0
-        do icoord=1,3
-            point_reduced_to_bz(:) = point_reduced_to_bz(:) + modulo(frac_coords_point(icoord),1.0d0)*rec_latt(icoord,:)
-        enddo
-        ! I think that igmax = 1 should have been enough, but I had a problem with a big supercell, which was solved increasing igmax to 2. Don't know why.
-        ! The final result is trustworthy anyway, and the additional cost is not much.
-        igmax = 2 
-        do ig3=-igmax,igmax
-            do ig2=-igmax,igmax
-                do ig1=-igmax,igmax
-                    g(:) = ig1*rec_latt(1,:) + ig2*rec_latt(2,:) + ig3*rec_latt(3,:)
-                    if(point_is_in_bz(point_reduced_to_bz - g(:),rec_latt))then
-                        point_reduced_to_bz(:) = point_reduced_to_bz(:) - g(:)
-                        point_has_been_reduced = .TRUE.
-                        if(present(frac_coords_reduc_vec))then
-                            reduc_vec(:) = point(:) - point_reduced_to_bz(:)
-                            frac_coords_reduc_vec(:) = coords_cart_vec_in_new_basis(cart_vec=reduc_vec,new_basis=rec_latt)
-                        endif
-                        exit
-                    endif
-                enddo
-            enddo
-        enddo
-    else
-        point_reduced_to_bz(:) = point(:)
-        reduc_vec(:) = 0.0d0
-        point_has_been_reduced = .TRUE.
+    igmax = 0
+    if(present(max_index_lin_comb_RL_vecs))then
+        igmax = max_index_lin_comb_RL_vecs
     endif
-    if(.not.point_has_been_reduced)then
-        write(*,'(A)')'ERROR (reduce_point_to_bz): Failed to reduce a k-point to the 1st Brillouin zone.'
-        write(*,'(3(A,f0.5),A)')'    * Fractional coordinates of the point: (', &
-                                 frac_coords_point(1),', ',frac_coords_point(2),', ',frac_coords_point(2),').'
-        write(*,'(A)')'Stopping now.'
-        stop
+
+    frac_coords_point = coords_cart_vec_in_new_basis(cart_vec=point, new_basis=rec_latt)
+    ! Finding the rec. latt. point "nearest_G" that is closest to the input point "point"
+    ref_G = matmul(real(nint(frac_coords_point), kind=dp),rec_latt) ! In cartesian coords
+    nearest_G = ref_G
+    do ig3=-igmax,igmax
+        do ig2=-igmax,igmax
+            do ig1=-igmax,igmax
+                trial_nearest_G = ref_G + ig1*rec_latt(1,:) + ig2*rec_latt(2,:) + ig3*rec_latt(3,:)
+                if(norm(point - nearest_G) > norm(point - trial_nearest_G))then
+                    nearest_G = trial_nearest_G
+                endif
+            enddo 
+        enddo 
+    enddo
+    ! Reducing the point, now that we have the nearest rec. latt. point
+    point_reduced_to_bz(:) = point(:) - nearest_G(:)
+
+    ! Double-checking if the point has really been reduced 
+    ! The routine will raise an error and stop otherwise
+    point_has_been_reduced = point_is_in_bz(point_reduced_to_bz,rec_latt)
+    if(.not. point_has_been_reduced)then
+        if(igmax>=10)then !  Recursion limit
+            write(*,'(A)')'ERROR (reduce_point_to_bz): Failed to reduce k-point to the 1st Brillouin zone.'
+            write(*,'(A,I0,A)')'                            A total of ',igmax+1,' layer(s) of neighboring rec. latt. points were checked for nearest neighbors.'
+            write(*,'(A)')'                            The nearest rec. latt. point was not found.'
+            write(*,'(3(A,f0.5),A)')'                            * Cartesian coordinates of the k-point:  (', &
+                                    point(1),', ',point(2),', ',point(2),').'
+            write(*,'(3(A,f0.5),A)')'                            * Fractional coordinates of the k-point: (', &
+                                    frac_coords_point(1),', ',frac_coords_point(2),', ',frac_coords_point(2),').'
+            write(*,'(A)')'Stopping now.'
+            stop
+        else
+            ! If the previous scan fails, go for an extra layer
+            call reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,igmax+1) 
+        endif
     endif
 
 end subroutine reduce_point_to_bz
@@ -843,50 +847,6 @@ real(kind=dp) :: sprec
     enddo
 
 end subroutine get_irr_kpts
-
-
-subroutine get_symops_pc_minus_symops_SC(symops_pcbz_minus_SCBZ, rec_latt_pc, rec_latt_SC, symprec)
-implicit none
-type(symmetry_operation), dimension(:), allocatable, intent(out) :: symops_pcbz_minus_SCBZ
-real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt_pc, rec_latt_SC
-real(kind=dp), intent(in), optional :: symprec
-type(symmetry_operation), dimension(:), allocatable :: symops_pc, symops_SC
-integer :: nsym_pc, nsym_SC,nsym_diff,isym_pc,isym_SC,isym_diff
-real(kind=dp), dimension(1:3,1:3) :: diff
-real(kind=dp) :: sprec
-logical, dimension(:), allocatable :: common_rotation
-!integer :: i
-
-    sprec = 1D-6
-    if(present(symprec))then
-        sprec = symprec
-    endif
-
-    call get_symm(nsym=nsym_pc, symops=symops_pc, symprec=sprec, lattice=rec_latt_pc)
-    call get_symm(nsym=nsym_SC, symops=symops_SC, symprec=sprec, lattice=rec_latt_SC)
-    allocate(common_rotation(1:nsym_pc))
-    common_rotation(:) = .FALSE.
-    do isym_pc=1,nsym_pc
-        do isym_SC=1,nsym_SC
-            diff(:,:) = symops_pc(isym_pc)%rotation_cartesian_coords(:,:) - symops_SC(isym_SC)%rotation_cartesian_coords(:,:)
-            if(frobenius_norm(diff) < sprec)then
-                common_rotation(isym_pc) = .TRUE.
-                exit
-            endif    
-        enddo
-    enddo
-
-    nsym_diff = count(common_rotation(:) == .FALSE.)
-    allocate(symops_pcbz_minus_SCBZ(1:nsym_diff))
-    isym_diff = 0
-    do isym_pc=1,nsym_pc
-        if(.not. common_rotation(isym_pc))then
-            isym_diff = isym_diff + 1
-            symops_pcbz_minus_SCBZ(isym_diff) = symops_pc(isym_pc)
-        endif
-    enddo
-
-end subroutine get_symops_pc_minus_symops_SC
 
 
 function trace(square_matrix) result(rtn)

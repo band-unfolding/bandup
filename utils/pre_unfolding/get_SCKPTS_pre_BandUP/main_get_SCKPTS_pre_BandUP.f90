@@ -23,7 +23,7 @@ real(kind=dp), dimension(:,:), allocatable :: k_starts, k_ends
 real(kind=dp), dimension(1:3,1:3) :: dir_latt_pc, dir_latt_SC, b_matrix_pc, B_matrix_SC, matrix_M
 real(kind=dp), dimension(1:3) :: point
 integer, dimension(:), allocatable :: n_pckpts_dirs
-integer :: n_irr_unfolding_SCKPTS,ikpt,i,ios,nkpts,start_k,end_k,n_selec_pcbz_dirs,idir
+integer :: n_irr_unfolding_SCKPTS,ikpt,i,ios,start_k,end_k,n_selec_pcbz_dirs,idir
 type(vec3d), dimension(:), allocatable :: list, irr_unfolding_SCKPTS
 character(len=254) :: file_line
 ! Variables for the symmetry analysis

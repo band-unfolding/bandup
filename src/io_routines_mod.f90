@@ -29,7 +29,7 @@ PUBLIC :: print_welcome_messages,print_message_commens_test, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.1.2, 2014-04-23"
+character(len=30), parameter :: package_version="2.2.0, 2014-04-25"
 
 CONTAINS 
 
@@ -424,9 +424,10 @@ integer :: ios,idir,i
 character(len=1) :: coords_type_1st_letter
 real(kind=dp), dimension(:,:), allocatable :: read_k_start, read_k_end
 real(kind=dp) :: a0, origin_of_kpts_line
-character(len=127) :: char_n_kpts_dirs, char_line_mode, aux_char, char_kstart, char_kend
-logical :: opt_for_auto_pkpt_search, print_stuff
-
+character(len=127) :: coords_type_line, coords_type_flag, char_n_kpts_dirs, char_line_mode, aux_char, &
+                      char_kstart, char_kend
+logical :: opt_for_auto_pkpt_search, print_stuff, a0_informed_in_new_format, a0_informed_in_old_format, & 
+           give_tip_a0_for_reciprocal, warn_old_format_cartesian
 
 print_stuff = .TRUE.
 if(present(verbose)) print_stuff = verbose
@@ -441,25 +442,50 @@ open(unit=03,file=input_file)
     aux_char = ''
     do while (ios==0)
         read(03,"(A)",iostat=ios)char_kstart
-        read(03,"(A)",iostat=ios)char_kend
-        read(03,"(A)",iostat=ios)aux_char
-        if(trim(adjustl(char_kstart)) /= '' .and. trim(adjustl(char_kend)) /= '' .and. trim(adjustl(aux_char)) == '')then
-            ndirs = ndirs + 1
-        else
-            ios = 1
+        if(ios == 0 .and. trim(adjustl(char_kstart)) /= '') read(03,"(A)",iostat=ios)char_kend
+        if(ios == 0 .and. trim(adjustl(char_kstart)) /= ''  .and. trim(adjustl(char_kend)) /= '')then        
+            read(03,"(A)",iostat=ios)aux_char
+            if((ios == 0 .and. trim(adjustl(aux_char)) == '') .or. ios < 0)then
+                ndirs = ndirs + 1
+            else
+                if(ios==0) ios = 58
+            endif
+        endif
+        if(ios > 0)then
+            ios = 58
+            write(*,'(A)')'ERROR reading input pc-kpts file. Please check the format.'
+            write(*,'(A)')'Stopping now.'
+            stop
         endif
     enddo
 close(03)
 !! Actually reading the file now
 allocate(read_k_start(1:ndirs, 1:3), read_k_end(1:ndirs, 1:3))
 open(unit=03,file=input_file)
-    read(03,*)a0 ! Not normally present in the KPOINTS file, but needed here in order to return the kpts in cartesian coords.
+    read(03,*) aux_char
+    ! Old style of passing the scaling factor "a0", needed when the k-points are given in cartesian coordinates
+    ! a0 is normally not present in the k-points file, but I chose to require it if the k-points are given in 
+    ! cartesian coordinates. By doing so, one doesn't need a separate file to specify a0. 
+    read(aux_char,*,iostat=ios) a0
+    a0_informed_in_old_format = (ios==0)
     read(03,'(A)')char_n_kpts_dirs
     read(03,'(A)')char_line_mode
-    read(03,'(A1)')coords_type_1st_letter
+    read(03,'(A)')coords_type_line
+    coords_type_line = trim(adjustl(coords_type_line))
+    coords_type_1st_letter = coords_type_line(1:1)
+    ! Passing a0 after "cartesian", recommended format now.
+    read(coords_type_line,*,iostat=ios)coords_type_flag,a0
+    a0_informed_in_new_format = (ios==0)
+
     do idir=1,ndirs
-        read(03,*)(read_k_start(idir,i), i=1,3)
-        read(03,*)(read_k_end(idir,i), i=1,3)
+        read(03,*,iostat=ios)(read_k_start(idir,i), i=1,3)
+        if(ios == 0) read(03,*,iostat=ios)(read_k_end(idir,i), i=1,3)
+        if(ios/=0)then
+            write(*,'(A)')'ERROR reading input pc-kpts file.'
+            write(*,'(A)')'      * Please check if there are numbers missing or if there are extra non-number characters.'
+            write(*,'(A)')'Stopping now.'
+            stop
+        endif
         read(03,*,iostat=ios)
     enddo
 close(03)
@@ -474,24 +500,39 @@ endif
 if(present(zero_of_kpts_scale))then
     zero_of_kpts_scale = origin_of_kpts_line
 endif
+
 !! Making sure the k-points are returned in cartesian coordinates
 allocate(k_starts(1:ndirs, 1:3), k_ends(1:ndirs, 1:3))
+give_tip_a0_for_reciprocal = .FALSE.
+warn_old_format_cartesian = .FALSE.
 do idir=1,ndirs
     k_starts(idir,:) = 0.0d0
     k_ends(idir,:) = 0.0d0
-    if(upper_case(coords_type_1st_letter) == 'R')then
+    if(upper_case(coords_type_1st_letter) == 'C')then
+        warn_old_format_cartesian = a0_informed_in_old_format
+        if(.not. a0_informed_in_old_format .and. .not. a0_informed_in_new_format)then
+            write(*,'(A)')'ERROR: You have selected cartesian coordinates in your input k-points file, but you have not passed a scaling parameter "a0".'
+            write(*,'(A)')'       The actuall coordiates of the k-points are given by: ki[actual] = two_pi*ki[passed in file]/a0.'
+            write(*,'(A)')'       Please write the value of a0 after your tag "' // trim(adjustl(coords_type_flag))  // '", and run the code again.'
+            write(*,'(A)')'Stopping now.'
+            stop
+        endif
+        k_starts(idir,:) = twopi*read_k_start(idir,:)/a0
+        k_ends(idir,:) = twopi*read_k_end(idir,:)/a0
+    else
+        if((upper_case(coords_type_1st_letter) /= 'R').and.(idir==1).and.print_stuff)then
+            write(*,*)''
+            write(*,'(A)')'WARNING: Assuming that the pc-kpts have been informed in fractional (reciprocal) coordinates.'
+            write(*,*)''
+        endif
+        if(a0_informed_in_old_format .or. a0_informed_in_new_format) give_tip_a0_for_reciprocal = .TRUE.
         do i=1,3
             k_starts(idir,:) = k_starts(idir,:) + read_k_start(idir,i)*b_matrix_pc(i,:)
             k_ends(idir,:) = k_ends(idir,:) + read_k_end(idir,i)*b_matrix_pc(i,:)
         enddo
-    else
-        if((upper_case(coords_type_1st_letter) /= 'C').and.(idir==1))then
-            if(print_stuff) write(*,'(A)')'Assuming that the pc-kpts have been informed in cartesian coordinates.'
-        endif
-        k_starts(idir,:) = twopi*read_k_start(idir,:)/a0
-        k_ends(idir,:) = twopi*read_k_end(idir,:)/a0
     endif
 enddo
+
 !! Defining the number of k-points requested along each direction
 allocate(n_kpts_dirs(1:ndirs))
 char_n_kpts_dirs = trim(adjustl(char_n_kpts_dirs))
@@ -534,6 +575,23 @@ if(print_stuff)then
         endif
     enddo
 endif
+
+if(warn_old_format_cartesian)then
+    write(*,*)
+    write(*,'(A)')'>>> NOTICE: Passing a0 in the first line of the k-points file is deprecated and no longer recommended.'
+    if(a0_informed_in_new_format)then
+        write(*,'(A)')'            * You have also passed a0 after "' // trim(adjustl(coords_type_flag)) // '".'
+        write(*,'(A,f0.5,A)')'            * Only this value will be used (a0 =',a0,').'
+    endif
+    write(*,'(A)')'            * It will work, but we now recommend that you specify a0 after the tag "cartesian" (separated by a space).'
+    write(*,*)
+endif
+
+if(give_tip_a0_for_reciprocal)then
+    write(*,'(A)')">>> Tip: You don't need to pass the scaling parameter a0 when the k-points are informed in fractional (reciprocal) coordinates."
+endif
+
+write(*,*)''
 
 end subroutine read_pckpts_selected_by_user
 

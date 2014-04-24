@@ -159,7 +159,8 @@ input_file_unit = available_io_unit()
 nrecl=24 ! Trial record length (recl = length of each record in a file connected for direct access)
 open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,status='old')
     if (iost.ne.0) then
-        write(*,*) 'Error opening the input wavefunction file. Error code (iostat): ',iost, '. Stopping now.'     
+        write(*,'(A,I0,A)')'Error opening the input wavefunction file. Is the file missing?' 
+        write(*,'(A)')'Stopping now.'     
         stop
     else
         if(present(file_size_in_bytes)) inquire(unit=input_file_unit, size=file_size_in_bytes)
@@ -170,7 +171,7 @@ close(unit=input_file_unit)
 nrecl=nint(xnrecl) ! Correct record length
 nprec=nint(xnprec) ! Numerical precision flag
 if(nprec.eq.45210) then
-    write(*,*) 'Error: WAVECAR_double requires complex*16 (double precision). Stopping now.'
+    write(*,'(A)') 'Error: WAVECAR_double requires complex*16 (double precision). Stopping now.'
     stop
 endif
 
@@ -189,14 +190,14 @@ endif
 input_file_unit = available_io_unit()
 open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,status='old')
     if (iost.ne.0) then
-        write(*,*) 'Error opening the input file. Error code (iostat): ',iost, '. Stopping now.'
+        write(*,'(A)')'Error opening the input file. Stopping now.'
         close(unit=input_file_unit)
         stop
     endif       
     read(unit=input_file_unit,rec=2) xnwk,xnband,ecut,(a1(j),j=1,3),(a2(j),j=1,3),(a3(j),j=1,3)
     nwk=nint(xnwk) ! Number of k-points
     if(nwk==0)then
-        write(*,'(A)')'ERROR - read_wavecar module: no KPTS could be read from the WAVECAR file.'
+        write(*,'(A)')'ERROR (read_wavecar module): no KPTS could be read from the WAVECAR file.'
         write(*,'(A)')"For ifort users: Have you used the flag '-assume byterecl' when compiling the read_wavecar module? You should use it."
         write(*,'(A)')'Stopping now.'
         stop
@@ -228,7 +229,7 @@ open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,
         if((i_selected_kpt > nwk).or.(i_selected_kpt < 1))then
             write(*,'(2(A,I0),A)') 'ERROR: Cannot parse i_selected_kpt = ',i_selected_kpt,'. i_selected_kpt should be in between 1 and ', &
                                     nwk,' (the number fo K-points in the WAVECAR file).'
-            write(*,*) 'Stopping now.'
+            write(*,'(A)') 'Stopping now.'
             stop
         endif
     else

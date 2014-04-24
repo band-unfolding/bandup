@@ -17,6 +17,8 @@ FCFLAGS = -assume byterecl
 # flags for debugging or for maximum performance, comment (or edit) as necessary
 FCFLAGS += -openmp
 FCFLAGS += -O2 -no-ipo # ipo was causing a few problems.
+# Enable/disable warnings and remarks
+FCFLAGS += -diag-disable remark
 
 # Aliases
 current_dir = $(shell pwd)
