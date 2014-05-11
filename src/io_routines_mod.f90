@@ -29,7 +29,7 @@ PUBLIC :: print_welcome_messages,print_message_commens_test, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.2.0, 2014-04-25"
+character(len=30), parameter :: package_version="2.2.1, 2014-05-12"
 
 CONTAINS 
 

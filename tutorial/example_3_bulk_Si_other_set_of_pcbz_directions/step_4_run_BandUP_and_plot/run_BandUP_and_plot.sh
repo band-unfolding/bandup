@@ -80,7 +80,7 @@ cp "${inputs_for_plot_folder}"/prim_cell_lattice.in ${plot_folder}
 ln -s ${plot_script} ${plot_folder}/plot_unfolded_EBS_BandUP.py
 
 cd ${plot_folder}
-    ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat -vmax 3 -vmin 0 --round_cb 0 --show --save &
+    ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat --show --save &
 cd ${working_dir}
 
 done

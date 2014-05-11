@@ -1,0 +1,111 @@
+spglib.lo: spglib.c /usr/include/stdio.h /usr/include/features.h \
+ /usr/include/sys/cdefs.h /usr/include/bits/wordsize.h /usr/include/gnu/stubs.h \
+ /usr/include/bits/wordsize.h /usr/include/gnu/stubs-64.h \
+ /software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h \
+ /usr/include/bits/types.h /usr/include/bits/wordsize.h \
+ /usr/include/bits/typesizes.h /usr/include/libio.h /usr/include/_G_config.h \
+ /software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h \
+ /usr/include/wchar.h /usr/lib/gcc/x86_64-redhat-linux/4.4.7/include/stdarg.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/stdlib.h \
+ /software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h \
+ /usr/include/bits/waitflags.h /usr/include/bits/waitstatus.h \
+ /usr/include/endian.h /usr/include/bits/endian.h /usr/include/bits/byteswap.h \
+ /usr/include/bits/wordsize.h /usr/include/sys/types.h /usr/include/time.h \
+ /software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h \
+ /usr/include/sys/select.h /usr/include/bits/select.h \
+ /usr/include/bits/wordsize.h /usr/include/bits/sigset.h /usr/include/time.h \
+ /usr/include/bits/time.h /usr/include/sys/sysmacros.h \
+ /usr/include/bits/pthreadtypes.h /usr/include/bits/wordsize.h \
+ /usr/include/alloca.h \
+ /software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h \
+ /usr/include/string.h \
+ /software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h \
+ /usr/include/xlocale.h spglib.h refinement.h cell.h mathfunc.h spacegroup.h \
+ lattice.h pointgroup.h symmetry.h primitive.h kpoint.h spin.h
+
+/usr/include/stdio.h:
+
+/usr/include/features.h:
+
+/usr/include/sys/cdefs.h:
+
+/usr/include/bits/wordsize.h:
+
+/usr/include/gnu/stubs.h:
+
+/usr/include/gnu/stubs-64.h:
+
+/software/intel/composer_xe_2011_sp1.10.319/compiler/include/stddef.h:
+
+/usr/include/bits/types.h:
+
+/usr/include/bits/typesizes.h:
+
+/usr/include/libio.h:
+
+/usr/include/_G_config.h:
+
+/usr/include/wchar.h:
+
+/usr/lib/gcc/x86_64-redhat-linux/4.4.7/include/stdarg.h:
+
+/usr/include/bits/stdio_lim.h:
+
+/usr/include/bits/sys_errlist.h:
+
+/usr/include/stdlib.h:
+
+/usr/include/bits/waitflags.h:
+
+/usr/include/bits/waitstatus.h:
+
+/usr/include/endian.h:
+
+/usr/include/bits/endian.h:
+
+/usr/include/bits/byteswap.h:
+
+/usr/include/sys/types.h:
+
+/usr/include/time.h:
+
+/usr/include/sys/select.h:
+
+/usr/include/bits/select.h:
+
+/usr/include/bits/sigset.h:
+
+/usr/include/bits/time.h:
+
+/usr/include/sys/sysmacros.h:
+
+/usr/include/bits/pthreadtypes.h:
+
+/usr/include/alloca.h:
+
+/usr/include/string.h:
+
+/usr/include/xlocale.h:
+
+spglib.h:
+
+refinement.h:
+
+cell.h:
+
+mathfunc.h:
+
+spacegroup.h:
+
+lattice.h:
+
+pointgroup.h:
+
+symmetry.h:
+
+primitive.h:
+
+kpoint.h:
+
+spin.h:

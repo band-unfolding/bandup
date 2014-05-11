@@ -158,6 +158,7 @@ endif
 input_file_unit = available_io_unit()
 nrecl=24 ! Trial record length (recl = length of each record in a file connected for direct access)
 open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,status='old')
+!open(unit=input_file_unit,file='WAVECAR',access='sequential',iostat=iost,status='old',form="binary") ! test
     if (iost.ne.0) then
         write(*,'(A,I0,A)')'Error opening the input wavefunction file. Is the file missing?' 
         write(*,'(A)')'Stopping now.'     
@@ -166,6 +167,7 @@ open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,
         if(present(file_size_in_bytes)) inquire(unit=input_file_unit, size=file_size_in_bytes)
     endif       
     read(unit=input_file_unit,rec=1) xnrecl,xnspin,xnprec
+    !read(unit=input_file_unit,pos=1) xnrecl,xnspin,xnprec ! test
 close(unit=input_file_unit)
 
 nrecl=nint(xnrecl) ! Correct record length
@@ -189,12 +191,14 @@ endif
 
 input_file_unit = available_io_unit()
 open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,status='old')
+!open(unit=input_file_unit,file='WAVECAR',access='sequential',iostat=iost,status='old',form="binary") ! test
     if (iost.ne.0) then
         write(*,'(A)')'Error opening the input file. Stopping now.'
         close(unit=input_file_unit)
         stop
     endif       
     read(unit=input_file_unit,rec=2) xnwk,xnband,ecut,(a1(j),j=1,3),(a2(j),j=1,3),(a3(j),j=1,3)
+    !read(unit=input_file_unit,pos=2) xnwk,xnband,ecut,(a1(j),j=1,3),(a2(j),j=1,3),(a3(j),j=1,3) ! test
     nwk=nint(xnwk) ! Number of k-points
     if(nwk==0)then
         write(*,'(A)')'ERROR (read_wavecar module): no KPTS could be read from the WAVECAR file.'
@@ -255,6 +259,7 @@ open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,
     allocate(occ(nband)) ! Occupations 
     allocate(cener(nband)) ! Band energies (as a complex number)
     read(unit=input_file_unit,rec=irec) xnplane,(frac_coords_selected_kpt(i),i=1,3),(cener(iband),occ(iband),iband=1,nband)
+    !read(unit=input_file_unit,pos=irec) xnplane,(frac_coords_selected_kpt(i),i=1,3),(cener(iband),occ(iband),iband=1,nband) ! test
 
     nplane=nint(xnplane)
     if(present(n_plane_waves))then
@@ -394,7 +399,9 @@ open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,
             irec=irec_before_loop+iband
             temp_unit = available_io_units(iband)
             open(unit=temp_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,status='old')
+            !open(unit=temp_unit,file='WAVECAR',access='sequential',iostat=iost,status='old',form="binary") ! test
                 read(unit=temp_unit,rec=irec) (coeff(iplane,iband), iplane=1,nplane)
+                !read(unit=temp_unit,pos=irec) (coeff(iplane,iband), iplane=1,nplane) ! test
             close(temp_unit)
         enddo
         deallocate(available_io_units)

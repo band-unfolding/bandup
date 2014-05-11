@@ -32,7 +32,6 @@ How to compile BandUP
 System requirements:
 ===================================================================================
     * Preferably Linux
-        * I've also had success with Mac OS X
         * Might work in other environments based on Unix
     * Fortran 90 and C compilers
         * Preferably Intel compilers (ifort and icc), version 12.1.4 (or higher)
