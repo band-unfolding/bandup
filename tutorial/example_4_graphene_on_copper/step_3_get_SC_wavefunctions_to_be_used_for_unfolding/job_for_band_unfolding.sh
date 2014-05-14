@@ -1,6 +1,5 @@
 #!/bin/bash
-#SBATCH --nodes 34
-#SBATCH -A liu5 -p green
+#SBATCH --nodes 24
 #SBATCH -J  GCu111Band
 #SBATCH -t 1-00:00:00
 # Path to VASP EXE

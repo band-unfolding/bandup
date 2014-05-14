@@ -299,7 +299,7 @@ for idir in range(ndirections):
 pos_high_symm_lines = [zero_of_kpts_line]
 for idir in range(0,ndirections):
     pos_high_symm_lines.append(pos_high_symm_lines[-1] + np.linalg.norm(k_end[idir] - k_start[idir]))
-print 'Vertical lines will be automatically drawn at: k =', '%s' % ', '.join(map("{:9.5f}".format,pos_high_symm_lines))
+print 'Vertical lines will be automatically drawn at: k = %s' % ', '.join(map("{:9.5f}".format,pos_high_symm_lines))
 # End of determining the positions of high-symmetry BZ points on the plot
 # Labeling the high-symmetry BZ points
 labels_high_symm_lines = [label_k_start[0]]
@@ -496,6 +496,7 @@ plt.tick_params(\
     labelbottom='on')
 
 #print fig.canvas.get_supported_filetypes()
+output_file_base = myfile.strip('.dat') + '_E_from_' + str(ymin) + '_to_' + str(ymax) + '_eV_dE_' + str(energy_tolerance_for_hist2d) + '_eV'
 if(not args.save and not args.show):
     args.save = False
     args.show = True
@@ -504,7 +505,7 @@ if args.output_file:
     args.save = True
     output_file_name = args.output_file
 else:
-    output_file_name = myfile.strip('.dat') + '_E_from_' + str(ymin) + '_to_' + str(ymax) + '_eV_dE_' + str(energy_tolerance_for_hist2d) + '_eV' + '.'+args.file_format
+    output_file_name = output_file_base + '.' + args.file_format
 if (args.save):
     print 'Savig figure to file "%s" ...' % output_file_name
     fig_resolution = args.fig_resolution
@@ -521,9 +522,9 @@ if (args.save):
         print indent + 'Assuming medium-resolution (300 dpi) for the figure.'
         fig_resolution_in_dpi = 300
     plt.savefig(output_file_name, dpi=fig_resolution_in_dpi, bbox_inches='tight')
-    print indent + '* Done saving figure.'
+    print indent + '* Done saving figure (%s).' % output_file_name
 
 if args.show:
-    print 'Showing figure...'
+    print 'Showing figure (%s)...' % output_file_base
     plt.show()
-    print indent + '* Done with showing figure.'
+    print indent + '* Done showing figure (%s).' % output_file_base

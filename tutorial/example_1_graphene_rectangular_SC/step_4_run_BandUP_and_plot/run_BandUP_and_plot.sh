@@ -11,18 +11,10 @@ common_plot_folder=${working_dir}/plot
 inputs_for_plot_folder="${working_dir}/input_files_plot"
 
 sc_calc_folder="${working_dir}/../step_1_get_converged_CHGCAR"
-band_calc_K_G_G_M_M_K_folder="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding/to_unfold_onto_pcbz_direc_K-G_G-M_M-K"
-band_calc_perp_to_K_G_and_tc_K_folder="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding/to_unfold_onto_pcbz_direc_perp_to_K-G_and_touching_K"
-
-E_Fermi_SC=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-E_Fermi_K_G_G_M_M_K=`grep 'E-fermi' "${band_calc_K_G_G_M_M_K_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-E_Fermi_perp_to_K_G_and_touching_K=`grep 'E-fermi' "${band_calc_perp_to_K_G_and_tc_K_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-all_E_Fermis=($E_Fermi_SC $E_Fermi_K_G_G_M_M_K $E_Fermi_perp_to_K_G_and_touching_K)
-IFS=$'\n'
-E_Fermi=`echo "${all_E_Fermis[*]}" | sort -nr | head -n1`
+# The Fermi energy is taken only from the self consistent calculation. Please ensure convergence w.r.t. k-point mesh for your real self-consistent calculations!
+E_Fermi=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
 
 dE=0.050
-
 
 wavecar_calc_dir="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding"
 pcbz_kpts_folder="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files"
@@ -67,6 +59,9 @@ ln -s $BandUp_exe exe.x
 rm -f exe.x
 
 # Producing the plot
+mkdir -p ${inputs_for_plot_folder}
+cp -f $KPOINTS_prim_cell_file ${inputs_for_plot_folder}
+cp -f $prim_cell_lattice_file ${inputs_for_plot_folder}
 cat >"${inputs_for_plot_folder}"/energy_info_for_dir_${dir}.in <<!
 ${E_Fermi} # E-fermi
 ${emin}
@@ -79,7 +74,7 @@ mkdir -p ${plot_folder}
 cp unfolded_EBS_not-symmetry_averaged.dat ${plot_folder}
 cp unfolded_EBS_symmetry-averaged.dat ${plot_folder}
 cp "${inputs_for_plot_folder}"/energy_info_for_dir_${dir}.in ${plot_folder}/energy_info.in
-cp "${inputs_for_plot_folder}"/KPOINTS_pcbz_${dir}.in ${plot_folder}/KPOINTS_prim_cell.in
+cp "${inputs_for_plot_folder}"/KPOINTS_prim_cell_${dir}.in ${plot_folder}/KPOINTS_prim_cell.in
 cp "${inputs_for_plot_folder}"/prim_cell_lattice.in ${plot_folder}
 ln -s ${plot_script} ${plot_folder}/plot_unfolded_EBS_BandUP.py
 

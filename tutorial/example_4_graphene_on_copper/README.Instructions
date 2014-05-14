@@ -1,17 +1,21 @@
-Go through steps 1-5, and execute the scripts in each folder.
+Go through steps 1-4, and execute the scripts in each folder.
 You might need to adapt some of the scripts to your own computer/environment.
 Let us know if you have problems!
 
 =============================================================================================
                                        NOTICE
 =============================================================================================
-(i)  Mind that the WAVECAR files you are going to get in this example are quite large:
+(i)  Mind that this example is computationally expensive. Besides that, the WAVECAR files you 
+     are going to get are quite large:
          * For the unfolding along K-Gamma, Gamma-M and M-K: 56G
-         * For the unfolding along the direction perpendicular to K-Gamma and touching K: 81G
-         >>> Total: 137G
-(ii) BandUP will read a maximum of (approx.) 3.3G of data at a time to the memory. 
-     I'd thus recommend that you have at least 4G of RAM memory available when 
-     running BundUP for this example. 
+         * For the unfolding along the direction perpendicular to K-Gamma and touching K: 82G
+         >>> Total: 138G
+     It might thus be difficult running this one on some computers. It's good to make sure you 
+     have enough resources before you start. The workflow is the same as in the other examples,
+     but the system is just much bigger than the others.
+(ii) RAM memory: BandUP will read a maximum of (approx.) 3.3G of data at a time to the memory. 
+     I'd thus recommend that you have at least 4G of RAM memory available when running BundUP 
+     for this example. 
 
 If everything runs smoothly (I hope it does!), you should get something similar to what we
 have in Figs. 6(a) and 6(b) of our paper.

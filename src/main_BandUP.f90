@@ -85,7 +85,7 @@ call get_geom_unfolding_relations(GUR,list_of_SCKPTS,pckpts_to_be_checked,B_matr
 call print_geom_unfolding_relations(GUR,list_of_SCKPTS,b_matrix_pc,B_matrix_SC)
 call read_energy_info_for_band_search(input_file_energies,e_fermi,E_start,E_end,delta_e)
 call real_seq(first_term=E_start,last_term=E_end,increment=delta_e, return_list=energy_grid)
-call print_last_messages_before_unfolding(file_size,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi)
+call print_last_messages_before_unfolding(file_size,nkpts,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi)
 
 call allocate_delta_Ns_type(delta_N,pckpts_to_be_checked)
 n_folding_pckpts_parsed = 0

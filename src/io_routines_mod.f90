@@ -29,7 +29,7 @@ PUBLIC :: print_welcome_messages,print_message_commens_test, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, package_version, write_band_struc
 
-character(len=30), parameter :: package_version="2.2.1, 2014-05-12"
+character(len=30), parameter :: package_version="2.2.2, 2014-05-14"
 
 CONTAINS 
 
@@ -234,16 +234,39 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
-subroutine print_last_messages_before_unfolding(file_size,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi)
+subroutine print_last_messages_before_unfolding(file_size_in_bytes,nkpts,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi)
 implicit none
-integer(8), intent(in) :: file_size
+integer(8), intent(in) :: file_size_in_bytes
+integer, intent(in) :: nkpts
 real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
 real(kind=dp), intent(in) :: vbz,E_start,E_end,delta_e,e_fermi
+real(kind=dp) :: file_size_in_MB, file_size_in_GB, file_size, &
+                 approx_mem_per_kpt_in_bytes, mem_per_kpt_in_MB, mem_per_kpt_in_GB, mem_per_kpt
+character(len=2) :: file_size_units, mem_per_kpt_units
 real(kind=dp) :: VSBZ
 logical :: using_omp
 
+    file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
+    file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
+    file_size = file_size_in_GB
+    file_size_units = 'GB'
+    if(file_size_in_GB < 1.0d0)then
+        file_size = file_size_in_MB
+        file_size_units = 'MB'
+    endif
+
+    approx_mem_per_kpt_in_bytes = real(file_size_in_bytes,kind=dp)/real(nkpts,kind=dp)
+    mem_per_kpt_in_MB = approx_mem_per_kpt_in_bytes/(2.0**20)
+    mem_per_kpt_in_GB = approx_mem_per_kpt_in_bytes/(2.0**30)
+    mem_per_kpt = mem_per_kpt_in_GB
+    mem_per_kpt_units = 'GB'
+    if(mem_per_kpt_in_GB < 1.0d0)then
+        mem_per_kpt = mem_per_kpt_in_MB
+        mem_per_kpt_units = 'MB'
+    endif
     write(*,*)
-    write(*,'(A,f0.2,A)')'The wavefunction file is ',file_size/(2.0**30),' GB big. Only the necessary data will be read.'
+    write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units,' big. Only the necessary data will be read.'
+    write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units,' at a time.'
     write(*,*)
 
     VSBZ = dabs(dot_product(B_matrix_SC(1,:),cross(B_matrix_SC(2,:),B_matrix_SC(3,:))))

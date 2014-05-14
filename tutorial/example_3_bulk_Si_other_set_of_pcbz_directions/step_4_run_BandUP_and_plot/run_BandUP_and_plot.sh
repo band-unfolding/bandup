@@ -11,13 +11,8 @@ common_plot_folder=${working_dir}/plot
 inputs_for_plot_folder="${working_dir}/input_files_plot"
 
 sc_calc_folder="${working_dir}/../step_1_get_converged_CHGCAR"
-band_calc_W_L_L_G_G_X_X_W_W_K_folder="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding/to_unfold_onto_pcbz_direc_W-L_L-G_G-X_X-W_W-K"
-
-E_Fermi_SC=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-E_Fermi_W_L_L_G_G_X_X_W_W_K=`grep 'E-fermi' "${band_calc_W_L_L_G_G_X_X_W_W_K_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-all_E_Fermis=($E_Fermi_SC $E_Fermi_W_L_L_G_G_X_X_W_W_K)
-IFS=$'\n'
-E_Fermi=`echo "${all_E_Fermis[*]}" | sort -nr | head -n1`
+# The Fermi energy is taken only from the self consistent calculation. Please ensure convergence w.r.t. k-point mesh for your real self-consistent calculations!
+E_Fermi=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
 
 emin="-13.0"
 emax="  6.0"

@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH --nodes 24
-#SBATCH -A liu5 -p green
 #SBATCH -J  GCu111E0
 #SBATCH -t 1-00:00:00
 

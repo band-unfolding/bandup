@@ -1,0 +1,25 @@
+===================================================================================
+How this works:
+===================================================================================
+
+    * Go through the folders and execute the scripts. Take a look at the scripts and
+      input files to see what is going on.
+    * The unfolded EBSs will "pop-up" if your computer meets the system requirements.
+    * The input files for the DFT calculations should work fine in most computers,
+      but please double-check them just to be on the safe side.
+    * Feel free to contact us if you have problems.
+
+===================================================================================
+Please mind that:
+===================================================================================
+    * The tutorials are only meant as examples on how to use the code for different
+      systems. I haven't performed any rigorous relaxations, convergence tests, etc, 
+      with the systems included here. Therefore, although they are qualitatively OK,
+      you should not take them as absolute quantitative reference.
+    * The workflow is basically the same in all of the examples, and most likely will 
+      also be the same for your systems too.
+    * You don't really have to use my bash scripts to unfold the band structures of 
+      your own systems, but you definetely can use/change/adapt them if you want to. 
+      Do check, however, if the settings are OK (Fermi energy, dE, emim, emax, etc.).
+
+Have fun!

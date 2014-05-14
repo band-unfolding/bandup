@@ -11,13 +11,7 @@ common_plot_folder=${working_dir}/plot
 inputs_for_plot_folder="${working_dir}/input_files_plot"
 
 sc_calc_folder="${working_dir}/../step_1_get_converged_CHGCAR"
-band_calc_L_G_G_X_X_U_K_G_folder="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_unfolding/to_unfold_onto_pcbz_direc_L-G_G-X_X-U_K-G"
-
-E_Fermi_SC=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-E_Fermi_L_G_G_X_X_U_K_G=`grep 'E-fermi' "${band_calc_L_G_G_X_X_U_K_G_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
-all_E_Fermis=($E_Fermi_SC $E_Fermi_L_G_G_X_X_U_K_G)
-IFS=$'\n'
-E_Fermi=`echo "${all_E_Fermis[*]}" | sort -nr | head -n1`
+E_Fermi=`grep 'E-fermi' "${sc_calc_folder}/OUTCAR" | tail -1 | awk '{split($0,array," ")} END{print array[3]}'`
 
 emin="-13.0"
 emax="  6.0"
@@ -80,7 +74,7 @@ cp "${inputs_for_plot_folder}"/prim_cell_lattice.in ${plot_folder}
 ln -s ${plot_script} ${plot_folder}/plot_unfolded_EBS_BandUP.py
 
 cd ${plot_folder}
-    ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat --show --save &
+    ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat --show --save  &
 cd ${working_dir}
 
 done
