@@ -6,7 +6,7 @@ general_in_folder="${working_dir}/input_files"
 exe="${bandup_folder}/utils/pre_unfolding/get_SCKPTS_pre_BandUP/get_SCKPTS_pre_BandUP.x"
 
 cd ${general_in_folder}
-    for direc in "K-G_G-M_M-K"  "perp_to_K-G_and_touching_K"
+    for direc in "K-G_G-M_M-K"
     do
         echo "Getting SCKPTS fo unfold onto pcbz direction ${direc}"
         cp KPOINTS_prim_cell_${direc}.in KPOINTS_prim_cell.in

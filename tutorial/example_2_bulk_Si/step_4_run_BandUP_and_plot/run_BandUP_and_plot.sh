@@ -22,6 +22,7 @@ wavecar_calc_dir="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_u
 pcbz_kpts_folder="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files"
 prim_cell_lattice_file_folder="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files"
 prim_cell_lattice_file="${prim_cell_lattice_file_folder}/prim_cell_lattice.in"
+supercell_lattice_file="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files/supercell_lattice.in"
 
 for dir in "L-G_G-X_X-U_K-G"
 do
@@ -38,6 +39,8 @@ rm -f KPOINTS_prim_cell.in
 cp $KPOINTS_prim_cell_file KPOINTS_prim_cell.in
 rm -f prim_cell_lattice.in
 cp $prim_cell_lattice_file prim_cell_lattice.in
+rm -f supercell_lattice.in
+cp $supercell_lattice_file supercell_lattice.in
 
 cat >energy_info.in <<!
 ${E_Fermi} # E-fermi

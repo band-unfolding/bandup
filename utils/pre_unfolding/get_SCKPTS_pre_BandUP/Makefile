@@ -24,6 +24,7 @@ FCFLAGS += -diag-disable remark
 current_dir = $(shell pwd)
 BandUP_src_folder = $(current_dir)/../../../src/
 spglib_folder = $(BandUP_src_folder)/external/spglib-1.5.2
+vasp_related_modules_folder = $(BandUP_src_folder)/vasp_related_modules
 
 # libraries needed for linking
 LIBS = $(spglib_folder)/src/.libs/libsymspg.a
@@ -31,6 +32,7 @@ LIBS = $(spglib_folder)/src/.libs/libsymspg.a
 # Folders containing needed sources
 vpath %.f90 $(spglib_folder)/example
 vpath %.f90 $(BandUP_src_folder)
+vpath %.f90 $(vasp_related_modules_folder)
 # List of executables to be built within the package
 SRC = main_get_SCKPTS_pre_BandUP.f90
 OBJ = ${SRC:.f90=.o}
@@ -42,9 +44,11 @@ all: $(EXE)
 math_mod.o: spglib_f08.o
 band_unfolding_routines_mod.o: math_mod.o
 read_wavecar_mod.o: math_mod.o general_io_mod.o
-io_routines_mod.o: math_mod.o strings_mod.o general_io_mod.o read_wavecar_mod.o
-$(OBJ): spglib_f08.o math_mod.o io_routines_mod.o read_wavecar_mod.o band_unfolding_routines_mod.o
-$(EXE): spglib_f08.o math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o strings_mod.o io_routines_mod.o $(OBJ)
+read_vasp_files_mod.o: math_mod.o general_io_mod.o strings_mod.o
+write_vasp_files_mod.o: math_mod.o general_io_mod.o strings_mod.o
+io_routines_mod.o: math_mod.o strings_mod.o general_io_mod.o read_vasp_files_mod.o write_vasp_files_mod.o read_wavecar_mod.o
+$(OBJ): spglib_f08.o math_mod.o io_routines_mod.o read_vasp_files_mod.o write_vasp_files_mod.o read_wavecar_mod.o band_unfolding_routines_mod.o
+$(EXE): spglib_f08.o math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_vasp_files_mod.o write_vasp_files_mod.o read_wavecar_mod.o strings_mod.o io_routines_mod.o $(OBJ)
 # ======================================================================
 # General rules
 # ======================================================================

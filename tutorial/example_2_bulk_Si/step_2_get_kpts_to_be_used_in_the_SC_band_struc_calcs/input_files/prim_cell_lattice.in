@@ -1,5 +1,11 @@
-Si ! Bulk Si, primitive cell vectors (diamond structure)
+Si ! Bulk Si, primitive cell (diamond structure)
    5.430000000
    0.000000000   0.500000000   0.500000000
    0.500000000   0.000000000   0.500000000
-   0.500000000   0.500000000   0.000000000
+   0.500000000   0.500000000   0.000000000 # If this is the last line (or if the next line is blank), then BandUP ignores the positions of the atoms.
+  Si
+  2
+Selective Dynamics  
+Direct    
+  -0.125000000  -0.125000000  -0.125000000  F  F  F
+   0.125000000   0.125000000   0.125000000  F  F  F

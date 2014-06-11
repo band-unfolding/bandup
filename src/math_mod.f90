@@ -19,7 +19,8 @@ use spglib_f08
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: sp, dp, pi, twopi, min_dk, tol_for_vec_equality, tol_for_int_commens_test, vec3d, &
+PUBLIC :: sp, dp, pi, twopi, min_dk, default_tol_for_vec_equality, default_tol_for_int_commens_test, &
+          default_symprec, max_tol_for_vec_equality, vec3d, &
           star, time, n_digits_integer, cross, norm, angle, real_seq, delta, integral_delta_x_minus_x0, &
           symmetry_operation, get_rec_latt, coords_cart_vec_in_new_basis, vec_in_latt, &
           reduce_point_to_bz, same_vector, get_symm, get_star, get_irr_kpts, &
@@ -27,19 +28,39 @@ PUBLIC :: sp, dp, pi, twopi, min_dk, tol_for_vec_equality, tol_for_int_commens_t
           get_all_irr_dirs_req_for_symmavgd_EBS, kpts_line, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, delta_Ns, allocate_delta_Ns_type, & 
           delta_Ns_for_output, allocate_delta_Ns_for_output_type, &
-          check_if_pc_and_SC_are_commensurate, divide_SCKPTS_evenly_among_MPI_tasks 
+          check_if_pc_and_SC_are_commensurate, divide_SCKPTS_evenly_among_MPI_tasks, &
+          crystal_3D, create_crystal, append
+
+interface append
+  module procedure append_integer_list, append_character_list
+end interface append
 
 !! Constants used throughout the code
 integer, parameter :: sp = selected_real_kind(6, 37)    ! Single precision
 integer, parameter :: dp = selected_real_kind(15, 307)  ! Double precision
-real(kind=dp), parameter :: pi = 4.*atan(1.), twopi = 2.*pi
-real(kind=dp), parameter :: min_dk=2D-5, tol_for_vec_equality=1D-5, tol_for_int_commens_test=1D-5
+real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi
+real(kind=dp), parameter :: default_tol_for_vec_equality=1E-5_dp, &
+                            max_tol_for_vec_equality=1E-3_dp, &
+                            min_dk=2.0_dp*default_tol_for_vec_equality, &
+                            default_tol_for_int_commens_test=1E-5_dp, & 
+                            default_symprec=1E-6_dp
 real(kind=dp), parameter :: two_m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
 
 !! Derived type definitions
 type :: vec3d
   real(kind=dp), dimension(1:3) :: coord
 end type vec3d
+
+type :: crystal_3D
+    character(len=127) :: description=''
+    real(kind=dp), dimension(1:3,1:3) :: latt_vecs, rec_latt_vecs
+    real(kind=dp) :: vol, rec_latt_vol
+    real(kind=dp), dimension(:,:), allocatable :: coords_basis_atoms, & ! Shall be dimension(:,1:3)
+                                                  fractional_coords_basis_atoms
+    logical, dimension(:,:), allocatable :: unconstrained_dof_basis_atoms
+    character(len=3), dimension(:), allocatable :: atomic_symbols_basis_atoms
+    integer, dimension(:), allocatable :: integer_types_basis_atoms
+end type crystal_3D
 
 type :: symmetry_operation
     integer, dimension(1:3) :: translation_fractional_coords
@@ -62,7 +83,7 @@ end type star
 type :: bz_direction
     real(kind=dp), dimension(1:3) :: kstart, kend
     integer :: neqv=1
-    real(kind=dp) :: weight=0.0d0
+    real(kind=dp) :: weight=0.0_dp
 end type bz_direction
 
 type :: eqv_bz_directions
@@ -75,6 +96,11 @@ type :: irr_bz_directions
 end type irr_bz_directions
 
 type :: trial_folding_pckpt
+    ! Message from Paulo:
+    ! The prefix "S" means "symmetrized". This is a little trick I came up with
+    ! that allows me to use the coefficients of a SC wavefunction psi(K',n) to
+    ! calculate the spectral weights associated with a SC wavefunction psi(K,n),
+    ! where K' = SK and S is a symmetry operation of the crystal's point group.
     real(kind=dp), dimension(1:3) :: coords_actual_unfolding_K,coords,Scoords,Sfolding_vec
     logical :: folds
 end type trial_folding_pckpt
@@ -93,6 +119,7 @@ end type selected_pcbz_directions
 
 type :: geom_unfolding_relations_for_each_SCKPT
     type(selected_pcbz_directions), dimension(:), allocatable :: SCKPT
+    logical, dimension(:), allocatable :: SCKPT_used_for_unfolding
     integer :: n_pckpts,n_folding_pckpts
 end type geom_unfolding_relations_for_each_SCKPT
 
@@ -123,6 +150,154 @@ end type delta_Ns_for_output
 !! Functions and subroutines
 CONTAINS
 
+subroutine append_integer_list(item, list)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
+implicit none
+integer, intent(in) :: item
+integer, dimension(:), allocatable, intent(inout) :: list
+integer, dimension(:), allocatable :: new_list
+
+if(.not.allocated(list))then
+    allocate(list(1:1))
+    list(1) = item
+else
+    allocate(new_list(1:size(list)+1))
+    new_list(1:size(list)) = list
+    new_list(size(list)+1) = item
+    deallocate(list)
+    allocate(list(1:size(new_list)))
+    list = new_list
+    deallocate(new_list)
+endif
+
+end subroutine append_integer_list
+
+subroutine append_character_list(item, list)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
+implicit none
+character(len=*), intent(in) :: item
+character(len=*), dimension(:), allocatable, intent(inout) :: list
+character(len=len(list)), dimension(:), allocatable :: new_list
+
+if(.not.allocated(list))then
+    allocate(list(1:1))
+    list(1) = item
+else
+    allocate(new_list(1:size(list)+1))
+    new_list(1:size(list)) = list
+    new_list(size(list)+1) = item
+    deallocate(list)
+    allocate(list(1:size(new_list)))
+    list = new_list
+    deallocate(new_list)
+endif
+
+end subroutine append_character_list
+
+
+
+subroutine create_crystal(crystal, description, latt_vecs, coords_basis_atoms, &
+                          atomic_symbols_basis_atoms, unconstrained_dof_basis_atoms)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+type(crystal_3D), intent(out), allocatable :: crystal
+character(len=*), intent(in), optional :: description
+real(kind=dp), dimension(1:3,1:3), intent(in) :: latt_vecs
+real(kind=dp), dimension(:,:), intent(in), optional :: coords_basis_atoms ! dimension(:,1:3)
+character(len=3), dimension(:), optional :: atomic_symbols_basis_atoms
+logical, dimension(:,:), optional :: unconstrained_dof_basis_atoms ! dimension(:,1:3)
+integer :: alloc_stat, iatom, isymb
+real(kind=dp), dimension(1:3) :: default_positions
+logical, dimension(1:1,1:3) :: default_unconstrained_dof
+real(kind=dp), dimension(:,:), allocatable :: atom_pos ! dimension(:,1:3)
+character(len=3), dimension(:), allocatable :: symbols, unique_symbols
+logical, dimension(:,:), allocatable :: dof_basis_atoms ! dimension(:,1:3)
+   
+    ! Defaults of optional arguments 
+    default_positions(:) = 0.0_dp * (latt_vecs(1,:) + latt_vecs(2,:) + latt_vecs(3,:))
+    default_unconstrained_dof(1,:) = (/.TRUE.,.TRUE.,.TRUE./) 
+
+    ! 'Cleaning' crystal
+    deallocate(crystal,stat=alloc_stat)
+    allocate(crystal)
+
+    ! Handling optional arguments
+    if(present(coords_basis_atoms))then
+        allocate(atom_pos(1:size(coords_basis_atoms,dim=1), &
+                          1:size(coords_basis_atoms,dim=2)))
+        atom_pos = coords_basis_atoms
+    else
+        allocate(atom_pos(1:1,1:3))
+        atom_pos(1,:) = default_positions
+    endif
+    if(present(unconstrained_dof_basis_atoms))then
+        allocate(dof_basis_atoms(1:size(unconstrained_dof_basis_atoms,dim=1), &
+                                 1:size(unconstrained_dof_basis_atoms,dim=2)))
+        dof_basis_atoms = unconstrained_dof_basis_atoms
+    else
+        allocate(dof_basis_atoms(1:1,1:3))
+        dof_basis_atoms = default_unconstrained_dof
+    endif
+    if(present(atomic_symbols_basis_atoms))then
+        allocate(symbols(1:size(atomic_symbols_basis_atoms)))
+        symbols = atomic_symbols_basis_atoms
+    else
+        allocate(symbols(1:size(atom_pos,dim=1)))
+        symbols(1) = ''
+    endif
+    if(present(description))then
+        crystal%description = trim(adjustl(description))
+    else
+        crystal%description = ''
+    endif
+    ! End of handling optional arguments
+    
+    ! Lattice
+    crystal%latt_vecs = latt_vecs
+    crystal%vol = abs(triple_product(latt_vecs(1,:), latt_vecs(2,:), latt_vecs(3,:)))
+    call get_rec_latt(latt_vecs,crystal%rec_latt_vecs,crystal%rec_latt_vol)
+    ! Basis
+    allocate(crystal%coords_basis_atoms(1:size(atom_pos,dim=1), &
+                                        1:size(atom_pos,dim=2)))
+    crystal%coords_basis_atoms = atom_pos
+    allocate(crystal%fractional_coords_basis_atoms(1:size(atom_pos,dim=1), &
+                                                   1:size(atom_pos,dim=2)))
+    do iatom=1, size(atom_pos,dim=1)
+        crystal%fractional_coords_basis_atoms(iatom,:) = &
+            coords_cart_vec_in_new_basis(atom_pos(iatom,:), latt_vecs(:,:))
+    enddo
+    ! Atomic symbols
+    allocate(crystal%atomic_symbols_basis_atoms(1:size(symbols)))
+    crystal%atomic_symbols_basis_atoms = symbols
+    call append(item=symbols(1), list=unique_symbols)
+    if(size(symbols)>1)then
+        do iatom=2, size(symbols)
+            if(all(unique_symbols /= symbols(iatom)))then
+                call append(item=symbols(iatom), list=unique_symbols)
+            endif
+        enddo
+    endif
+    allocate(crystal%integer_types_basis_atoms(1:size(symbols)))
+    do iatom=1, size(symbols)
+        do isymb=1, size(unique_symbols)
+            if(symbols(iatom) == unique_symbols(isymb))then
+                crystal%integer_types_basis_atoms(iatom) = isymb
+                exit
+            endif
+        enddo
+    enddo
+
+    ! Degrees of freedom
+    allocate(crystal%unconstrained_dof_basis_atoms(1:size(dof_basis_atoms,dim=1), &
+                                                   1:size(dof_basis_atoms,dim=2)))
+    crystal%unconstrained_dof_basis_atoms = dof_basis_atoms
+
+
+end subroutine create_crystal
+
+
+
 subroutine check_if_pc_and_SC_are_commensurate(commensurate,M,b_matrix_pc,B_matrix_SC,tol)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 ! Calculates the matrix M so that  
@@ -142,7 +317,7 @@ real(kind=dp), dimension(1:3,1:3) :: residue_M
 real(kind=dp) :: max_residue
 
     commensurate = .TRUE.
-    max_residue = tol_for_int_commens_test
+    max_residue = default_tol_for_int_commens_test
     if(present(tol))then
         max_residue = dabs(tol)
     endif
@@ -236,6 +411,15 @@ implicit none
 
 end function cross
 
+function triple_product(a,b,c) result(triple_prod)
+implicit none
+real(kind=dp) :: triple_prod
+real(kind=dp), dimension(1:3), intent(in) :: a, b, c
+
+    triple_prod = dot_product(a,cross(b,c))
+
+end function triple_product
+
 function norm(v) result(rtn)
 implicit none
   real(kind=dp), dimension(1:3) :: v
@@ -260,7 +444,7 @@ real(kind=dp), dimension(:), allocatable, intent(out) :: return_list
 real(kind=dp), intent(in) :: first_term,last_term,increment
 integer :: i, n_terms
 
-    n_terms = nint((last_term - first_term)/increment + 1.0d0)
+    n_terms = nint((last_term - first_term)/increment + 1.0_dp)
     allocate(return_list(1:n_terms))
     do i = 1, n_terms
          return_list(i) = first_term + real(i - 1, kind=dp)*increment
@@ -269,6 +453,8 @@ integer :: i, n_terms
 end subroutine real_seq
 
 function kpts_line(kstart,kend,nk) result(line)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 type(vec3d), dimension(:), allocatable :: line
 real(kind=dp), dimension(1:3), intent(in) :: kstart, kend
@@ -281,7 +467,7 @@ real(kind=dp), dimension(1:3) :: line_vec
     if(nk>1)then
         line_vec = (kend - kstart)/real(nk - 1, kind=dp)
     else
-        line_vec = 0.0d0
+        line_vec = 0.0_dp
     endif
     do ikpt=1,nk
         line(ikpt)%coord(:) = kstart + real(ikpt - 1,kind=dp)*line_vec(:)
@@ -307,7 +493,7 @@ real(kind=dp), intent(in), optional :: std_dev, FWHM
         endif
     endif
 
-    rtn = exp(-((x/stddev)**2.0d0)/2.0d0)/(stddev*dsqrt(twopi))
+    rtn = exp(-((x/stddev)**2.0_dp)/2.0_dp)/(stddev*dsqrt(twopi))
 
 end function delta
 
@@ -320,9 +506,9 @@ real(kind=dp), intent(in) :: x0,lower_lim,upper_lim,std_dev
 real(kind=dp) :: x1, x2
 
 
-    x1 = (lower_lim - x0)/(sqrt(2.0d0)*std_dev)
-    x2 = (upper_lim - x0)/(sqrt(2.0d0)*std_dev)
-    rtn = 0.5d0*(erf(x2) - erf(x1))
+    x1 = (lower_lim - x0)/(sqrt(2.0_dp)*std_dev)
+    x2 = (upper_lim - x0)/(sqrt(2.0_dp)*std_dev)
+    rtn = 0.5_dp*(erf(x2) - erf(x1))
 
 end function integral_delta_x_minus_x0
 
@@ -334,7 +520,7 @@ real(kind=dp), dimension(3,3), intent(in) :: matrix
 logical, intent(out), optional :: success
 real(kind=dp), dimension(3,3) :: cofactor
 real(kind=dp) :: det
-real(kind=dp), parameter :: eps = 1.0D-10
+real(kind=dp), parameter :: eps = 1.0E-10_dp
 
 if(present(success))then
   success = .FALSE.
@@ -398,6 +584,8 @@ integer :: i
 end function coords_cart_vec_in_new_basis
 
 function same_vector(v1,v2,tolerance) result(rtn)
+!! Copyright (C) 2013 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 ! Checks if v1 and v2 are the same vector (within a given tolerance)
 implicit none
 logical :: rtn
@@ -406,7 +594,7 @@ real(kind=dp), intent(in), optional :: tolerance
 real(kind=dp) :: tol,dist 
 integer :: i
 
-    tol = real(5E-3, kind=dp)
+    tol = default_tol_for_vec_equality
     if(present(tolerance))then
         tol = dabs(tolerance)
     endif
@@ -432,6 +620,7 @@ end function same_vector
 
 function vec_in_latt(vec, latt, tolerance) result(rtn)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 !! Checks if the vector "vec" belongs to the Bravais lattice spanned by the
 !! vectors latt(i,:), i=1,2,3.
 implicit none
@@ -443,15 +632,15 @@ real*8, dimension(1:3) :: reduced_vec,frac_coords,reduced_frac_coords,g
 real*8 :: tol
 integer :: i,ig1,ig2,ig3,ig1p,ig2p,ig3p,nb1max,nb2max,nb3max
 
-tol = 1E-5
+tol = default_tol_for_vec_equality
 if(present(tolerance))then
      tol = dabs(tolerance)
 endif
 
 rtn = .FALSE.
 frac_coords(:) = coords_cart_vec_in_new_basis(cart_vec=vec, new_basis=latt)
-reduced_frac_coords(:) = mod(frac_coords(:),1.0d0)
-reduced_vec(:) = 0.0d0
+reduced_frac_coords(:) = mod(frac_coords(:),1.0_dp)
+reduced_vec(:) = 0.0_dp
 do i=1,3
     reduced_vec(:) = reduced_vec(:) + reduced_frac_coords(i)*latt(i,:)
 enddo
@@ -487,6 +676,7 @@ function point_is_in_bz(point,rec_latt,origin_point) result(rtn)
 !! lattice for which the reciprocal lettice vectors are "rec_latt(i,:)", i=1,2,3
 !! The optional variable "origin_point" is to be used if you want the mesh to be
 !! centered in other point than (0,0,0).
+!! Not fully tested, but works for BandUP
 implicit none
 logical :: rtn
 real(kind=dp), dimension(1:3), intent(in) :: point
@@ -499,7 +689,7 @@ rtn = .TRUE.
 if(present(origin_point))then
     origin(:) = origin_point(:)
 else
-    origin(:) = 0.0d0
+    origin(:) = 0.0_dp
 endif
 
 do ig3=-1,1
@@ -526,6 +716,7 @@ recursive subroutine reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,max_i
 !! Takes a point "point" and returns another point "point_reduced_to_bz" which
 !! is equivalent to "point", but lies inside the 1st BZ of the Bravais lattice
 !! with reciprocal lattice vectors "rec_latt(i,:)", i=1,2,3.
+!! Not fully tested, but works for BandUP
 implicit none
 real(kind=dp), dimension(1:3), intent(in) :: point
 real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
@@ -580,41 +771,189 @@ integer :: ig1, ig2, ig3, igmax
 end subroutine reduce_point_to_bz
 
 
-subroutine get_symm(nsym, symops, schoenflies, international_symb, symprec, lattice)
+subroutine get_prim_cell(crystal_pc, crystal, &
+                         cystal_is_prim_cell, symmetryze_and_refine_cell, symprec)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+!! If the crystal is already a primitive cell, then a copy of it is
+!! returned in the crystal_pc variable
+!! Not fully tested, but works for BandUP
+implicit none
+type(crystal_3D), intent(out), allocatable :: crystal_pc
+type(crystal_3D), intent(in) :: crystal
+logical, intent(out), optional :: cystal_is_prim_cell
+logical, intent(in), optional :: symmetryze_and_refine_cell
+real(kind=dp), intent(in), optional :: symprec
+type(crystal_3D), allocatable :: aux_crystal
+real(kind=dp), dimension(:,:), allocatable :: transpose_frac_coords_SC, transpose_coords_pc, &
+                                              aux_transpose_frac_coords
+integer :: num_atoms_pc, num_atoms_SC,iatom, iatom2, alloc_stat
+integer, dimension(:), allocatable :: aux_integer_types_basis_atoms
+real(kind=dp) :: symm_prec
+character(len=3), dimension(:), allocatable :: atom_symbols
+logical :: symmetryze_and_ref_cell
+
+    symmetryze_and_ref_cell = .FALSE.
+    if(present(symmetryze_and_refine_cell))then
+        symmetryze_and_ref_cell = symmetryze_and_refine_cell
+    endif
+ 
+    symm_prec=default_symprec
+    if(present(symprec))then 
+        symm_prec=dabs(symprec)
+    endif
+
+    allocate(aux_crystal)
+    aux_crystal = crystal
+
+    if(symmetryze_and_ref_cell)then
+        deallocate(aux_integer_types_basis_atoms, stat=alloc_stat)
+        aux_integer_types_basis_atoms = 0 
+        deallocate(aux_transpose_frac_coords, stat=alloc_stat)
+        ! spglib requires space for 4*n_atoms to be allocated here, because
+        ! 4 times more atoms are generated for face-centered crystals.
+        allocate(aux_integer_types_basis_atoms(1:4*size(crystal%integer_types_basis_atoms)))
+        allocate(aux_transpose_frac_coords(1:size(crystal%fractional_coords_basis_atoms,dim=2), &
+                                          1:4*size(crystal%fractional_coords_basis_atoms,dim=1)))
+        aux_transpose_frac_coords(:,1:size(crystal%fractional_coords_basis_atoms,dim=1)) = &
+            transpose(crystal%fractional_coords_basis_atoms(:,:))
+        aux_integer_types_basis_atoms(1:size(crystal%integer_types_basis_atoms)) = &
+            crystal%integer_types_basis_atoms(:)
+        num_atoms_SC = size(crystal%fractional_coords_basis_atoms,dim=1)
+        num_atoms_SC = spg_refine_cell(aux_crystal%latt_vecs, &
+                                       aux_transpose_frac_coords, &
+                                       aux_integer_types_basis_atoms, &
+                                       num_atoms_SC, symm_prec)
+        deallocate(aux_crystal%fractional_coords_basis_atoms, stat=alloc_stat)
+        deallocate(aux_crystal%integer_types_basis_atoms, stat=alloc_stat)
+        allocate(aux_crystal%fractional_coords_basis_atoms(1:num_atoms_SC,1:3))
+        allocate(aux_crystal%integer_types_basis_atoms(1:num_atoms_SC))
+        aux_crystal%fractional_coords_basis_atoms(:,:) = &
+            transpose(aux_transpose_frac_coords(:,1:num_atoms_SC))
+        aux_crystal%integer_types_basis_atoms = aux_integer_types_basis_atoms(1:num_atoms_SC) 
+        deallocate(aux_transpose_frac_coords, stat=alloc_stat)
+        deallocate(aux_integer_types_basis_atoms, stat=alloc_stat)
+    endif
+
+    allocate(transpose_frac_coords_SC(1:size(aux_crystal%fractional_coords_basis_atoms,dim=2), &
+                                      1:size(aux_crystal%fractional_coords_basis_atoms,dim=1)))
+    transpose_frac_coords_SC = transpose(aux_crystal%fractional_coords_basis_atoms)
+    num_atoms_pc = spg_find_primitive(aux_crystal%latt_vecs, &
+                                      transpose_frac_coords_SC, &
+                                      aux_crystal%integer_types_basis_atoms, &
+                                      size(aux_crystal%fractional_coords_basis_atoms, dim=1), &
+                                      symm_prec)
+    if(num_atoms_pc>0)then 
+       ! This means that the input crystal celll is a perfect supercell
+       ! corresponding to a primitive unit cell with num_atoms_pc atoms
+        if(present(cystal_is_prim_cell)) cystal_is_prim_cell = .FALSE.
+        allocate(atom_symbols(1:num_atoms_pc))
+        allocate(transpose_coords_pc(1:3,1:num_atoms_pc))
+        do iatom=1,num_atoms_pc
+            do iatom2=1,size(crystal%atomic_symbols_basis_atoms)
+                if(aux_crystal%integer_types_basis_atoms(iatom) == &
+                   crystal%integer_types_basis_atoms(iatom2))then
+                    atom_symbols(iatom) = crystal%atomic_symbols_basis_atoms(iatom2)
+                    exit
+                endif
+            enddo
+            ! Making sure the atoms are inside the simulation box
+            ! modulo(a,p) returns a - floor(a / p) * p
+            transpose_frac_coords_SC(:,iatom) = modulo(transpose_frac_coords_SC(:,iatom), &
+                                                       real(1,kind=dp))
+            ! Changing to cartesian coords
+            transpose_coords_pc(:,iatom) = matmul(transpose_frac_coords_SC(:,iatom), & 
+                                                  aux_crystal%latt_vecs)
+        enddo
+        call create_crystal(crystal=crystal_pc, description=crystal%description, &
+                            latt_vecs=aux_crystal%latt_vecs, & 
+                            coords_basis_atoms=transpose(transpose_coords_pc), &
+                            atomic_symbols_basis_atoms=atom_symbols)
+    else
+        ! If the crystal is already a primitive cell, then a copy of it is
+        ! returned in the crystal_pc variable
+        if(present(cystal_is_prim_cell)) cystal_is_prim_cell = .TRUE.
+        allocate(crystal_pc)
+        crystal_pc = crystal
+    endif
+
+end subroutine get_prim_cell
+
+
+subroutine get_symm(nsym, symops, schoenflies, international_symb, symprec, crystal, &
+                    cystal_is_prim_cell, try_to_reduce_to_a_pc, crystal_reduced_prim_cell)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 integer, intent(out), optional :: nsym
 type(symmetry_operation), dimension(:), allocatable, optional, intent(out) :: symops
 character(len=10), intent(out), optional :: schoenflies
 character(len=11), intent(out), optional :: international_symb
 real(kind=dp), intent(in), optional :: symprec
-real(kind=dp), dimension(1:3,1:3), intent(in) ::lattice
-!! Parameters
-integer, parameter :: num_atoms=1
-integer, dimension(1:1), parameter :: atom_types=1
-real(kind=dp), dimension(1:3), parameter :: atomic_positions=0.0d0
+type(crystal_3D), intent(in) :: crystal
+logical, intent(out), optional :: cystal_is_prim_cell
+logical, intent(in), optional :: try_to_reduce_to_a_pc
+type(crystal_3D), intent(out), allocatable, optional :: crystal_reduced_prim_cell
 ! Local variables
+type(crystal_3D), allocatable :: work_crystal, aux_crystal
 type(SpglibDataset) :: symm_dataset
 real(kind=dp) :: symm_prec
 real(kind=dp), dimension(1:3,1:3) :: M, M_inv
-integer :: isym, alloc_stat, space_group_num
+integer :: isym, alloc_stat, space_group_num, n_operations
 character(len=10) :: schoenflies_notation
+logical :: work_with_pc, already_pc
 
-    symm_prec=1D-6
+    symm_prec = default_symprec
     if(present(symprec))then 
         symm_prec=dabs(symprec)
     endif
-    symm_dataset = spg_get_dataset(lattice, atomic_positions, atom_types, num_atoms, symm_prec)
+    work_with_pc = .FALSE.
+    if(present(try_to_reduce_to_a_pc))then
+        work_with_pc = try_to_reduce_to_a_pc
+    endif
 
+    already_pc = .TRUE.
+    if(work_with_pc)then
+        call get_prim_cell(crystal_pc=work_crystal,crystal=crystal, &
+                           cystal_is_prim_cell=already_pc, symprec=symm_prec)
+        if(present(crystal_reduced_prim_cell))then
+            deallocate(crystal_reduced_prim_cell, stat=alloc_stat)
+            allocate(crystal_reduced_prim_cell)
+            crystal_reduced_prim_cell = work_crystal
+        endif
+    else
+        ! The use of aux_crystal is just to know whether the crystal cell is a
+        ! pc or not. I'll be working with the original input crysral anyway.
+        call get_prim_cell(crystal_pc=aux_crystal,crystal=crystal, &
+                           cystal_is_prim_cell=already_pc, symprec=symm_prec)
+        if(present(crystal_reduced_prim_cell))then
+            deallocate(crystal_reduced_prim_cell, stat=alloc_stat)
+            allocate(crystal_reduced_prim_cell)
+            crystal_reduced_prim_cell = aux_crystal
+        endif
+        deallocate(aux_crystal, stat=alloc_stat)
+
+        allocate(work_crystal)
+        work_crystal = crystal
+    endif
+    if(present(cystal_is_prim_cell)) cystal_is_prim_cell = already_pc
+
+    symm_dataset = spg_get_dataset(work_crystal%latt_vecs, &
+                                   transpose(work_crystal%fractional_coords_basis_atoms), &
+                                   work_crystal%integer_types_basis_atoms, &
+                                   size(work_crystal%fractional_coords_basis_atoms, dim=1), &
+                                   symm_prec)
+
+    n_operations = symm_dataset % n_operations
     if(present(nsym))then
-        nsym = symm_dataset % n_operations 
+        nsym = n_operations
     endif
 
     if(present(symops))then
-        M = lattice ! Matrix that changes from the lattice basis to the canonical basis in 3D
+        M = work_crystal%latt_vecs ! Matrix that changes from the lattice basis to the canonical basis in 3D
         M_inv = inverse_of_3x3_matrix(M) 
         deallocate(symops,stat=alloc_stat)
-        allocate(symops(1:symm_dataset % n_operations))
-        do isym=1, symm_dataset % n_operations
+        allocate(symops(1:n_operations))
+        do isym=1, n_operations
             symops(isym) % translation_fractional_coords(:) = symm_dataset % translations(:,isym)
             symops(isym) % rotation_fractional_coords(:,:) = symm_dataset % rotations(:,:,isym)
             symops(isym) % translation_cartesian_coords(:) = matmul(symops(isym) % translation_fractional_coords(:), M)
@@ -624,7 +963,11 @@ character(len=10) :: schoenflies_notation
 
     if(present(schoenflies))then
         schoenflies_notation = '     '
-        space_group_num = spg_get_schoenflies(schoenflies_notation, lattice, atomic_positions, atom_types, num_atoms, symm_prec)
+        space_group_num = spg_get_schoenflies(schoenflies_notation, work_crystal%latt_vecs, &
+                                              transpose(work_crystal%fractional_coords_basis_atoms), &
+                                              work_crystal%integer_types_basis_atoms, &
+                                              size(work_crystal%fractional_coords_basis_atoms, dim=1), &
+                                              symm_prec)
         schoenflies = schoenflies_notation(:len(schoenflies_notation)-1)
     endif
 
@@ -636,6 +979,8 @@ end subroutine get_symm
 
 
 function pt_eqv_by_point_group_symop(point,symops,isym,fractional_coords,invert_symop) result(eqv_point)
+!! Copyright (C) 2013 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 real(kind=dp), dimension(1:3) :: eqv_point
 real(kind=dp), dimension(1:3), intent(in) :: point
@@ -657,21 +1002,24 @@ logical :: frac_coords, invert
             if(.not. invert)then
                 eqv_point(:) = matmul(point(:),symops(isym) % rotation_fractional_coords(:,:))
             else
-                eqv_point(:) = matmul(point(:),inverse_of_3x3_matrix(1.0d0*symops(isym) % rotation_fractional_coords(:,:)))
+                eqv_point(:) = matmul(point(:),inverse_of_3x3_matrix(1.0_dp*symops(isym) % rotation_fractional_coords(:,:)))
             endif
         else
             if(.not. invert)then
                 eqv_point(:) = matmul(point(:),symops(isym) % rotation_cartesian_coords(:,:))
             else
-                eqv_point(:) = matmul(point(:),inverse_of_3x3_matrix(1.0d0*symops(isym) % rotation_cartesian_coords(:,:)))
+                eqv_point(:) = matmul(point(:),inverse_of_3x3_matrix(1.0_dp*symops(isym) % rotation_cartesian_coords(:,:)))
             endif
         endif
 
 end function pt_eqv_by_point_group_symop
 
-subroutine get_star(star_of_pt,list_of_all_generated_points,points,lattice,tol_for_vec_equality,symprec,reduce_to_bz)
+subroutine get_star(star_of_pt, list_of_all_generated_points, points, crystal, symm_ops, &
+                    tol_for_vec_equality, symprec, reduce_to_bz, try_to_reduce_to_a_pc)
+!! Copyright (C) 2013 Paulo V. C. Medeiros
 !! The input list of points shall be in cartesian coordinates.
 !! The output list of points will be also given in cartesian coordinates.
+!! Not fully tested, but works for BandUP
 implicit none
 type :: symop_properties
     real(kind=dp), dimension(1:3) :: coord
@@ -686,23 +1034,25 @@ end type degenerate_star
 type(star), dimension(:), allocatable, intent(out), optional :: star_of_pt 
 type(vec3d), dimension(:), allocatable, intent(out), optional :: list_of_all_generated_points
 type(vec3d), dimension(:), intent(in) :: points
-real(kind=dp), dimension(1:3,1:3), intent(in) :: lattice
+type(crystal_3D), intent(in) :: crystal
+type(symmetry_operation), dimension(:), allocatable, optional, intent(inout) :: symm_ops
 real(kind=dp), intent(in), optional :: tol_for_vec_equality,symprec
-logical, intent(in), optional :: reduce_to_bz
+logical, intent(in), optional :: reduce_to_bz, try_to_reduce_to_a_pc
 
 type(degenerate_star), dimension(:), allocatable :: possibly_degenerate_pts_eqv_to_pt
 type(star), dimension(:), allocatable :: reduced_points_eqv_to_pt 
-real(kind=dp), dimension(1:3) :: point,eqv_point,point_reduced_to_bz
+real(kind=dp), dimension(1:3) :: point, point_reduced_to_bz
+real(kind=dp), dimension(1:3,1:3) :: rec_lattice
 integer :: size_points,ipt,ipt2,nsym,isym,isym2,iupt,neqv,alloc_stat,n_generated_points,ieqv_pt
 real(kind=dp) :: tol,sym_prec
-logical :: reduce2bz
+logical :: reduce2bz, reduce2pc
 type(symmetry_operation), dimension(:), allocatable :: symops
 
-    tol=1D-5
+    tol = default_tol_for_vec_equality
     if(present(tol_for_vec_equality))then
         tol = dabs(tol_for_vec_equality)
     endif
-    sym_prec=1D-6
+    sym_prec = default_symprec
     if(present(symprec))then
         sym_prec = dabs(symprec)
     endif
@@ -710,9 +1060,29 @@ type(symmetry_operation), dimension(:), allocatable :: symops
     if(present(reduce_to_bz))then
         reduce2bz = reduce_to_bz
     endif
+    reduce2pc = .FALSE.
+    if(present(try_to_reduce_to_a_pc))then
+        reduce2pc = try_to_reduce_to_a_pc
+    endif
 
-    call get_symm(nsym=nsym, symops=symops, symprec=sym_prec, lattice=lattice)
+    deallocate(symops, stat=alloc_stat)
+    if(present(symm_ops))then
+        if(size(symm_ops)>0)then
+            allocate(symops(1:size(symm_ops)), stat=alloc_stat)
+            symops = symm_ops
+        else
+            call get_symm(symops=symops, symprec=sym_prec, crystal=crystal,try_to_reduce_to_a_pc=reduce2pc)
+            deallocate(symm_ops, stat=alloc_stat)
+            allocate(symm_ops(1:size(symops)), stat=alloc_stat)
+            symm_ops = symops
+        endif
+    else
+        call get_symm(symops=symops, symprec=sym_prec,crystal=crystal,try_to_reduce_to_a_pc=reduce2pc)
+    endif
+    nsym = size(symops)
+
     size_points = size(points)
+    rec_lattice = crystal%rec_latt_vecs
 
     deallocate(possibly_degenerate_pts_eqv_to_pt,stat=alloc_stat)
     allocate(possibly_degenerate_pts_eqv_to_pt(1:size_points))
@@ -721,15 +1091,18 @@ type(symmetry_operation), dimension(:), allocatable :: symops
         allocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(1:nsym))
         point(:) = points(ipt)%coord(:) ! In cartesian coords.
         if(reduce2bz)then
-            call reduce_point_to_bz(point, lattice, point_reduced_to_bz) ! Mind that the subroutine returns the vector in cartesian coords.
+            call reduce_point_to_bz(point, rec_lattice, point_reduced_to_bz) ! Mind that the subroutine returns the vector in cartesian coords.
             point = point_reduced_to_bz
         endif
-        point(:) = coords_cart_vec_in_new_basis(cart_vec=point(:),new_basis=lattice)  ! Changing now to fractional coords.
         do isym=1, nsym
             deallocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop,stat=alloc_stat)
             allocate(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop(1:nsym))
-            eqv_point(:) = pt_eqv_by_point_group_symop(point=point,symops=symops,isym=isym, fractional_coords=.TRUE.)
-            possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:) = eqv_point(1)*lattice(1,:) + eqv_point(2)*lattice(2,:) + eqv_point(3)*lattice(3,:) ! Cartesian 
+            ! The symmetry ops have to be performed using cartesian coordinates,
+            ! because they've been obtained from the real-space lattice, but
+            ! they'll be applied to the points in the reciprocal space
+            possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:) = &
+                pt_eqv_by_point_group_symop(point=point, symops=symops, isym=isym, &
+                                            fractional_coords=.FALSE.)
         enddo
 
         do isym=1,nsym
@@ -741,7 +1114,9 @@ type(symmetry_operation), dimension(:), allocatable :: symops
 
         do isym=1,nsym-1
             do isym2=isym+1,nsym
-                if(same_vector(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%coord(:),possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:),tol))then
+                if(same_vector(possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%coord(:), &
+                               possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%coord(:), &
+                               tol))then
                     possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym)%eqv_to_symop(isym2) = .TRUE.
                     possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%eqv_to_symop(isym) = .TRUE.
                     possibly_degenerate_pts_eqv_to_pt(ipt)%symop(isym2)%is_eqv_to_a_previous_symop = .TRUE.
@@ -787,62 +1162,82 @@ type(symmetry_operation), dimension(:), allocatable :: symops
 
 end subroutine get_star
 
-subroutine get_irr_kpts(n_irr_kpts,irr_kpts_list,kpts_list,rec_latt,reduce_to_bz,symprec)
+subroutine get_irr_kpts(n_irr_kpts,irr_kpts_list,irr_kpts_list_frac_coords, &
+                        kpts_list,crystal,reduce_to_bz,symprec)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 integer, intent(out) :: n_irr_kpts
-real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
+type(crystal_3D), intent(in) :: crystal
 type(vec3d), dimension(:), intent(in) :: kpts_list
-type(vec3d), dimension(:), allocatable, intent(out) :: irr_kpts_list
+type(vec3d), dimension(:), allocatable, intent(out) :: irr_kpts_list, irr_kpts_list_frac_coords
 logical, intent(in), optional :: reduce_to_bz
 real(kind=dp), optional :: symprec
 
 real(kind=dp), dimension(1:3) :: point, previous_point, point_reduced_to_SCBZ
+real(kind=dp), dimension(1:3,1:3) :: rec_latt
 type(symmetry_operation), dimension(:), allocatable :: symops
-integer :: ikpt,ikpt2,nsym,isym
-logical :: reduce2bz,eqv_to_previous_kpt
+integer :: ikpt,ikpt2,ieqv_kpt,i_irr_kpt
+logical :: reduce2bz
+logical, dimension(:), allocatable :: kpt_is_eqv_to_previous_kpt 
 real(kind=dp) :: sprec
+type(star), dimension(:), allocatable :: SKPTS_eqv_to_SKPT
+type(vec3d), dimension(:), allocatable :: work_kpts_list
 
     reduce2bz = .FALSE.
     if(present(reduce_to_bz))then
         reduce2bz = reduce_to_bz
     endif
 
-    sprec=1D-6
+    sprec = default_symprec
     if(present(symprec))then
         sprec = symprec
     endif
 
-    call get_symm(nsym=nsym, symops=symops,symprec=sprec, lattice=rec_latt(:,:))
-    n_irr_kpts = 0
-    allocate(irr_kpts_list(1:size(kpts_list)))
-    do ikpt = 1, size(irr_kpts_list)
-        irr_kpts_list(ikpt)%coord(:) = 0.0d0
-    enddo
-    do ikpt=1, size(kpts_list)
-        if(reduce2bz)then
+    rec_latt = crystal%rec_latt_vecs
+
+    allocate(work_kpts_list(1:size(kpts_list)))
+    if(reduce2bz)then
+        do ikpt=1, size(kpts_list)
             call reduce_point_to_bz(kpts_list(ikpt)%coord(:), rec_latt, point_reduced_to_SCBZ)  ! In cartesian coords.
-            point(:) = point_reduced_to_SCBZ(:)
-        else
-            point(:) = kpts_list(ikpt)%coord(:) 
-        endif
-        eqv_to_previous_kpt = .FALSE.
-        if(n_irr_kpts>0)then
-            do ikpt2 = n_irr_kpts,1,-1
-                do isym=1,nsym
-                    previous_point(:) = pt_eqv_by_point_group_symop(point=irr_kpts_list(ikpt2)%coord(:), symops=symops,isym=isym, fractional_coords=.TRUE.)
-                    previous_point = previous_point(1)*rec_latt(1,:) + previous_point(2)*rec_latt(2,:) +previous_point(3)*rec_latt(3,:)
-                    if(same_vector(point,previous_point,sprec))then 
-                        eqv_to_previous_kpt = .TRUE.
+            work_kpts_list(ikpt)%coord(:) = point_reduced_to_SCBZ(:)
+        enddo
+    else
+        work_kpts_list = kpts_list
+    endif
+
+    call get_star(star_of_pt=SKPTS_eqv_to_SKPT, points=work_kpts_list, &
+                  crystal=crystal, symm_ops=symops, symprec=sprec, reduce_to_bz=reduce2bz)
+   
+
+    allocate(kpt_is_eqv_to_previous_kpt(1:size(work_kpts_list))) 
+    kpt_is_eqv_to_previous_kpt(:) = .FALSE.
+    do ikpt=size(work_kpts_list),1,-1
+        point(:) = work_kpts_list(ikpt)%coord(:)
+        if(ikpt>1)then
+            do ikpt2=ikpt-1,1,-1
+                do ieqv_kpt=1,size(SKPTS_eqv_to_SKPT(ikpt2)%eqv_pt(:))
+                    previous_point(:) = SKPTS_eqv_to_SKPT(ikpt2)%eqv_pt(ieqv_kpt)%coord(:)
+                    if(same_vector(point,previous_point))then
+                        kpt_is_eqv_to_previous_kpt(ikpt) = .TRUE.
                         exit
                     endif
                 enddo
-                if(eqv_to_previous_kpt) exit
-            enddo
+            enddo 
         endif
-        if(.not.eqv_to_previous_kpt)then
-            point(:) = coords_cart_vec_in_new_basis(cart_vec=point,new_basis=rec_latt)  ! Now in fractional coords.
-            n_irr_kpts = n_irr_kpts + 1
-            irr_kpts_list(n_irr_kpts)%coord(:) = point(:) ! In fractional coords.
+    enddo
+    n_irr_kpts = count(.not. kpt_is_eqv_to_previous_kpt(:))
+
+   ! Returning the lists
+    allocate(irr_kpts_list(1:n_irr_kpts), irr_kpts_list_frac_coords(1:n_irr_kpts))
+    i_irr_kpt = 0
+    do ikpt=1, size(work_kpts_list)
+        if(.not. kpt_is_eqv_to_previous_kpt(ikpt))then
+            i_irr_kpt = i_irr_kpt + 1
+            irr_kpts_list(i_irr_kpt)%coord(:) = work_kpts_list(ikpt)%coord(:)
+            irr_kpts_list_frac_coords(i_irr_kpt)%coord(:) = &
+                coords_cart_vec_in_new_basis(cart_vec=work_kpts_list(ikpt)%coord(:), &
+                                             new_basis=rec_latt)
         endif
     enddo
 
@@ -856,7 +1251,7 @@ real(kind=dp), dimension(:,:) :: square_matrix
 integer :: i, dimens
 
     dimens=size(square_matrix,dim=1)
-    rtn = 0.0d0
+    rtn = 0.0_dp
     do i=1,dimens
         rtn = rtn + square_matrix(i,i)
     enddo
@@ -886,6 +1281,7 @@ end function frobenius_norm
 
 subroutine get_compl_pcbz_direcs(compl_pcdirs,ncompl,dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ,symops_SC,symprec)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 type(eqv_bz_directions), intent(out) :: compl_pcdirs
 integer, intent(out) :: ncompl
@@ -899,7 +1295,7 @@ logical, dimension(:), allocatable :: direc_also_eqv_in_SC
 
 
     ncompl = 0
-    sprec=1D-6
+    sprec = default_symprec
     if(present(symprec))then
         sprec=symprec
     endif
@@ -934,14 +1330,15 @@ logical, dimension(:), allocatable :: direc_also_eqv_in_SC
 
 end subroutine get_compl_pcbz_direcs
 
-subroutine get_irr_bz_directions(irr_dirs,nirr,list_of_dirs,symm_ops,rec_latt,symprec)
+subroutine get_irr_bz_directions(irr_dirs,nirr,list_of_dirs,symm_ops,crystal,symprec)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 type(irr_bz_directions), intent(out) :: irr_dirs
 integer, intent(out) :: nirr
 type(eqv_bz_directions), intent(in) :: list_of_dirs
 type(symmetry_operation), dimension(:), optional, intent(in) :: symm_ops
-real(kind=dp), dimension(1:3,1:3), intent(in), optional :: rec_latt
+type(crystal_3D), intent(in) :: crystal
 real(kind=dp), intent(in), optional :: symprec
 real(kind=dp) :: sprec
 logical, dimension(:,:), allocatable ::  dirs_are_eqv
@@ -951,7 +1348,7 @@ real(kind=dp), dimension(1:3) :: current_kstart,current_kend,next_kstart,next_ke
 type(symmetry_operation), dimension(:), allocatable :: symops
 
     nirr = 0
-    sprec=1D-6
+    sprec = default_symprec
     if(present(symprec))then
         sprec=symprec
     endif
@@ -959,7 +1356,7 @@ type(symmetry_operation), dimension(:), allocatable :: symops
         allocate(symops(1:size(symm_ops)))
         symops=symm_ops
     else
-        call get_symm(symops=symops, symprec=sprec, lattice=rec_latt)
+        call get_symm(symops=symops, symprec=sprec, crystal=crystal)
     endif
 
     ndirs = size(list_of_dirs%eqv_dir(:))
@@ -1000,13 +1397,14 @@ type(symmetry_operation), dimension(:), allocatable :: symops
 end subroutine get_irr_bz_directions
 
 
-subroutine get_eqv_bz_dirs(eqv_dirs,kstart,kend,symm_ops,rec_latt,symprec) 
+subroutine get_eqv_bz_dirs(eqv_dirs,kstart,kend,symm_ops,crystal,symprec) 
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 type(eqv_bz_directions), intent(out) :: eqv_dirs
 real(kind=dp), dimension(1:3), intent(in) :: kstart,kend
 type(symmetry_operation), dimension(:), optional, intent(in) :: symm_ops
-real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
+type(crystal_3D), intent(in) :: crystal
 real(kind=dp), intent(in), optional :: symprec
 real(kind=dp) :: sprec
 logical, dimension(:,:), allocatable :: same_dirs,pairs_start_end_lead_to_eqv_dir
@@ -1017,7 +1415,7 @@ type(eqv_bz_directions) :: full_star_of_eqv_dirs
 type(symmetry_operation), dimension(:), allocatable :: symops
 type(vec3d), dimension(:), allocatable :: full_star_of_eqv_starts, full_star_of_eqv_ends
 
-    sprec=1D-6
+    sprec = default_symprec
     if(present(symprec))then
         sprec=symprec
     endif
@@ -1026,7 +1424,7 @@ type(vec3d), dimension(:), allocatable :: full_star_of_eqv_starts, full_star_of_
         symops=symm_ops
         nsym = size(symops)
     else
-        call get_symm(nsym=nsym, symops=symops, symprec=sprec, lattice=rec_latt)
+        call get_symm(nsym=nsym, symops=symops, symprec=sprec, crystal=crystal) 
     endif
 
     allocate(full_star_of_eqv_starts(1:nsym))
@@ -1093,6 +1491,7 @@ end subroutine get_eqv_bz_dirs
 
 function points_are_eqv(v1,v2,symops,symprec) result(rtn)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 logical :: rtn
 real(kind=dp), dimension(1:3), intent(in) :: v1, v2
@@ -1104,7 +1503,7 @@ real(kind=dp) :: sprec
 
     rtn = .FALSE.
 
-    sprec = 1D-6
+    sprec = default_symprec
     if(present(symprec))then
         sprec = symprec
     endif
@@ -1122,6 +1521,7 @@ end function points_are_eqv
 
 function direcs_are_eqv(start1,end1,start2,end2,symops,symprec) result(rtn)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 logical :: rtn
 real(kind=dp), dimension(1:3), intent(in) :: start1,end1,start2,end2
@@ -1131,7 +1531,7 @@ real(kind=dp) :: sprec
 
     rtn = .FALSE.
 
-    sprec = 1D-6
+    sprec = default_symprec
     if(present(symprec))then
         sprec = symprec
     endif
@@ -1145,31 +1545,102 @@ end function direcs_are_eqv
 
 
 
-subroutine get_all_irr_dirs_req_for_symmavgd_EBS(dirs_req_for_symmavgd_EBS_along_pcbz_dir, n_dirs_for_EBS_along_pcbz_dir, &
-                                                 neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs, &
-                                                 b_matrix_pc,B_matrix_SC,k_starts,k_ends)
+subroutine get_all_irr_dirs_req_for_symmavgd_EBS(dirs_req_for_symmavgd_EBS_along_pcbz_dir, &
+                                                 n_dirs_for_EBS_along_pcbz_dir, &
+                                                 neqv_dirs_pcbz, neqv_dirs_SCBZ, &
+                                                 ncompl_dirs, n_irr_compl_dirs, &
+                                                 crystal_pc_reduced_to_prim_cell, &
+                                                 pc_is_prim_cell, &
+                                                 crystal_SC_reduced_to_prim_cell, &
+                                                 SC_is_prim_cell, &
+                                                 crystal_pc,crystal_SC, &
+                                                 k_starts,k_ends,verbose, &
+                                                 symprec)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
 implicit none
 type(irr_bz_directions), dimension(:), allocatable, intent(out) :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
 integer, dimension(:), allocatable, intent(out) :: n_dirs_for_EBS_along_pcbz_dir,neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs
-real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
+type(crystal_3D), allocatable, intent(out) :: crystal_SC_reduced_to_prim_cell, &
+                                              crystal_pc_reduced_to_prim_cell
+logical, intent(out) :: pc_is_prim_cell, SC_is_prim_cell
+type(crystal_3D), intent(in) :: crystal_pc, crystal_SC
 real(kind=dp), dimension(:,:), intent(in) :: k_starts,k_ends
+logical, intent(in), optional :: verbose
+real(kind=dp), intent(in), optional :: symprec
 type(symmetry_operation), dimension(:), allocatable :: symops_SC, symops_pc
 type(eqv_bz_directions), dimension(:), allocatable :: dirs_eqv_in_SC_to_selec_pcbz_dir,dirs_eqv_in_pc_to_selec_pcbz_dir,complementary_pcdirs_for_pcdir
 type(irr_bz_directions), dimension(:), allocatable :: irr_compl_pcdirs_for_pcdir
 integer :: idir,ndirs,n_eqv_dirs_in_pcbz,n_eqv_dirs_in_SCBZ,n_req_dirs,i_req_dir,nsym_SC,nsym_pc
 character(len=10) :: schoenflies_SC, schoenflies_pc
 character(len=11) :: int_symb_pcbz, int_symb_SCBZ
+logical :: print_stuff, try_to_reduce_SC_to_a_pc_for_symmetry, &
+           try_to_reduce_pc_to_a_pc_for_symmetry
+real(kind=dp) :: sym_prec
+
+print_stuff = .TRUE.
+if(present(verbose))then
+    print_stuff = verbose
+endif
+sym_prec = default_symprec
+if(present(symprec))then
+    sym_prec = dabs(symprec)
+endif
+! Change the two variables below to .FALSE. if there are problems with symmetry
+try_to_reduce_SC_to_a_pc_for_symmetry = .TRUE.
+try_to_reduce_pc_to_a_pc_for_symmetry = .TRUE.
 
 
-call get_symm(symops=symops_SC,lattice=B_matrix_SC,nsym=nsym_SC,schoenflies=schoenflies_SC,international_symb=int_symb_SCBZ)
-call get_symm(symops=symops_pc,lattice=b_matrix_pc,nsym=nsym_pc,schoenflies=schoenflies_pc,international_symb=int_symb_pcbz)
-
+! Symm analysis, SC
 write(*,*)
-write(*,'(A,I0,A)')'Found ',nsym_SC,' symmetry operations for the SCBZ.'
-write(*,'(5A)')'    * Symmetry group of the SCBZ: ',trim(adjustl(schoenflies_SC)),'(',trim(adjustl(int_symb_SCBZ)),').'
-write(*,'(A,I0,A)')'Found ',nsym_pc,' symmetry operations for the pcbz.'
-write(*,'(5A)')'    * Symmetry group of the pcbz: ',trim(adjustl(schoenflies_pc)),'(',trim(adjustl(int_symb_pcbz)),').'
+if(print_stuff)then
+    write(*,'(A)')'Checking the symmetry of the SC...'
+endif
+call get_symm(symops=symops_SC,crystal=crystal_SC,nsym=nsym_SC,&
+              schoenflies=schoenflies_SC,international_symb=int_symb_SCBZ, &
+              cystal_is_prim_cell=SC_is_prim_cell, &
+              try_to_reduce_to_a_pc=try_to_reduce_SC_to_a_pc_for_symmetry, &
+              crystal_reduced_prim_cell = crystal_SC_reduced_to_prim_cell, &
+              symprec=sym_prec)
+if(print_stuff)then
+    write(*,'(A)')         '    * Done.'
+    write(*,'(A,I0,A)')    '    * Found ',nsym_SC,' symmetry operations for the SC.'
+    write(*,'(5A)')        '      * Symmetry group of the SC: ',trim(adjustl(schoenflies_SC)),'(',trim(adjustl(int_symb_SCBZ)),').'
+endif
+! This always gets printed out, as it serves as a warning.
+if(.not. SC_is_prim_cell)then
+    write(*,'(A)')     '    * Your SC seems to be a perfect repetition of a smaller unit cell!'
+    if(try_to_reduce_SC_to_a_pc_for_symmetry)then
+        write(*,'(A)') '      * One of the possible corresponding primitive unit cells has been used to get the symmetry.'
+    endif
+endif
+
+! Symm analysis, pc
+write(*,*)
+if(print_stuff)then
+    write(*,'(A)')'Checking the symmetry of the reference unit cell...'
+endif
+call get_symm(symops=symops_pc, crystal=crystal_pc,nsym=nsym_pc,&
+              schoenflies=schoenflies_pc,international_symb=int_symb_pcbz, &
+              cystal_is_prim_cell=pc_is_prim_cell, &
+              try_to_reduce_to_a_pc=try_to_reduce_pc_to_a_pc_for_symmetry, &
+              crystal_reduced_prim_cell = crystal_pc_reduced_to_prim_cell, &
+              symprec=sym_prec)
+if(print_stuff)then
+    write(*,'(A)')     '    * Done.'
+    write(*,'(A,I0,A)')'    * Found ',nsym_pc,' symmetry operations for the pc.'
+    write(*,'(5A)')    '      * Symmetry group of the pc: ',trim(adjustl(schoenflies_pc)),'(',trim(adjustl(int_symb_pcbz)),').'
+endif
+! This always gets printed out, as it is a warning.
+if(.not. pc_is_prim_cell)then
+    write(*,'(A)') "      WARNING: Your reference unit cell doesn't seem to be a primitive cell!"
+    if(try_to_reduce_pc_to_a_pc_for_symmetry)then
+        write(*,'(A)') '               * One of the possible corresponding primitive unit cells has been used to get the symmetry.'
+    else
+        write(*,'(A)') "               * It should be fine if that's really what you want."
+        write(*,'(A)') "                 > It will certainly require more virtual memory though..."
+    endif
+endif
 
 ndirs = size(k_starts(:,:),dim=1)
 allocate(dirs_eqv_in_SC_to_selec_pcbz_dir(1:ndirs), dirs_eqv_in_pc_to_selec_pcbz_dir(1:ndirs))
@@ -1177,10 +1648,10 @@ allocate(dirs_eqv_in_SC_to_selec_pcbz_dir(1:ndirs), dirs_eqv_in_pc_to_selec_pcbz
 do idir=1,ndirs
     !! (1) By symmetry operations of the SCBZ
     call get_eqv_bz_dirs(eqv_dirs=dirs_eqv_in_SC_to_selec_pcbz_dir(idir),&
-                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_SC,rec_latt=B_matrix_SC)
+                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_SC,crystal=crystal_SC)
     !! (2) By symmetry operations of the pcbz
     call get_eqv_bz_dirs(eqv_dirs=dirs_eqv_in_pc_to_selec_pcbz_dir(idir),&
-                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_pc,rec_latt=b_matrix_pc)
+                         kstart=k_starts(idir,:),kend=k_ends(idir,:),symm_ops=symops_pc,crystal=crystal_pc)
 enddo
 
 !! Getting all the pcbz directions that are:
@@ -1199,7 +1670,8 @@ allocate(irr_compl_pcdirs_for_pcdir(1:ndirs),n_irr_compl_dirs(1:ndirs))
 do idir=1,ndirs
     if(ncompl_dirs(idir) > 0)then
         call get_irr_bz_directions(irr_dirs=irr_compl_pcdirs_for_pcdir(idir), nirr=n_irr_compl_dirs(idir), &
-                                   list_of_dirs=complementary_pcdirs_for_pcdir(idir),symm_ops=symops_SC)
+                                   list_of_dirs=complementary_pcdirs_for_pcdir(idir), &
+                                   symm_ops=symops_SC, crystal=crystal_SC)
     else
         n_irr_compl_dirs(idir) = 0
     endif
@@ -1231,7 +1703,7 @@ do idir=1,ndirs
         enddo
     endif
 
-    if(abs(sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight) - 1.0d0) > 1D-3)then
+    if(abs(sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight) - 1.0_dp) > 1E-3_dp)then
         write(*,"(A,I0,A)")  "ERROR: The weights for the pcbz directions that are equivalent to the selected pcbz direction #",idir," do not add up to 1."
         write(*,"(A)")       "       This is necessary in order to obtain a properly symmetry-averaged EBS."
         write(*,"(A,f0.3,A)")"       The sum of the weights was ",sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight)," instead."

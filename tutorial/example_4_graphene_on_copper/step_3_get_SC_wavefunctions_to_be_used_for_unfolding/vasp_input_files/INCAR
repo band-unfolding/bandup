@@ -4,7 +4,7 @@
    ALGO = Fast
    LPLANE = .TRUE.
    NSIM = 1  ! NSIM bands are optimized at the same time, if IALGO = 48.
-   NPAR = 12 ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
+   NPAR = 8 ! Switch on/off parallelization (and data distribution) over bands. Number of nodes working on each band: total_number_of_nodes/NPAR
 
  Start parameter for this Run:
    ISTART = 0  ! job   : 0-new  1-cont  2-samecut
@@ -17,9 +17,15 @@
    LREAL = Auto
    ENCUT = 500.000
    ENAUG = 644.873
-   LMAXMIX = 4 ! Controls up to which l quantum number the onsite PAW charge densities are passed through the charge density mixer and written to the CHGCAR f
-ile
+   LMAXMIX = 4
    EDIFF =  1E-5
+
+ vdW settings
+   LUSE_VDW = .TRUE.
+   AGGAC = 0.0000    ! Removing PBE correlation correction, since only LDA correlation is used in the vdW-DF functionals
+   GGA = MK          ! selects the optB86b exchange functional
+   PARAM1 = 0.1234   ! parameters for the optB86b exchange functional
+   PARAM2 = 1.0000   ! parameters for the optB86b exchange functional
 
  Ionic Relaxation
    IBRION = -1

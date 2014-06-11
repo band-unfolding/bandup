@@ -96,7 +96,7 @@ CONTAINS
 
 subroutine read_from_wavefunc_file(i_selected_kpt, kpt_frac_coords, spin_channel, n_plane_waves, &
                                    energies_bands, occupations, i_allg_in_file, coeff, &
-                                   file_size_in_bytes, rec_latt_b_matrix, total_nkpts, ENCUT, &
+                                   file_size_in_bytes, rec_latt_b_matrix, latt_vecs, total_nkpts, ENCUT, &
                                    elapsed_time, add_elapsed_time_to, iostat)
 implicit none
 !!$* Input and output variables
@@ -108,7 +108,8 @@ integer, optional, intent(in) :: spin_channel
 real(kind=dp), dimension(:), allocatable, optional, intent(out) :: energies_bands, occupations  ! E = E(K; iband)
 integer, dimension(:,:), allocatable, optional, intent(out) :: i_allg_in_file
 complex(kind=sp), dimension(:,:), allocatable, optional, intent(out) :: coeff ! Coefficients, coeff(ikpt, iband)
-real(kind=dp), dimension(1:3,1:3), intent(out), optional :: rec_latt_b_matrix ! Matrix of the reciprocal lattice vectors. b_matrix(i,:) = bi
+! Matrices of the direct/reciprocal lattice vectors. b_matrix(i,:) = bi
+real(kind=dp), dimension(1:3,1:3), intent(out), optional :: rec_latt_b_matrix, latt_vecs 
 integer, optional, intent(out) :: total_nkpts ! Total number of k-points in the input file
 real(kind=dp), optional, intent(out) :: ENCUT
 real(kind=dp), optional, intent(inout) :: add_elapsed_time_to, elapsed_time
@@ -211,6 +212,11 @@ open(unit=input_file_unit,file='WAVECAR',access='direct',recl=nrecl,iostat=iost,
     b2 = twopi*cross(a3,a1)/Vcell; b2mag = norm(b2); b_matrix(2,:) = b2
     b3 = twopi*cross(a1,a2)/Vcell; b3mag = norm(b3); b_matrix(3,:) = b3
 
+    if(present(latt_vecs))then
+        latt_vecs(1,:) = a1
+        latt_vecs(2,:) = a2
+        latt_vecs(3,:) = a3
+    endif
     if(present(ENCUT))then
         ENCUT = ecut
     endif
