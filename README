@@ -51,6 +51,9 @@ System requirements:
 ===================================================================================
 Please mind that:
 ===================================================================================
+    * If you use BandUP (or any part of it) in your work, please be so kind as to 
+      state that you've used the BandUP code and don't forget to cite our paper,
+      Phys. Rev. B 89, 041407(R) (2014).
     * Although I've tried to make the compilation as simple as possible - and it has 
       indeed worked fine so far with many combinations of compilers, computers, and 
       operating systems, I cannot guarantee that it will always work smoothly. 
@@ -61,6 +64,10 @@ Please mind that:
       using other versions of ifort/icc (and *maybe* even other non-intel compilers), 
       but I cannot, unfortunatelly, guarantee that it will work in 100% of the cases.
     * Of course, I'll try my best to help you out in case you do have problems.
+    * Last, but not least: Always check the results with a critical eye, specially 
+      if they don't look the  way you think they are supposed to. Please notify me if 
+      weird stuff happens and you think it's the code's fault!
+ 
 
-Let us know if you have problems! 
+Thanks! Let us know if you have problems! 
 

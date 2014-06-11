@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --nodes 24
+#SBATCH --nodes 16
 #SBATCH -J  GCu111Band
-#SBATCH -t 1-00:00:00
+#SBATCH -t 4-00:00:00
 # Path to VASP EXE
 vasp=$vasp_half
 
@@ -20,7 +20,7 @@ NGXF=`grep 'dimension x,y,z NGXF=' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{
 NGYF=`grep 'dimension x,y,z NGXF=' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[6]}'`
 NGZF=`grep 'dimension x,y,z NGXF=' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[8]}'`
 
-for direc in "K-G_G-M_M-K"  "perp_to_K-G_and_touching_K"
+for direc in "K-G_G-M_M-K"
 do
     folder_for_current_direc="to_unfold_onto_pcbz_direc_${direc}"
     mkdir -p ${folder_for_current_direc}

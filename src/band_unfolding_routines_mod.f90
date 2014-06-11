@@ -33,19 +33,20 @@ PUBLIC :: get_geom_unfolding_relations, define_pckpts_to_be_checked, &
 
 CONTAINS
 
-subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS,pckpts_to_be_checked,B_matrix_SC,verbose)
+subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS,pckpts_to_be_checked,crystal_SC,verbose)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
-real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
+type(crystal_3D), intent(in) :: crystal_SC
 logical, intent(in), optional :: verbose
-integer :: nkpts, n_selec_pcbz_dirs, i_SCKPT,ipc_kpt,ieqv_SCKPT,nsym,isym, &
+integer :: nkpts, n_selec_pcbz_dirs, i_SCKPT,ipc_kpt,ieqv_SCKPT,isym, &
            i_selec_pcbz_dir,i_needed_dirs,alloc_stat
 integer, dimension(:), allocatable :: n_dirs_for_EBS_along_pcbz_dir,n_pckpts_dirs
 logical, dimension(:,:,:), allocatable :: pc_kpt_already_folded
 real(kind=dp), dimension(1:3) :: pc_kpt, current_SCKPT,SCKPT_eqv_to_current_SCKPT,trial_folding_G
+real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
 type(star), dimension(:), allocatable :: SKPTS_eqv_to_SKPT
 type(symmetry_operation), dimension(:), allocatable :: symops
 logical :: print_stuff
@@ -58,9 +59,11 @@ logical :: print_stuff
     if(print_stuff)then
         write(*,"(A)",advance="no")"Verifying geometric unfolding relations between pcbz and SCBZ wave-vectors... "
     endif
-    call get_symm(nsym=nsym, symops=symops, symprec=1D-6, lattice=B_matrix_SC) 
-    call get_star(star_of_pt=SKPTS_eqv_to_SKPT,points=list_of_SCKPTS,lattice=B_matrix_SC, &
-                        tol_for_vec_equality=tol_for_vec_equality,reduce_to_bz=.TRUE.)
+    B_matrix_SC = crystal_SC%rec_latt_vecs
+    call get_star(star_of_pt=SKPTS_eqv_to_SKPT, points=list_of_SCKPTS, crystal=crystal_SC, symm_ops=symops, &
+                  tol_for_vec_equality=default_tol_for_vec_equality, &
+                  symprec=default_symprec, reduce_to_bz=.TRUE., &
+                  try_to_reduce_to_a_pc=.FALSE.) ! fails if try_to_reduce_to_a_pc=.TRUE.
     !! Allocating and initializing table
     nkpts = size(list_of_SCKPTS)
     n_selec_pcbz_dirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
@@ -74,12 +77,19 @@ logical :: print_stuff
     enddo
     GUR%n_folding_pckpts = 0
     GUR%n_pckpts = 0
+    deallocate(GUR%SCKPT, stat=alloc_stat)
     allocate(GUR%SCKPT(1:nkpts))
+    deallocate(GUR%SCKPT_used_for_unfolding, stat=alloc_stat)
+    allocate(GUR%SCKPT_used_for_unfolding(1:nkpts))
     do i_SCKPT=1,nkpts
+        deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir, stat=alloc_stat)
         allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(1:n_selec_pcbz_dirs))
+        GUR%SCKPT_used_for_unfolding(i_SCKPT) = .FALSE.
         do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
+            deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir, stat=alloc_stat)
             allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1:n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)))
             do i_needed_dirs=1,n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)
+                deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt, stat=alloc_stat)
                 allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(1:n_pckpts_dirs(i_selec_pcbz_dir)))
                 do ipc_kpt=1,n_pckpts_dirs(i_selec_pcbz_dir)
                     GUR%n_pckpts = GUR%n_pckpts + 1
@@ -87,7 +97,7 @@ logical :: print_stuff
                     GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:) = pc_kpt(:) 
                     GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Scoords(:) = pc_kpt(:) 
                     GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds = .FALSE.
-                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sfolding_vec(:) = 0.0d0 
+                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sfolding_vec(:) = 0.0_dp 
                 enddo
             enddo
         enddo
@@ -109,22 +119,30 @@ logical :: print_stuff
                     do ieqv_SCKPT=1,SKPTS_eqv_to_SKPT(i_SCKPT) % neqv
                         SCKPT_eqv_to_current_SCKPT(:) = SKPTS_eqv_to_SKPT(i_SCKPT) % eqv_pt(ieqv_SCKPT) % coord(:)
                         trial_folding_G(:) = pc_kpt(:) - SCKPT_eqv_to_current_SCKPT(:)
-                        if(vec_in_latt(vec=trial_folding_G, latt=B_matrix_SC,tolerance=tol_for_vec_equality))then
+                        if(vec_in_latt(vec=trial_folding_G, latt=B_matrix_SC,tolerance=default_tol_for_vec_equality))then
+                            GUR%SCKPT_used_for_unfolding(i_SCKPT) = .TRUE.
                             GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds = .TRUE.
                             GUR%n_folding_pckpts = GUR%n_folding_pckpts + 1
                             GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords_actual_unfolding_K = &
                                 SCKPT_eqv_to_current_SCKPT(:)
                             isym = SKPTS_eqv_to_SKPT(i_SCKPT) % eqv_pt(ieqv_SCKPT) % symop
                             pc_kpt =  pt_eqv_by_point_group_symop(point=pc_kpt,symops=symops,isym=isym, fractional_coords=.FALSE.,invert_symop=.TRUE.)
+                            ! Message from Paulo:
+                            ! The prefix "S" means "symmetrized". This is a little trick I came up with
+                            ! that allows me to use the coefficients of a SC wavefunction psi(K',n) to
+                            ! calculate the spectral weights associated with a SC wavefunction psi(K,n),
+                            ! where K' = SK and S is a symmetry operation of the crystal's point group.
                             GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Scoords(:) = pc_kpt(:)
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sfolding_vec(:) = pc_kpt(:) - current_SCKPT(:)
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sfolding_vec(:) = &
+                                pc_kpt(:) - current_SCKPT(:)
                             pc_kpt_already_folded(i_selec_pcbz_dir,i_needed_dirs,ipc_kpt) = .TRUE.
                             exit ! It has already folded. No need to keep looking for this pckpt.
                         else 
                             GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds = .FALSE.
                         endif
                     enddo ! Loop over all the SCKPTS eqv. to the one on the WF file by symm. ops. of the SC
-                enddo ! Loop over the pckpts along the dirs. of the pcbz that are eqv. to the selec. ones by symm. ops. of the pcbz and NOT by symm. ops. of the SCBZ
+                enddo ! Loop over the pckpts along the dirs. of the pcbz that are eqv. to the selec. ones by 
+                      ! symm. ops. of the pcbz and NOT by symm. ops. of the SCBZ
             enddo ! Loop over all dirs. of the pcbz that are eqv. to the selec. ones by symm. ops. of the pcbz and NOT by symm. ops. of the SCBZ
         enddo ! Loop over the selected pcbz directions
     enddo ! Loop over the SCKPTS found on the wavefunction file
@@ -187,21 +205,34 @@ real(kind=dp), dimension(1:3), intent(in) :: folding_G
 real(kind=dp), intent(in) :: tol_for_vec_equality
 integer :: alloc_stat, ig
 real(kind=dp), dimension(1:3) :: SC_G, trial_pc_g,g
+real(kind=dp) :: tol
 
+    tol = 0.1_dp * tol_for_vec_equality
     deallocate(selected_coeff_indices, stat=alloc_stat)
-    !$omp parallel do &
-    !$    schedule(guided) default(none) &
-    !$    shared(nplane,iall_G,B_matrix_SC,folding_G,b_matrix_pc,tol_for_vec_equality,selected_coeff_indices) &
-    !$    private(ig,g,SC_G,trial_pc_g)
-    do ig=1, nplane
-        SC_G = iall_G(1,ig)*B_matrix_SC(1,:) + iall_G(2,ig)*B_matrix_SC(2,:) + iall_G(3,ig)*B_matrix_SC(3,:)
-        trial_pc_g = SC_G(:) - folding_G(:)
-        if(vec_in_latt(vec=trial_pc_g, latt=b_matrix_pc, tolerance=tol_for_vec_equality))then
-             !$omp critical
-             call append(item=ig,list=selected_coeff_indices) ! pc_g + folding_G has to belong to the 
-             !$omp end critical
-         endif
+    do while((.not. allocated(selected_coeff_indices)) .and. &
+              (tol <= max_tol_for_vec_equality))
+        tol = 10_dp * tol
+        !$omp parallel do &
+        !$    schedule(guided) default(none) &
+        !$    shared(nplane,iall_G,B_matrix_SC,folding_G,b_matrix_pc,tol,selected_coeff_indices) &
+        !$    private(ig,g,SC_G,trial_pc_g) 
+        do ig=1, nplane
+            SC_G = iall_G(1,ig)*B_matrix_SC(1,:) + iall_G(2,ig)*B_matrix_SC(2,:) + iall_G(3,ig)*B_matrix_SC(3,:)
+            trial_pc_g = SC_G(:) - folding_G(:)
+            if(vec_in_latt(vec=trial_pc_g, latt=b_matrix_pc, tolerance=tol))then
+                 !$omp critical
+                 call append(item=ig,list=selected_coeff_indices) ! pc_g + folding_G has to belong to the 
+                 !$omp end critical
+             endif
+        enddo
     enddo
+    if(abs(tol - tol_for_vec_equality) > epsilon(1.0_dp) .and. allocated(selected_coeff_indices))then
+        write(*,'(A)') &
+        '    WARNING (select_coeffs_to_calc_spectral_weights): Problems selecting the coeffs to calculate the spec. weights for the current pc-kpt.'
+        write(*,'(2(A,f0.6),A)') &
+        '            The tolerace for testing vector equality had to be increased from ',tol_for_vec_equality,' to ',tol,'.'
+        write(*,'(A)')'            The results might not be entirely correct.'
+    endif
 
 end subroutine select_coeffs_to_calc_spectral_weights
 
@@ -221,7 +252,7 @@ real(kind=dp) :: stime, ftime
     n_bands_SC_calculation = size(coeff,dim=2)
     deallocate(spectral_weight, stat=alloc_stat)
     allocate(spectral_weight(1:n_bands_SC_calculation))
-    spectral_weight(:) = 0.0d0
+    spectral_weight(:) = 0.0_dp
     !$omp parallel do &
     !$    schedule(guided) default(none) &
     !$    private(iband,i,icoeff) &
@@ -229,7 +260,7 @@ real(kind=dp) :: stime, ftime
     do iband = 1, n_bands_SC_calculation
         do i=1, size(selected_coeff_indices)
             icoeff = selected_coeff_indices(i)
-            spectral_weight(iband) = spectral_weight(iband) + abs(coeff(icoeff,iband))**2.0d0
+            spectral_weight(iband) = spectral_weight(iband) + abs(coeff(icoeff,iband))**2.0_dp
         enddo
     enddo
 
@@ -257,7 +288,7 @@ real(kind=dp) :: E, E_SC_band, stime, ftime
     n_SC_bands = size(spectral_weight)
     deallocate(SF_at_pckpt, stat=alloc_stat)
     allocate(SF_at_pckpt(1:size(energies)))
-    SF_at_pckpt(:) = 0.0d0
+    SF_at_pckpt(:) = 0.0_dp
     !$omp parallel do &
     !$    schedule(guided) default(none) &
     !$    private(iener,E,i_SC_band,E_SC_band)  &
@@ -294,7 +325,7 @@ real(kind=dp) :: E, E_SC_band, delta_e
     n_SC_bands = size(spectral_weight)
     deallocate(delta_N_pckpt, stat=alloc_stat)
     allocate(delta_N_pckpt(1:size(energies)))
-    delta_N_pckpt(:) = 0.0d0
+    delta_N_pckpt(:) = 0.0_dp
     !$omp parallel do &
     !$    schedule(guided) default(none) &
     !$    private(iener,E,i_SC_band,E_SC_band)  &
@@ -305,8 +336,8 @@ real(kind=dp) :: E, E_SC_band, delta_e
             E_SC_band = SC_calc_ener(i_SC_band)
             delta_N_pckpt(iener) = delta_N_pckpt(iener) + &
                                    spectral_weight(i_SC_band)*integral_delta_x_minus_x0(x0=E_SC_band, &
-                                                                                        lower_lim=E-0.5d0*delta_e, &
-                                                                                        upper_lim=E+0.5d0*delta_e, &
+                                                                                        lower_lim=E-0.5_dp*delta_e, &
+                                                                                        upper_lim=E+0.5_dp*delta_e, &
                                                                                         std_dev=sigma)
         enddo
     enddo
@@ -359,7 +390,7 @@ real(kind=dp) :: weight
     do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
         delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
         do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
-            avrgd_dNs(:) = 0.0d0
+            avrgd_dNs(:) = 0.0_dp
             allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(1:nener))
             do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
                 weight = dirs_req_for_symmavgd_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
@@ -370,28 +401,6 @@ real(kind=dp) :: weight
     enddo
 
 end subroutine get_delta_Ns_for_output
-
-
-subroutine append(item, list)
-implicit none
-integer, intent(in) :: item
-integer, dimension(:), allocatable, intent(inout) :: list
-integer, dimension(:), allocatable :: new_list
-
-if(.not.allocated(list))then
-    allocate(list(1:1))
-    list(1) = item
-else
-    allocate(new_list(1:size(list)+1))
-    new_list(1:size(list)) = list
-    new_list(size(list)+1) = item
-    deallocate(list)
-    allocate(list(1:size(new_list)))
-    list = new_list
-    deallocate(new_list)
-endif
-
-end subroutine append
 
 
 end module band_unfolding

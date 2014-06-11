@@ -18,8 +18,18 @@
 module general_io
 implicit none
 PRIVATE
-PUBLIC :: available_io_unit
+PUBLIC :: available_io_unit, package_version, file_header_BandUP, file_header_BandUP_short, &
+          file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell
+
+character(len=30), parameter :: package_version="2.3.0, 2014-06-11"
+character(len=127), parameter :: file_header_BandUP="# File created by BandUP - Band Unfolding code for Plane-wave based calculations, &
+                                                     V"//trim(adjustl(package_version)), &
+                                 file_header_BandUP_short="# File created by BandUP, V"//trim(adjustl(package_version)), &
+                                 file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_for_your_reference_unit_cell.POSCAR", &
+                                 file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_input_SC.POSCAR"
+!! Functions and subroutines
 CONTAINS 
+
 
 function available_io_unit(min_unit,max_unit) result(unit_num)
 ! Returns a number unit_num which can be safely used in statements like

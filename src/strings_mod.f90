@@ -1,4 +1,4 @@
-!    Copyright (C) 2013 Paulo V. C. Medeiros
+!    Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !
 !    This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !
@@ -15,11 +15,18 @@
 !    You should have received a copy of the GNU General Public License
 !    along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 module strings
+use math
 implicit none
 PRIVATE
-PUBLIC :: lower_case, upper_case, split_string 
+PUBLIC :: lower_case, upper_case, split, compact
+
+interface split
+  module procedure split_string_into_strings, split_string_into_integers, split_string_into_floats
+end interface split
+
+
 contains
-!*******************************************************************************************************
+!**************************************************************************************************
 function lower_case(input_string) result(rtn)
 ! Based on the extended ASCII table (see http://www.ascii-code.com)
 implicit none
@@ -38,8 +45,7 @@ integer :: i
    enddo
 
 end function lower_case
-!*******************************************************************************************************
-!*******************************************************************************************************
+!**************************************************************************************************
 function upper_case(input_string) result(rtn)
 ! Based on the extended ASCII table (see http://www.ascii-code.com)
 implicit none
@@ -58,51 +64,121 @@ integer :: i
    enddo
 
 end function upper_case
-!*******************************************************************************************************
-!*******************************************************************************************************
+!**************************************************************************************************
+recursive function count_occurencies_substring(string, substring) result(occ_count)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+implicit none
+character(len=*), intent(in) :: substring, string
+integer :: occ_count, new_start, pos_substr_in_str
+
+    occ_count = 0
+    pos_substr_in_str = index(string, substring)
+    if(pos_substr_in_str > 0)then
+        occ_count = occ_count + 1
+        new_start = pos_substr_in_str + len(substring)
+        if(new_start <= len(string))then
+            occ_count = occ_count + &
+                        count_occurencies_substring(string(new_start:),substring)
+        endif
+    endif 
+
+end function count_occurencies_substring
+!**************************************************************************************************
 subroutine compact(io_string)
 implicit none
 character(len=*), intent(inout) :: io_string
 integer i,num_spaces_excluded,end_of_io_string,selected_position,new_end_of_io_string
 
-
-io_string=adjustl(io_string)
-num_spaces_excluded=0
-end_of_io_string=len_trim(io_string)
-do i=1,end_of_io_string-1
-  selected_position=i-num_spaces_excluded
-  new_end_of_io_string=end_of_io_string-num_spaces_excluded
-  if((io_string(selected_position:selected_position)==' ').and.(io_string(selected_position+1:selected_position+1)==' '))then
-    io_string(selected_position:new_end_of_io_string-1)=io_string(selected_position+1:new_end_of_io_string)
-    num_spaces_excluded=num_spaces_excluded+1
-  endif
-enddo
-io_string(new_end_of_io_string+1:end_of_io_string)=' '
+    io_string = trim(adjustl(io_string))
+    if(len_trim(io_string) < 2)then
+        return
+    endif
+    io_string = trim(adjustl(io_string))
+    num_spaces_excluded = 0
+    end_of_io_string = len_trim(io_string)
+    do i=1,end_of_io_string-1
+        selected_position = i - num_spaces_excluded
+        new_end_of_io_string = end_of_io_string-num_spaces_excluded
+        if((io_string(selected_position:selected_position)==' ') .and. & 
+           (io_string(selected_position + 1:selected_position + 1)==' '))then
+            io_string(selected_position:new_end_of_io_string - 1) =  &
+                io_string(selected_position + 1:new_end_of_io_string)
+            num_spaces_excluded = num_spaces_excluded + 1
+        endif
+    enddo
+    io_string(new_end_of_io_string + 1:end_of_io_string) = ''
 
 end subroutine compact
-!*******************************************************************************************************
-!*******************************************************************************************************
-subroutine split_string(working_string,splitted_string)
+!*************************************************************************************************
+subroutine split_string_into_strings(string, splitted_string)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
-character(len=*) :: working_string
-character(len=*), dimension(:), intent(out) :: splitted_string
-integer :: end_of_working_string,position_on_splitted_string,position_on_working_string
+character(len=*), intent(in) :: string
+character(len=*), dimension(:), allocatable, intent(out) :: splitted_string
+character(len=len(string)) :: aux_string
+integer :: n_components, alloc_stat, icomp
 
+    aux_string = string
+    call compact(aux_string)
+    deallocate(splitted_string,stat=alloc_stat)
+    if(trim(adjustl(aux_string)) == '')then
+        allocate(splitted_string(1:1))
+        splitted_string = ''   
+    else
+        n_components = 1 + &
+                       count_occurencies_substring(string=trim(adjustl(aux_string)), substring=' ')
+        allocate(splitted_string(1:n_components))
+        read(aux_string,*)(splitted_string(icomp), icomp=1,n_components)
+    endif
 
-call compact(working_string)
-end_of_working_string=len_trim(working_string)
-splitted_string=''
-position_on_splitted_string=1
-do position_on_working_string=1,end_of_working_string
-  if(working_string(position_on_working_string:position_on_working_string)/=' ')then
-    splitted_string(position_on_splitted_string)=trim(splitted_string(position_on_splitted_string))//working_string(position_on_working_string:position_on_working_string)
-  else
-    position_on_splitted_string=position_on_splitted_string+1
-  endif
-enddo
+end subroutine split_string_into_strings
+!*************************************************************************************************
+subroutine split_string_into_integers(string, splitted_string)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+implicit none
+character(len=*), intent(in) :: string
+integer, dimension(:), allocatable, intent(out) :: splitted_string
+character(len=len(string)) :: aux_string
+integer :: n_components, alloc_stat, icomp
 
+    aux_string = string
+    call compact(aux_string)
+    deallocate(splitted_string,stat=alloc_stat)
+    if(trim(adjustl(aux_string)) == '')then
+        write(*,*)'WARNING (split_string_into_integers): Empty input string. &
+                   Splitted string not allocated.'
+        return
+    else
+        n_components = 1 + &
+                       count_occurencies_substring(string=trim(adjustl(aux_string)), substring=' ')
+        allocate(splitted_string(1:n_components))
+        read(aux_string,*)(splitted_string(icomp), icomp=1,n_components)
+    endif
 
-end subroutine split_string
-!*******************************************************************************************************
+end subroutine split_string_into_integers
+!*************************************************************************************************
+subroutine split_string_into_floats(string, splitted_string)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+implicit none
+character(len=*), intent(in) :: string
+real(kind=dp), dimension(:), allocatable, intent(out) :: splitted_string
+character(len=len(string)) :: aux_string
+integer :: n_components, alloc_stat, icomp
+
+    aux_string = string
+    call compact(aux_string)
+    deallocate(splitted_string,stat=alloc_stat)
+    if(trim(adjustl(aux_string)) == '')then
+        write(*,*)'WARNING (split_string_into_floats): Empty input string. &
+                   Splitted string not allocated.'
+        return
+    else
+        n_components = 1 + &
+                       count_occurencies_substring(string=trim(adjustl(aux_string)), substring=' ')
+        allocate(splitted_string(1:n_components))
+        read(aux_string,*)(splitted_string(icomp), icomp=1,n_components)
+    endif
+
+end subroutine split_string_into_floats
 
 end module strings

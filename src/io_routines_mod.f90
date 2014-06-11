@@ -18,18 +18,20 @@ module io_routines
 use strings
 use general_io
 use read_wavecar
+use read_vasp_files
+use write_vasp_files
 use math
 !$ use omp_lib
 implicit none
 PRIVATE
 PUBLIC :: print_welcome_messages,print_message_commens_test, &
-          read_energy_info_for_band_search, read_unit_cell, &
+          read_energy_info_for_band_search, print_message_success_determining_GUR, &
           print_geom_unfolding_relations, print_last_messages_before_unfolding, &
           get_SCKPTS_contained_in_wavecar, read_pckpts_selected_by_user, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
-          print_final_times, package_version, write_band_struc
+          print_final_times, write_band_struc, print_message_pckpt_cannot_be_parsed, &
+          write_attempted_pc_assoc_with_input_unit_cell_and_SC
 
-character(len=30), parameter :: package_version="2.2.2, 2014-05-14"
 
 CONTAINS 
 
@@ -129,18 +131,54 @@ write(*,*)''
 end subroutine print_message_commens_test
 
 
+subroutine write_attempted_pc_assoc_with_input_unit_cell_and_SC(crystal_pc_reduced_to_prim_cell, &
+                                                                crystal_SC_reduced_to_prim_cell, &
+                                                                pc_is_prim_cell,SC_is_prim_cell, &
+                                                                write_attempted_pc_corresp_to_input_pc, &
+                                                                write_attempted_pc_corresp_to_SC)
+implicit none
+type(crystal_3D), intent(in) :: crystal_pc_reduced_to_prim_cell, crystal_SC_reduced_to_prim_cell
+logical, intent(in) :: pc_is_prim_cell, SC_is_prim_cell,  &
+                       write_attempted_pc_corresp_to_input_pc, write_attempted_pc_corresp_to_SC
+
+    write(*,*)
+    if((.not. SC_is_prim_cell) .and. write_attempted_pc_corresp_to_SC)then
+        call write_crystal_to_file(crystal_SC_reduced_to_prim_cell,file_for_SC_reduced_to_prim_cell)
+        write(*,'(A)')'>>> We attempted to find a possible primitive cell associated with your SC.'
+        write(*,'(3A)')'    Please take a look at the file "',trim(adjustl(file_for_SC_reduced_to_prim_cell)),'".'
+    endif
+    if((.not. pc_is_prim_cell) .and. write_attempted_pc_corresp_to_input_pc)then
+        call write_crystal_to_file(crystal_pc_reduced_to_prim_cell,file_for_pc_reduced_to_prim_cell)
+        write(*,'(A)')'>>> Just in case:'
+        write(*,'(A)')'    We attempted to find a possible primitive cell associated with your input reference unit cell.'
+        write(*,'(3A)')'    Please take a look at the file "',trim(adjustl(file_for_pc_reduced_to_prim_cell)),'".'
+    endif
+
+end subroutine write_attempted_pc_assoc_with_input_unit_cell_and_SC
+
+
 subroutine print_geom_unfolding_relations(GUR,list_SC_kpts_in_wavecar,b_matrix_pc,B_matrix_SC)
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR !! Geometric Unfolding Relations
 type(vec3d), dimension(:), intent(in) :: list_SC_kpts_in_wavecar
 real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
 integer :: nkpts, i_SCKPT, i_selc_pcbz_dir,i_needed_dirs,ipc_kpt
+integer, dimension(:), allocatable :: n_pckpts_dirs
 real(kind=dp), dimension(1:3) :: current_SCKPT, actual_folding_SCKPT, pc_kpt, folding_G
 
 
     nkpts = size(list_SC_kpts_in_wavecar)
+    allocate(n_pckpts_dirs(1:size(GUR%SCKPT(1)%selec_pcbz_dir(:))))
+    do i_selc_pcbz_dir=1,size(GUR%SCKPT(1)%selec_pcbz_dir(:))
+        n_pckpts_dirs(i_selc_pcbz_dir) = size(GUR%SCKPT(1)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(1)%pckpt(:))
+    enddo
+
     write(*,"(A)")"Summary of the points checked on the SCBZ and the pcbz:"
-    write(*,'(A,I0)')'    * Total # of SC-KPTS in the wavefunctions file: ',nkpts
+    write(*,'(A,I0)')'    * Total # of SC-KPTS found: ',nkpts
+    if((GUR%n_pckpts - sum(n_pckpts_dirs)) > 0)then
+        write(*,'(A,I0)')'    * Total # of pc-kpts requested: ', sum(n_pckpts_dirs)
+        write(*,'(A,I0)')'    * Total # of complementary pc-kpts determined by the symmetry analysis: ', GUR%n_pckpts - sum(n_pckpts_dirs)
+    endif
     write(*,'(A,I0)')'    * Total # of pc-kpts to be checked: ',GUR%n_pckpts
     write(*,*)
     write(*,"(A)")"Summary of the geometric folding relations:"
@@ -177,7 +215,7 @@ character(len=127) :: str_delta_e
 logical :: verbose
 
     verbose = .TRUE.
-    dE_factor = 0.4D-2
+    dE_factor = 0.4E-2_dp
     unt = available_io_unit()
     open(unit=unt, file=input_file)
         read(unt,*) e_fermi
@@ -250,7 +288,7 @@ logical :: using_omp
     file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
     file_size = file_size_in_GB
     file_size_units = 'GB'
-    if(file_size_in_GB < 1.0d0)then
+    if(file_size_in_GB < 1.0_dp)then
         file_size = file_size_in_MB
         file_size_units = 'MB'
     endif
@@ -260,7 +298,7 @@ logical :: using_omp
     mem_per_kpt_in_GB = approx_mem_per_kpt_in_bytes/(2.0**30)
     mem_per_kpt = mem_per_kpt_in_GB
     mem_per_kpt_units = 'GB'
-    if(mem_per_kpt_in_GB < 1.0d0)then
+    if(mem_per_kpt_in_GB < 1.0_dp)then
         mem_per_kpt = mem_per_kpt_in_MB
         mem_per_kpt_units = 'MB'
     endif
@@ -294,13 +332,14 @@ logical :: using_omp
     endif
 
     write(*,*)
-    !! The following message should always be written to the standad output (in any modified version of BandUP)
+    !! The following message should always be written to the standad output (also in any modified version of BandUP)
     write(*,'(A)')       '=========================================================================================================================='
-    write(*,'(4(A,/),A)')'NOTICE: If you use BandUP or any modified/adapted version of it, please read and cite                       ', &
+    write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any modified/adapted version/part of it, please don't forget to mention this in your paper!",& 
+                         '        You should also read and cite', &
                          '                                                                                                   ', &
                          '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
                          '                                                                                               ', &
-                         '        (http://dx.doi.org/10.1103/PhysRevB.89.041407) and the appropriate references therein.'
+                         '        (http://dx.doi.org/10.1103/PhysRevB.89.041407) and the appropriate references therein.' 
     write(*,'(A)')       '=========================================================================================================================='
     !! End of message
     write(*,*)
@@ -399,11 +438,11 @@ integer :: nener, iener, idir, ndirs, nkpts, ikpt
 real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
 
 
-    e_fermi = 0.0d0
+    e_fermi = 0.0_dp
     if(present(EF))then
          e_fermi = EF
     endif
-    origin_of_kpts_line = 0.0d0
+    origin_of_kpts_line = 0.0_dp
     if(present(zero_of_kpts_scale))then
         origin_of_kpts_line = zero_of_kpts_scale
     endif
@@ -412,6 +451,7 @@ real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
     ndirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
     coord_first_k_in_dir = origin_of_kpts_line
     open(unit=12,file=out_file)
+        write(12,'(A)')trim(adjustl(file_header_BandUP))
         write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
         do idir=1,ndirs
             first_pckpt_dir(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(1)%coords(:)
@@ -518,7 +558,7 @@ close(03)
 char_line_mode = trim(adjustl(char_line_mode))
 read(char_line_mode,*,iostat=ios)aux_char, origin_of_kpts_line
 if(ios /= 0)then
-    origin_of_kpts_line = 0.0d0
+    origin_of_kpts_line = 0.0_dp
 endif
 if(present(zero_of_kpts_scale))then
     zero_of_kpts_scale = origin_of_kpts_line
@@ -529,8 +569,8 @@ allocate(k_starts(1:ndirs, 1:3), k_ends(1:ndirs, 1:3))
 give_tip_a0_for_reciprocal = .FALSE.
 warn_old_format_cartesian = .FALSE.
 do idir=1,ndirs
-    k_starts(idir,:) = 0.0d0
-    k_ends(idir,:) = 0.0d0
+    k_starts(idir,:) = 0.0_dp
+    k_ends(idir,:) = 0.0_dp
     if(upper_case(coords_type_1st_letter) == 'C')then
         warn_old_format_cartesian = a0_informed_in_old_format
         if(.not. a0_informed_in_old_format .and. .not. a0_informed_in_new_format)then
@@ -574,7 +614,7 @@ else
 endif
 !! If you want to parse only 1 pckpt, then use it as both the start and the end of the kpts line.
 do idir=1,ndirs
-    if(norm(k_starts(idir,:)-k_ends(idir,:))<epsilon(1.0d0))then
+    if(norm(k_starts(idir,:)-k_ends(idir,:))<epsilon(1.0_dp))then
         n_kpts_dirs(idir) = 1
     endif
 enddo
@@ -586,7 +626,7 @@ if(opt_for_auto_pkpt_search)then
         write(*,'(A,E10.3,A)')'The automatic scan for pc-kpts will be performed in intervals of ',min_dk,' A^-1.'
     endif
     do idir=1, ndirs
-        n_kpts_dirs(idir) = ceiling(1.0d0 + norm(k_ends(idir,:) - k_starts(idir,:))/dabs(min_dk))
+        n_kpts_dirs(idir) = ceiling(1.0_dp + norm(k_ends(idir,:) - k_starts(idir,:))/dabs(min_dk))
     enddo
 endif
 if(print_stuff)then
@@ -607,10 +647,10 @@ if(warn_old_format_cartesian)then
         write(*,'(A,f0.5,A)')'            * Only this value will be used (a0 =',a0,').'
     endif
     write(*,'(A)')'            * It will work, but we now recommend that you specify a0 after the tag "cartesian" (separated by a space).'
-    write(*,*)
 endif
 
 if(give_tip_a0_for_reciprocal)then
+    write(*,*)
     write(*,'(A)')">>> Tip: You don't need to pass the scaling parameter a0 when the k-points are informed in fractional (reciprocal) coordinates."
 endif
 
@@ -632,8 +672,8 @@ write(*,"(A)")"Symmetry analysis for the selected pcbz directions:"
 do idir=1,ndirs
     n_needed_dirs = size(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:))
     write(*,"(A,I0,A)")"    >>> Direction #",idir,":"
-    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz(idir)," equivalent directions w.r.t. symmetry operations of the pcbz"
-    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ(idir)," equivalent directions w.r.t. symmetry operations of the SCBZ"
+    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz(idir)," equivalent directions w.r.t. symmetry operations of the pc"
+    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ(idir)," equivalent directions w.r.t. symmetry operations of the SC"
     if(n_needed_dirs > 1)then
         write(*,"(A,I0,A)")"        * ",ncompl_dirs(idir)," complementary pcbz directions will need to be considered in order to get a proper &
                                                             symmetry-averaged EBS."
@@ -664,6 +704,56 @@ integer, intent(in), dimension(1:3,1:3) :: rot
 
 end subroutine print_simm_ops
 
+
+subroutine print_message_pckpt_cannot_be_parsed(stop_when_a_pckpt_cannot_be_parsed)
+implicit none
+logical, intent(in) :: stop_when_a_pckpt_cannot_be_parsed
+
+    if(stop_when_a_pckpt_cannot_be_parsed)then
+        write(*,'(A)')"    ERROR: Could not calculate the spectral weight for the pair (k, K) being parsed right now."
+        write(*,'(A)')"           The cause is probably that either:"
+        write(*,'(A)')"               * The folding vector G = k - K has been estimated incorrectly by the code (symmetry issue), or"
+        write(*,'(A)')"               * K doesn't unfold onto k after all."
+        write(*,'(A)')"           Have you used the pre-procesing tool to find the SC-Kpts you needed?"
+        write(*,'(A)')"               * If not, please try that. This might solve the problem."
+        write(*,'(A)')"               * If yes, please contact me (Paulo)."
+        write(*,'(A)')"           Stopping now."
+    else
+        write(*,'(A)')"    WARNING: Not enough coefficients in the WAVECAR file to unfold this pc wave-vector."
+        write(*,'(A)')"             Be careful with your results: they might be incomplete or even wrong."
+    endif
+
+end subroutine print_message_pckpt_cannot_be_parsed
+
+
+subroutine print_message_success_determining_GUR(GUR, stop_if_GUR_fails, is_main_code)
+implicit none
+type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR !! Geometric Unfolding Relations
+logical, intent(in) :: stop_if_GUR_fails, is_main_code
+
+    if(GUR%n_pckpts /= GUR%n_folding_pckpts)then ! if GUR failed
+        if(stop_if_GUR_fails)then
+            write(*,'(A)')'ERROR: Could not determine all gemetric unfolding relations between the chosen SC-Kpts and pc-kpts.'
+        else
+            write(*,'(A)')'WARNING: Could not determine all gemetric unfolding relations between the chosen SC-Kpts and pc-kpts.'
+            write(*,'(A)')'         The code may fail!'
+        endif
+        write(*,'(A,I0,A)')'       * ',GUR%n_pckpts,' pc-kpts have been checked.'
+        write(*,'(A,I0,A)')'       * ',GUR%n_folding_pckpts,' pc-kpts satisfied the geometric unfolding relations.'
+        if(is_main_code)then
+            write(*,'(A)')'       Have you used the pre-procesing tool to find the SC-Kpts you needed?'
+            write(*,'(A)')'       * If not, please try that. This might solve the problem.'
+            write(*,'(A)')'       * If yes, please contact me (Paulo).'
+        endif
+        if(stop_if_GUR_fails)then
+            write(*,'(A)')'       Stopping now.'
+        endif
+    else
+        write(*,'(A)')'The geometric unfolding relations have been successfully determined. Good!'
+        write(*,'(A,I0,A)')'    * ',GUR%n_folding_pckpts,' pc-kpts satisfied the geometric unfolding relations.'
+    endif
+
+end subroutine print_message_success_determining_GUR
 
 subroutine say_goodbye_and_save_results(output_file_only_user_selec_direcs,output_file_symm_averaged_EBS, &
                                         delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
@@ -714,24 +804,24 @@ real(kind=dp) :: elapsed_time, time_percentual
     write(*,*)
     write(*,'(A,f0.1,A)')           'Total elapsed time:                                                ',elapsed_time,' s.'
 
-    time_percentual = 100.0d0*total_time_reading_wavecar/elapsed_time
-    if(time_percentual>=1.0d0)then
+    time_percentual = 100.0_dp*total_time_reading_wavecar/elapsed_time
+    if(time_percentual>=1.0_dp)then
         write(*,'(2(A,f0.1),A)')    'Time spent reading the WAVECAR file:                               ',&
                                      total_time_reading_wavecar,'s (',time_percentual,'%).'
     endif
-    time_percentual = 100.0d0*time_calc_spectral_weights/elapsed_time
-    if(time_percentual>=1.0d0)then
+    time_percentual = 100.0_dp*time_calc_spectral_weights/elapsed_time
+    if(time_percentual>=1.0_dp)then
         write(*,'(2(A,f0.1),A)')    'Time spent calculating spectral weights:                           ',&
                                      time_calc_spectral_weights,'s (',time_percentual,'%).'
     endif
     if(calc_spec_func)then
-        time_percentual = 100.0d0*time_calc_spectral_function/elapsed_time
-        if(time_percentual>=1.0d0)then
+        time_percentual = 100.0_dp*time_calc_spectral_function/elapsed_time
+        if(time_percentual>=1.0_dp)then
             write(*,'(2(A,f0.1),A)')'Time spent calculating spectral functions:                         ',&
                                      time_calc_spectral_function,'s (',time_percentual,'%).'
         endif
     endif
-    time_percentual = 100.0d0*time_spent_calculating_delta_Ns/elapsed_time
+    time_percentual = 100.0_dp*time_spent_calculating_delta_Ns/elapsed_time
     write(*,'(2(A,f0.1),A)')        'Time spent calculating the delta_Ns:                               ',&
                                      time_spent_calculating_delta_Ns,'s (',time_percentual,'%).'
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --nodes 24
+#SBATCH --nodes 16
 #SBATCH -J  GCu111E0
 #SBATCH -t 1-00:00:00
 

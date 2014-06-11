@@ -20,6 +20,7 @@ wavecar_calc_dir="${working_dir}/../step_3_get_SC_wavefunctions_to_be_used_for_u
 pcbz_kpts_folder="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files"
 prim_cell_lattice_file_folder="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files"
 prim_cell_lattice_file="${prim_cell_lattice_file_folder}/prim_cell_lattice.in"
+supercell_lattice_file="${working_dir}/../step_2_get_kpts_to_be_used_in_the_SC_band_struc_calcs/input_files/supercell_lattice.in"
 
 for dir in "K-G_G-M_M-K"  "perp_to_K-G_and_touching_K"
 do
@@ -36,6 +37,8 @@ rm -f KPOINTS_prim_cell.in
 cp $KPOINTS_prim_cell_file KPOINTS_prim_cell.in
 rm -f prim_cell_lattice.in
 cp $prim_cell_lattice_file prim_cell_lattice.in
+rm -f supercell_lattice.in
+cp $supercell_lattice_file supercell_lattice.in
 
 if [ "$dir" == 'K-G_G-M_M-K' ]; then
     emin="-20.0"
@@ -80,7 +83,7 @@ ln -s ${plot_script} ${plot_folder}/plot_unfolded_EBS_BandUP.py
 
 cd ${plot_folder}
     if [ "$dir" == 'K-G_G-M_M-K' ]; then
-        ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat -vmax 2 -vmin 0 --round_cb 0 --show --save &
+        ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat --show --save &
     else
         ./plot_unfolded_EBS_BandUP.py unfolded_EBS_symmetry-averaged.dat -vmax 2 -vmin 0 --landscape --no_cb --show --save &
     fi
