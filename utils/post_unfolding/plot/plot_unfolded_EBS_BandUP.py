@@ -22,7 +22,10 @@ import matplotlib as mpl
 from os import getcwd
 from os.path import join, realpath, dirname, splitext
 import sys
-import MyColMaps 
+try:
+    import MyColMaps # I'm still testing 
+except:
+    pass
 
 # Defining the options passed in the command line
 parser = argparse.ArgumentParser()
@@ -382,7 +385,7 @@ ax = fig.add_subplot(111)
 # Defining the color schemes.
 # Custom colormaps
 try: 
-    custom_cm_flame = MyColMaps.LoadColMap('Flame.cmap','') # It's still a test
+    custom_cm_flame = MyColMaps.LoadColMap('Flame.cmap','') # I'm still testing
 except:
     custom_cm_flame = None
 all_custom_cmaps = [custom_cm_flame]
