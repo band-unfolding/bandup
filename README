@@ -45,7 +45,27 @@ System requirements:
             * argparse
             * heapq
         * Please let me know if I've forgotten to list any other package!
+    * Optional: If you want to use the graphical user interface (GUI) version
+                of the plotting tool, you will need to have the PyQt4 package
+                available in your python install.
+                If you cannot use the GUI, you can keep using the plotting tool 
+                in the command line, just as usual.
             
+
+
+===================================================================================
+Tips:
+===================================================================================
+    * It might be handy to include the BandUP_bin folder in your PATH. By doing so,
+      you'll be able to use BandUP in whataver folder you're working at.
+    * BandUP accepts some optional command line options. Run the code with the flag
+      '-help' to see a list of allowed arguments/flags.
+    * Since the plotting tol has a lot of different options, I've given it a GUI:
+          utils/post_unfolding/plot/plotting_tool_GUI/BandUP_plot_GUI.pyw
+      You'll find a symlink to it (bandup_plot) in the BandUP_bin folder.
+      * The GUI requires that you have PyQt4 in you python install.
+      * If you move the BandUP_plot_GUI.pyw file, move the BandUP_plot_GUI.ui too.
+
 
 
 ===================================================================================

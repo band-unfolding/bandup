@@ -1,4 +1,4 @@
-!! Copyright (C) 2013 Paulo V. C. Medeiros
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -17,16 +17,25 @@
 
 module general_io
 implicit none
+SAVE
 PRIVATE
-PUBLIC :: available_io_unit, package_version, file_header_BandUP, file_header_BandUP_short, &
-          file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell
+PUBLIC :: available_io_unit, file_extension, filename_without_extension, & 
+          str_len, package_version, file_header_BandUP, file_header_BandUP_short, &
+          file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell, &
+          input_file_prim_cell, input_file_supercell, input_file_pc_kpts, input_file_energies, &
+          output_file_only_user_selec_direcs, output_file_symm_averaged_EBS, WF_file
 
-character(len=30), parameter :: package_version="2.3.0, 2014-06-11"
-character(len=127), parameter :: file_header_BandUP="# File created by BandUP - Band Unfolding code for Plane-wave based calculations, &
-                                                     V"//trim(adjustl(package_version)), &
-                                 file_header_BandUP_short="# File created by BandUP, V"//trim(adjustl(package_version)), &
-                                 file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_for_your_reference_unit_cell.POSCAR", &
-                                 file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_input_SC.POSCAR"
+integer, parameter :: str_len=256
+character(len=30), parameter :: package_version="2.4.0 (BETA), 2014-07-19"
+character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - Band Unfolding code for Plane-wave based calculations, &
+                                                        V"//trim(adjustl(package_version)), &
+                                     file_header_BandUP_short="# File created by BandUP, V"//trim(adjustl(package_version)), &
+                                     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_for_your_reference_unit_cell.POSCAR", &
+                                     file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_input_SC.POSCAR"
+
+character(len=str_len) :: input_file_prim_cell, input_file_supercell, &
+                          input_file_pc_kpts, input_file_energies, WF_file, &
+                          output_file_only_user_selec_direcs, output_file_symm_averaged_EBS
 !! Functions and subroutines
 CONTAINS 
 
@@ -65,6 +74,50 @@ integer ::unit_num,int_aux,min_unit_num,max_unit_num
   enddo
 
 end function available_io_unit
+
+function file_extension(filename, extention_length) result(ext)
+implicit none
+character(len=:), allocatable :: ext
+character(len=*), intent(in) :: filename
+integer, intent(in), optional :: extention_length
+integer :: ext_length, dot_position
+
+    ext_length = 3
+    if(present(extention_length))then
+        ext_length = extention_length
+    endif
+    allocate(character(ext_length) :: ext)
+
+    ext = ''
+    if(len(filename) >= ext_length + 1)then
+        dot_position = scan(filename, '.', back=.TRUE.)
+        if(dot_position > 0)then
+            ext = trim(adjustl(filename(dot_position + 1:len(filename))))
+        endif
+    endif
+
+end function file_extension
+
+
+function filename_without_extension(filename) result(rtn)
+implicit none
+character(len=*), intent(in) :: filename
+character(len=len(filename)) :: rtn
+integer :: dot_position
+
+    if(trim(adjustl(filename))=='')then
+        rtn = ''
+        return
+    endif
+
+    dot_position = scan(filename, '.', back=.TRUE.)
+    if(dot_position > 0)then
+       rtn = filename(1:dot_position-1)
+    else
+        rtn = trim(adjustl(filename))
+    endif
+
+end function filename_without_extension
 
 
 end module general_io

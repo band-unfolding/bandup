@@ -27,13 +27,16 @@ PUBLIC :: sp, dp, pi, twopi, min_dk, default_tol_for_vec_equality, default_tol_f
           pt_eqv_by_point_group_symop, bz_direction, eqv_bz_directions, irr_bz_directions, &
           get_all_irr_dirs_req_for_symmavgd_EBS, kpts_line, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, delta_Ns, allocate_delta_Ns_type, & 
-          delta_Ns_for_output, allocate_delta_Ns_for_output_type, &
-          check_if_pc_and_SC_are_commensurate, divide_SCKPTS_evenly_among_MPI_tasks, &
-          crystal_3D, create_crystal, append
+          delta_Ns_for_output, allocate_delta_Ns_for_output_type, check_if_pc_and_SC_are_commensurate, &
+          crystal_3D, create_crystal, append, operator(+)
 
 interface append
   module procedure append_integer_list, append_character_list
 end interface append
+
+interface operator(+)
+    module procedure sum_delta_Ns_for_output_type
+end interface operator(+)
 
 !! Constants used throughout the code
 integer, parameter :: sp = selected_real_kind(6, 37)    ! Single precision
@@ -52,7 +55,7 @@ type :: vec3d
 end type vec3d
 
 type :: crystal_3D
-    character(len=127) :: description=''
+    character(len=256) :: description=''
     real(kind=dp), dimension(1:3,1:3) :: latt_vecs, rec_latt_vecs
     real(kind=dp) :: vol, rec_latt_vol
     real(kind=dp), dimension(:,:), allocatable :: coords_basis_atoms, & ! Shall be dimension(:,1:3)
@@ -365,6 +368,34 @@ integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,nkpts
     enddo
 
 end subroutine allocate_delta_Ns_for_output_type
+
+
+function sum_delta_Ns_for_output_type(delta_N1, delta_N2) result(delta_N_sum)
+implicit none
+type(delta_Ns_for_output) :: delta_N_sum
+type(delta_Ns_for_output), intent(in) :: delta_N1, delta_N2
+integer :: idir, ikpt, n_ener
+    
+    allocate(delta_N_sum%pcbz_dir(1:size(delta_N1%pcbz_dir)))
+    do idir=1, size(delta_N1%pcbz_dir)
+        allocate(delta_N_sum%pcbz_dir(idir)%pckpt(1:size(delta_N1%pcbz_dir(idir)%pckpt)))
+        do ikpt=1, size(delta_N1%pcbz_dir(idir)%pckpt)
+            n_ener = size(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%dN(:))
+            allocate(delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%dN(1:n_ener))
+            delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%dN(:) = delta_N1%pcbz_dir(idir)%pckpt(ikpt)%dN(:) + &
+                                                           delta_N2%pcbz_dir(idir)%pckpt(ikpt)%dN(:)
+            if(allocated(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%SF))then
+                n_ener = size(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%SF(:))
+                allocate(delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%SF(1:n_ener))
+                delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%SF(:) = delta_N1%pcbz_dir(idir)%pckpt(ikpt)%SF(:) + &
+                                                               delta_N2%pcbz_dir(idir)%pckpt(ikpt)%SF(:)
+            endif
+        enddo
+    enddo
+    return
+
+end function sum_delta_Ns_for_output_type
+
 
 function time() result(rtn)
 implicit none
@@ -1704,9 +1735,9 @@ do idir=1,ndirs
     endif
 
     if(abs(sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight) - 1.0_dp) > 1E-3_dp)then
-        write(*,"(A,I0,A)")  "ERROR: The weights for the pcbz directions that are equivalent to the selected pcbz direction #",idir," do not add up to 1."
-        write(*,"(A)")       "       This is necessary in order to obtain a properly symmetry-averaged EBS."
-        write(*,"(A,f0.3,A)")"       The sum of the weights was ",sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight)," instead."
+        write(*,"(A,I0,A)")  "ERROR: The sum of the weights of the pcbz directions that are equivalent to the selected pcbz direction #",idir," doesn't equal 1."
+        write(*,"(A)")       "       This is necessary for the symmetry-averaged EBS."
+        write(*,"(A,f0.3,A)")"       The sum was ",sum(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:)%weight)," instead."
         write(*,"(A)")       "Stopping now."
         stop
     endif
@@ -1717,24 +1748,5 @@ enddo
 
 end subroutine get_all_irr_dirs_req_for_symmavgd_EBS
 
-
-subroutine divide_SCKPTS_evenly_among_MPI_tasks(SCKPTS_for_task,nkpts,ntasks)
-implicit none
-integer, intent(in) :: nkpts,ntasks
-integer, dimension(:,:), allocatable, intent(out) :: SCKPTS_for_task
-integer :: max_n_SCKPTS_per_MPI_task, task_kpt, i_SCKPT, itask
-
-max_n_SCKPTS_per_MPI_task = ceiling(real(nkpts)/real(ntasks))
-allocate(SCKPTS_for_task(0:ntasks-1,1:max_n_SCKPTS_per_MPI_task))
-SCKPTS_for_task(:,:) = 0
-
-task_kpt = 0
-do i_SCKPT=1,nkpts
-    itask = modulo(i_SCKPT-1,ntasks)
-    if(itask==0) task_kpt = task_kpt + 1
-    SCKPTS_for_task(itask,task_kpt) = i_SCKPT
-enddo
-
-end subroutine divide_SCKPTS_evenly_among_MPI_tasks
 
 end module math

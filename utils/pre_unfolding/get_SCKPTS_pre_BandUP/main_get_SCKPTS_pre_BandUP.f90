@@ -15,6 +15,7 @@
 !    You should have received a copy of the GNU General Public License
 !    along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 program get_wavefunc_SCKPTS_needed_for_EBS
+use options_setup
 use general_io
 use io_routines
 use read_vasp_files
@@ -22,47 +23,40 @@ use write_vasp_files
 use math
 use band_unfolding
 implicit none
-character(len=127) :: input_file_prim_cell, input_file_supercell, input_file_pc_kpts, &
-                      outpt_file_SC_kpts
-real(kind=dp), dimension(:,:), allocatable :: k_starts, k_ends
+type(vec3d), dimension(:), allocatable :: irr_unfolding_SCKPTS, irr_unfolding_SCKPTS_frac_coords, &
+                                          aux_irr_unfolding_SCKPTS, aux_irr_unfolding_SCKPTS_frac_coords
 type(crystal_3D), allocatable :: crystal_pc, crystal_SC
+real(kind=dp), dimension(:,:), allocatable :: k_starts, k_ends
 real(kind=dp), dimension(1:3,1:3) :: matrix_M
 real(kind=dp), dimension(1:3) :: point
 integer :: n_irr_unfolding_SCKPTS,ikpt,i,ios,n_selec_pcbz_dirs,idir, &
-           n_decimals, total_size_float_format, icoord
-type(vec3d), dimension(:), allocatable :: irr_unfolding_SCKPTS, irr_unfolding_SCKPTS_frac_coords, &
-                                          aux_irr_unfolding_SCKPTS, aux_irr_unfolding_SCKPTS_frac_coords
-character(len=254) :: file_line
-character(len=127) :: str_n_decimals, str_total_size_float_format, float_format
+           n_decimals, total_size_float_format, icoord, spin_channel
+character(len=str_len) :: out_file_SC_kpts
+character(len=str_len) :: file_line, str_n_decimals, str_total_size_float_format, float_format
 ! Variables for the symmetry analysis
-integer, dimension(:), allocatable :: n_pckpts_dirs,n_dirs_for_EBS_along_pcbz_dir, &
-                                      neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs
 type(irr_bz_directions), dimension(:), allocatable :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
 type(vec3d), dimension(:), allocatable :: considered_kpts_list
 type(selected_pcbz_directions) :: pckpts_to_be_checked
 type(geom_unfolding_relations_for_each_SCKPT) :: GUR !! Geometric Unfolding Relations
-integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
-logical :: get_all_kpts_needed_for_EBS_averaging,stop_if_not_commensurate,are_commens, &
-           stop_if_GUR_fails, pc_is_prim_cell, write_attempted_pc_corresp_to_input_pc, &
-           SC_is_prim_cell, write_attempted_pc_corresp_to_SC, print_GUR
 type(crystal_3D), allocatable :: crystal_SC_reduced_to_prim_cell, crystal_pc_reduced_to_prim_cell
+integer, dimension(:), allocatable :: n_pckpts_dirs,n_dirs_for_EBS_along_pcbz_dir, &
+                                      neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs
+integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
+logical :: stop_if_not_commensurate,are_commens, &
+           pc_is_prim_cell, write_attempted_pc_corresp_to_input_pc, &
+           SC_is_prim_cell, write_attempted_pc_corresp_to_SC
 !!!**********************************************************************************************
-
-    stop_if_not_commensurate = .FALSE.
-    stop_if_GUR_fails = .TRUE.
-    get_all_kpts_needed_for_EBS_averaging = .TRUE.
-    write_attempted_pc_corresp_to_input_pc = .TRUE.
-    print_GUR = .FALSE.
-    write_attempted_pc_corresp_to_SC = .TRUE.
-    input_file_prim_cell = 'prim_cell_lattice.in'
-    input_file_supercell = 'supercell_lattice.in'
-    input_file_pc_kpts = 'KPOINTS_prim_cell.in'
-    outpt_file_SC_kpts = 'KPOINTS_supercell.out'
 
     call print_welcome_messages(package_version)
     write(*,'(A)')'               Pre-processing utility "get_SCKPTS_pre_BandUP"'
     write(*,'(A)')'   >>> Getting the SC-KPTS you will need for your plane-wave calculation <<<'
     write(*,*)
+    call get_commline_args(WF_file, input_file_prim_cell, input_file_supercell, &
+                           input_file_pc_kpts, input_file_energies, &
+                           output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
+                           spin_channel, stop_if_not_commensurate, &
+                           write_attempted_pc_corresp_to_input_pc, write_attempted_pc_corresp_to_SC, &
+                           out_file_SC_kpts)
     call get_crystal_from_file(crystal_pc,input_file=input_file_prim_cell, &
                                stop_if_file_not_found=.TRUE.)
     call get_crystal_from_file(crystal_SC,input_file=input_file_supercell, &
@@ -152,7 +146,7 @@ type(crystal_3D), allocatable :: crystal_SC_reduced_to_prim_cell, crystal_pc_red
                            count(.not. GUR%SCKPT_used_for_unfolding),' too many).'
     endif
 
-    if(print_GUR)then 
+    if(print_GUR_pre_unfolding_utility)then 
         call print_geom_unfolding_relations(GUR,irr_unfolding_SCKPTS, &
                                             crystal_pc%rec_latt_vecs, &
                                             crystal_SC%rec_latt_vecs)
@@ -160,7 +154,7 @@ type(crystal_3D), allocatable :: crystal_SC_reduced_to_prim_cell, crystal_pc_red
 
     write(*,'(A,I0,A)')'A total of ',n_irr_unfolding_SCKPTS, &
                        " SCBZ-Kpoints will be needed to obtain a symmetry-averaged EBS along the selected direction(s) of the reference pcbz."
-    write(*,"(3A)")'>>> The SCBZ-Kpoints you will need to run your plane-wave calculation have been stored in the file "',trim(adjustl(outpt_file_SC_kpts)),'".'
+    write(*,"(3A)")'>>> The SCBZ-Kpoints you will need to run your plane-wave calculation have been stored in the file "',trim(adjustl(out_file_SC_kpts)),'".'
     if(any(ncompl_dirs > 0))then
         write(*,"(6(A,/),A)")"====================================================================================================", &
                              "NOTICE:                                                                                             ", &
@@ -176,7 +170,7 @@ type(crystal_3D), allocatable :: crystal_SC_reduced_to_prim_cell, crystal_pc_red
     write(str_n_decimals,'(I0)') n_decimals
     write(str_total_size_float_format,'(I0)') total_size_float_format
     float_format = 'f' // trim(adjustl(str_total_size_float_format)) // '.' // trim(adjustl(str_n_decimals))
-    open(unit=03, file=outpt_file_SC_kpts)
+    open(unit=03, file=out_file_SC_kpts)
         open(unit=04, file=input_file_pc_kpts)
             read(04,'(A)')file_line
             write(03,'(A)')trim(adjustl(file_line))//' (this is exactly the header of the input kpts file) ' // trim(adjustl(file_header_BandUP_short))

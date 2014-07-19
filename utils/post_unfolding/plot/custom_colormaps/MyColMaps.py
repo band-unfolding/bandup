@@ -45,4 +45,4 @@ def LoadColMap(Filename, Name):
     return cm.colors.LinearSegmentedColormap(Name,dict,2048)        
        
        
-SaveColMap(flame, "Flame")    
+#SaveColMap(flame, "Flame")    

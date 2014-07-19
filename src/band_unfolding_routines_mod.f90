@@ -192,7 +192,7 @@ end subroutine define_pckpts_to_be_checked
 
 
 subroutine select_coeffs_to_calc_spectral_weights(selected_coeff_indices, &
-                                                  iall_G,b_matrix_pc,B_matrix_SC,nplane, & 
+                                                  iall_G,b_matrix_pc,B_matrix_SC, & 
                                                   folding_G, &
                                                   tol_for_vec_equality)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
@@ -200,14 +200,14 @@ implicit none
 integer, dimension(:), allocatable, intent(out) :: selected_coeff_indices
 integer, dimension(:,:), intent(in) :: iall_G !Coordinates of the G points in the [b1, b2, b3] basis.
 real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
-integer, intent(in) :: nplane
 real(kind=dp), dimension(1:3), intent(in) :: folding_G
 real(kind=dp), intent(in) :: tol_for_vec_equality
-integer :: alloc_stat, ig
+integer :: alloc_stat, ig, nplane
 real(kind=dp), dimension(1:3) :: SC_G, trial_pc_g,g
 real(kind=dp) :: tol
 
     tol = 0.1_dp * tol_for_vec_equality
+    nplane = size(iall_G, dim=2)
     deallocate(selected_coeff_indices, stat=alloc_stat)
     do while((.not. allocated(selected_coeff_indices)) .and. &
               (tol <= max_tol_for_vec_equality))
@@ -375,29 +375,35 @@ subroutine get_delta_Ns_for_output(delta_N_only_selected_dirs,delta_N_symm_avrgd
                                    delta_N,dirs_req_for_symmavgd_EBS_along_pcbz_dir,pckpts_to_be_checked)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
-type(delta_Ns_for_output), intent(out) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
-type(delta_Ns), intent(in) :: delta_N
+type(delta_Ns_for_output), dimension(:), allocatable, intent(out) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
+type(delta_Ns), dimension(:), intent(in) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(irr_bz_directions), dimension(:), intent(in) :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
-integer :: nener,i_selec_pcbz_dir,ipc_kpt,i_needed_dirs
+integer :: nener, i_selec_pcbz_dir, ipc_kpt, i_needed_dirs, n_spinor_components, i_spinor
 real(kind=dp), dimension(:), allocatable :: avrgd_dNs
 real(kind=dp) :: weight
 
-    call allocate_delta_Ns_for_output_type(delta_N_only_selected_dirs,pckpts_to_be_checked)
-    call allocate_delta_Ns_for_output_type(delta_N_symm_avrgd_for_EBS,pckpts_to_be_checked)
-    nener = size(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%dN(:))
+    n_spinor_components = size(delta_N, dim=1)
+    allocate(delta_N_only_selected_dirs(1:n_spinor_components))
+    allocate(delta_N_symm_avrgd_for_EBS(1:n_spinor_components))
+
+    nener = size(delta_N(1)%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%dN(:))
     allocate(avrgd_dNs(1:nener))
-    do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
-        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
-        do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
-            avrgd_dNs(:) = 0.0_dp
-            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(1:nener))
-            do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
-                weight = dirs_req_for_symmavgd_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
-                avrgd_dNs = avrgd_dNs + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(:)
-            enddo
-            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs(:)
-       enddo     
+    do i_spinor=1,n_spinor_components
+        call allocate_delta_Ns_for_output_type(delta_N_only_selected_dirs(i_spinor), pckpts_to_be_checked)
+        call allocate_delta_Ns_for_output_type(delta_N_symm_avrgd_for_EBS(i_spinor), pckpts_to_be_checked)
+        do i_selec_pcbz_dir=1,size(delta_N(i_spinor)%selec_pcbz_dir(:))
+            delta_N_only_selected_dirs(i_spinor)%pcbz_dir(i_selec_pcbz_dir) = delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
+            do ipc_kpt=1, size(delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
+                avrgd_dNs(:) = 0.0_dp
+                allocate(delta_N_symm_avrgd_for_EBS(i_spinor)%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(1:nener))
+                do i_needed_dirs=1,size(delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
+                    weight = dirs_req_for_symmavgd_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
+                    avrgd_dNs = avrgd_dNs + weight*delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(:)
+                enddo
+                delta_N_symm_avrgd_for_EBS(i_spinor)%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs(:)
+           enddo     
+        enddo
     enddo
 
 end subroutine get_delta_Ns_for_output
