@@ -62,8 +62,11 @@ class BandUpPlotOptions(argparse.ArgumentParser):
                                                 help='Choice of colormap for the plots (integer number).', metavar='0~'+str(len(self.cmap_names) - 1))
         # E-Fermi and high-symm lines
         mpl_colors = sorted(mpl.colors.cnames.keys())
-        self.add_argument('--high_symm_linecolor', default=None, choices=mpl_colors)
-        self.add_argument('--e_fermi_linecolor', default=None, choices=mpl_colors)
+        self.add_argument('--high_symm_linecolor', default=None, choices=mpl_colors, 
+                          help='Color of the lines marking the positions of the high-symmetry points.', 
+                          metavar='some_matplotlib_color_name')
+        self.add_argument('--e_fermi_linecolor', default=None, choices=mpl_colors, 
+                          help='Color of the Fermi energy line.', metavar='some_matplotlib_color_name')
         self.add_argument('--line_width_E_f', type=float, default=None)
         self.add_argument('--line_width_high_symm_points', type=float, default=None)
         linestyles = ['solid', 'dashed', 'dashdot', 'dotted', '-', '--', '-.', ':']
@@ -99,6 +102,14 @@ class BandUpPlotOptions(argparse.ArgumentParser):
         self.add_argument('--no_symm_lines', action='store_true',help='Hides the high-symmetry lines.')
         self.add_argument('--no_symm_labels', action='store_true',help='Hides the high-symmetry labels.')
         self.add_argument('--no_cb', action='store_true',help='Hides the colorbar.')
+
+
+        self.plot_spin_projections = self.add_mutually_exclusive_group()
+        self.plot_spin_projections.add_argument('--plot_spin_perp', action='store_true', default=False)
+        self.plot_spin_projections.add_argument('--plot_spin_para', action='store_true', default=False)
+        self.add_argument('--plot_spin_as_contour', action='store_true', default=False)
+
+
         self.add_argument('-nlev', '--n_levels', type=int, default=1001, 
                           help='Number of different levels used in the contour plot. Default: 1001')
         self.add_argument('-kmin', type=float, default=None)
@@ -128,7 +139,13 @@ class BandUpPlotOptions(argparse.ArgumentParser):
         self.show_cb_label_options.add_argument('--cb_label_full', action='store_true', 
                                                 help='Show the colorbar label (full).')
 
-        self.args = self.parse_args() # Parsing user arguments
+        
+        self.add_argument('--skip_grid_freq_clip', action='store_true', help=argparse.SUPPRESS)
+        # Flag to know if this script has been called by the GUI
+        self.add_argument('--running_from_GUI', action='store_true', help=argparse.SUPPRESS)
+
+        # Parsing command-line arguments and flags
+        self.args = self.parse_args() 
 
         if(self.args.icolormap is not None):
             self.args.colormap = self.cmap_names[self.args.icolormap]
@@ -215,10 +232,10 @@ class BandUpPlot():
         self.indent = plot_options.indent
         self.args = plot_options.args
         args = self.args
-        self.KptsCoords, self.energies, self.delta_Ns = self.read_BandUP_output()
+        self.KptsCoords, self.energies, self.delta_Ns, self.spin_projections = self.read_BandUP_output()
         self.dE_for_hist2d = self.get_dE_for_grid()
         self.kmin, self.kmax, self.emin, self.emax = self.define_plot_boundaries()
-        self.KptsCoords, self.energies, self.delta_Ns = self.reduced_read_data()
+        self.KptsCoords, self.energies, self.delta_Ns, self.spin_projections = self.reduced_read_data()
         self.cmap_name = args.colormap
         self.cmap = plot_options.cmaps[self.cmap_name]
 
@@ -287,7 +304,7 @@ class BandUpPlot():
             self.fig_height_inches = self.fig_width_inches * args.aspect_ratio
         else:
             self.fig_height_inches = self.fig_width_inches / args.aspect_ratio
-            if(not args.portrait):
+            if(not args.portrait and not args.running_from_GUI):
                 print 'Assuming portrait orientation for the output figure.'
 
     def __color_E_f_and_high_symm_lines(self, image, args_linecolor):
@@ -311,42 +328,97 @@ class BandUpPlot():
 
     def read_BandUP_output(self):
         print 'Reading input file "%s"' % self.args.input_file
-        KptsCoords, energies, delta_Ns = np.loadtxt(self.args.input_file, usecols=(0,1,2),unpack=True)
-        print self.indent + '* Max. delta_N:          ', np.max(delta_Ns)
-        print self.indent + '* Min. non-zero delta_N: ', np.min(delta_Ns[np.nonzero(delta_Ns)])
+        
+        spin_projections = None
+        spin_projections_read = False
+        failed_reading_spin_projections = False
+        if(self.args.plot_spin_perp):
+            try:
+                KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,3),unpack=True)
+                spin_projections_read = True
+            except IndexError:
+                failed_reading_spin_projections = True
+                pass
+        elif(self.args.plot_spin_para):
+            try:
+                KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,4),unpack=True)
+                spin_projections_read = True
+            except IndexError:
+                failed_reading_spin_projections = True
+                pass
+        if(not spin_projections_read):
+            KptsCoords, energies, delta_Ns = np.loadtxt(self.args.input_file, usecols=(0,1,2),unpack=True)
+            if(failed_reading_spin_projections):
+                print self.indent + 'WARNING: Could not read spin info.'
+
+        print self.indent + '* Max. delta_N:          ' + "{:7.3f}".format(np.max(delta_Ns))
+        print self.indent + '* Min. non-zero delta_N: ' + "{:7.3f}".format(min([value for value in delta_Ns if abs(value) > 0.95E-3]))
+        if(spin_projections is not None):
+            print self.indent + 'Plotting also spin info (projections of the expectation values of Pauli matrices, still under test!).'
+            print 2 * self.indent + '* Maxval of the projections: ' + \
+                  "{:7.3f}".format(np.max(spin_projections))
+            try:
+                min_proj = min([value for value in spin_projections if abs(value) > 0.95E-3])
+            except ValueError:
+                min_proj = 0.0 
+            print 2 * self.indent + '* Minval of the projections:' + \
+                  "{:7.3f}".format(min_proj)
+            if(abs(min_proj) > 0.95E-3 or abs(np.max(spin_projections)) > 0.95E-3):
+                print 2 * self.indent + '* Positive projection values will be shown in blue.'
+                print 2 * self.indent + '* Negative projection values will be shown in red.'
+
         print 'Eliminating duplicated points...'
         sorted_index_data = np.lexsort((energies, KptsCoords))
         KptsCoords = KptsCoords[sorted_index_data] + self.args.shift_kpts_coords
         energies = energies[sorted_index_data] + self.args.shift_energy
         delta_Ns = delta_Ns[sorted_index_data]
+        if(spin_projections is not None):
+            spin_projections = spin_projections[sorted_index_data]
 
         new_KptsCoords = []
         new_energies = []
         new_delta_Ns = []
+        new_spin_projections = []
         for line_number in range(len(KptsCoords)-1):
             skip_line = False
             if(KptsCoords[line_number]==KptsCoords[line_number+1] and 
                energies[line_number]==energies[line_number+1]):
                delta_Ns[line_number+1] = max(delta_Ns[line_number],delta_Ns[line_number+1])
+               try:
+                   spin_projections[line_number+1] = max(spin_projections[line_number],spin_projections[line_number+1])
+               except TypeError:
+                   pass
                skip_line = True
             if(not skip_line):
                 new_energies.append(energies[line_number])
                 new_KptsCoords.append(KptsCoords[line_number])
                 new_delta_Ns.append(delta_Ns[line_number])
+                try:
+                    new_spin_projections.append(spin_projections[line_number])
+                except TypeError:
+                   pass
         # Appending the last point
         new_energies.append(energies[-1])
         new_KptsCoords.append(KptsCoords[-1])
         new_delta_Ns.append(delta_Ns[-1])
+        try:
+            new_spin_projections.append(spin_projections[-1])
+        except TypeError:
+           pass
 
         KptsCoords = np.array(new_KptsCoords)
         energies = np.array(new_energies)
         delta_Ns = np.array(new_delta_Ns)
+        if(new_spin_projections): 
+            spin_projections = np.array(new_spin_projections)
+        else:
+            spin_projections = None
         print self.indent + '* Done with eliminating duplicated points.'
 
-        return KptsCoords, energies, delta_Ns
+        return KptsCoords, energies, delta_Ns, spin_projections
 
     def reduced_read_data(self):
-        KptsCoords, energies, delta_Ns = self.KptsCoords, self.energies, self.delta_Ns
+        KptsCoords, energies, delta_Ns, spin_projections = self.KptsCoords, self.energies, self.delta_Ns, self.spin_projections
         size_of_old_data = float(len(self.KptsCoords))
         if(self.kmin>self.KptsCoords.min() or self.kmax<self.KptsCoords.max() or 
            self.emin>self.energies.min() or self.emax<self.energies.max()):
@@ -354,19 +426,25 @@ class BandUpPlot():
             new_KptsCoords = []
             new_energies = []
             new_delta_Ns = []
+            new_spin_projections = []
             for iline in range(len(self.KptsCoords)):
                 if (self.KptsCoords[iline] >= self.kmin and self.KptsCoords[iline] <= self.kmax and 
                     self.energies[iline] >= self.emin and self.energies[iline] <= self.emax):
                     new_KptsCoords.append(self.KptsCoords[iline])
                     new_energies.append(self.energies[iline])
                     new_delta_Ns.append(self.delta_Ns[iline])
+                    if(spin_projections is not None):
+                        new_spin_projections.append(self.spin_projections[iline])
             KptsCoords = np.array(new_KptsCoords)
             energies = np.array(new_energies)
             delta_Ns = np.array(new_delta_Ns)
+            if(new_spin_projections):
+                spin_projections = np.array(new_spin_projections)
             size_of_new_data = float(len(KptsCoords))
             print self.indent + '* Done. Working with %.2f' % (100.0*size_of_new_data/size_of_old_data), \
                   '% of the data read in.'
-        return KptsCoords, energies, delta_Ns
+
+        return KptsCoords, energies, delta_Ns, spin_projections
 
 
     def define_plot_boundaries(self):
@@ -579,6 +657,7 @@ def print_opening_message():
     print ('                                                                                      \n'
            '===================================================================================== \n'
            '             BandUP: Band Unfolding code for Plane-wave based calculations            \n'
+           '                 Copyright (C) 2013, 2014 Paulo V. C. Medeiros                        \n'
            '                                                                                      \n'
            '              Post-processing utility "plot_unfolded_EBS_BandUP.py"                   \n'
            '            >>> Visualizing the unfolded EBSs produced by BandUP <<<                  \n'
@@ -595,14 +674,14 @@ def print_opening_message():
 
 def make_plot(plot):
     indent = plot.plot_options.indent
-    # Creating the plot
     args = plot.plot_options.args
+    # Creating the plot
     print 'Generating the plot...'
     fig = plt.figure(figsize=(plot.fig_width_inches,plot.fig_height_inches))
     ax = fig.add_subplot(111)
     # Defining the color schemes.
     print indent + '>>> Using the "' + plot.cmap_name + '" colormap.'
-    if(plot.plot_options.using_default_cmap):
+    if(plot.plot_options.using_default_cmap and not args.running_from_GUI):
         print 2 * indent + 'Tip: You can try different colormaps by either:'
         print 2 * indent + '     * Running the plot tool with the option -icmap n, ' \
               'with n in the range from 0 to', len(plot.plot_options.cmaps) - 1
@@ -619,7 +698,8 @@ def make_plot(plot):
     # Interpolating
     grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, (ki[None,:], Ei[:,None]), 
                          method=args.interpolation, fill_value=0.0)
-    grid_freq = grid_freq.clip(0.0) # Values smaller than zero are just noise.
+    if(not args.skip_grid_freq_clip):
+        grid_freq = grid_freq.clip(0.0) # Values smaller than zero are just noise.
     # Normalizing and building the countour plot
     manually_normalize_colorbar_min_and_maxval = False
     if((args.maxval_for_colorbar is not None) or (args.minval_for_colorbar is not None)):
@@ -633,24 +713,32 @@ def make_plot(plot):
             maxval_for_colorbar = float(round(np.max(grid_freq)))
             args.round_cb = 0
     if(manually_normalize_colorbar_min_and_maxval or not args.disable_auto_round_vmin_and_vmax):
-        if not args.disable_auto_round_vmin_and_vmax:
+        modified_vmin_or_vmax = False
+        if not args.disable_auto_round_vmin_and_vmax and not args.running_from_GUI:
             print plot.indent + '* Automatically renormalizing color scale '\
                   '(you can disable this with the option --disable_auto_round_vmin_and_vmax):'
         if manually_normalize_colorbar_min_and_maxval:
-            print plot.indent + '* Manually renormalizing color scale:'
+            print plot.indent + '* Manually renormalizing color scale'
         if(minval_for_colorbar is not None):
-            print 2 * indent + 'Previous vmin = %.1f, new vmin = %.1f' % (np.min(grid_freq), 
-                                                                          minval_for_colorbar)
+            previous_vmin = np.min(grid_freq)
+            if(abs(previous_vmin - minval_for_colorbar) >= 0.1):
+                modified_vmin_or_vmax = True
+                print 2 * indent + 'Previous vmin = %.1f, new vmin = %.1f' % (previous_vmin, 
+                                                                              minval_for_colorbar)
         else:
             minval_for_colorbar = np.min(grid_freq)
         if(maxval_for_colorbar is not None):
-            print 2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (np.max(grid_freq), 
-                                                                          maxval_for_colorbar)
+            previous_vmax = np.max(grid_freq)
+            if(abs(previous_vmax - maxval_for_colorbar) >= 0.1):
+                modified_vmin_or_vmax = True
+                print 2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (previous_vmax, 
+                                                                              maxval_for_colorbar)
         else:
             maxval_for_colorbar = np.max(grid_freq)
-        print (2 * indent + 'The previous vmin and vmax might be slightly different from '
-                            'the min and max delta_Ns '
-                            'due to the interpolation scheme used for the plot.')
+        if(modified_vmin_or_vmax):
+            print (2 * indent + 'The previous vmin and vmax might be slightly different from '
+                                'the min and max delta_Ns '
+                                'due to the interpolation scheme used for the plot.')
         # values > vmax will be set to vmax, and #<vmin will be set to vmin 
         grid_freq = grid_freq.clip(minval_for_colorbar, maxval_for_colorbar)
      
@@ -659,9 +747,29 @@ def make_plot(plot):
     else: 
         image = ax.contourf(ki, Ei, grid_freq, args.n_levels, cmap=plot.cmap)
 
+    plot_spin_proj_requested = args.plot_spin_perp or args.plot_spin_para
+    if(plot_spin_proj_requested and plot.spin_projections is not None):
+        print indent + '* Drawing spin projection info (still under test!)...'
+        if(args.plot_spin_as_contour):
+            grid_freq_spin = griddata((plot.KptsCoords, plot.energies), plot.spin_projections, (ki[None,:], Ei[:,None]), 
+                                       method='linear', fill_value=0.0)
+            for i_grid_freq in range(len(grid_freq_spin)):
+                for i_grid_freq2 in range(len(grid_freq_spin[i_grid_freq])):
+                    if(abs(grid_freq_spin[i_grid_freq][i_grid_freq2]) < 1E-3):
+                        grid_freq_spin[i_grid_freq][i_grid_freq2] = float('nan')
+            image2 = ax.contourf(ki, Ei, grid_freq_spin, 101, cmap=plt.cm.seismic_r)
+        else:
+            points_for_scatter = [index for index in range(len(plot.spin_projections)) if abs(plot.spin_projections[index]) >= 1E-2]
+            k_for_scatter = plot.KptsCoords[points_for_scatter]
+            E_for_scatter = plot.energies[points_for_scatter]
+            spin_projections_for_scatter = plot.spin_projections[points_for_scatter]
+            image2 = ax.scatter(k_for_scatter, E_for_scatter, marker='o', 
+                                s=[2.0E4 * (plot.dE_for_hist2d ** 2) * abs(item) for item in spin_projections_for_scatter], 
+                                c=spin_projections_for_scatter, cmap=plt.cm.seismic_r)
+
+
+
     #Preparing the plot
-
-
     ax.set_xlim(plot.kmin, plot.kmax)
     ax.set_ylim(plot.emin, plot.emax)
     ax.set_title(plot.title, fontsize=plot.title_size)
@@ -694,8 +802,10 @@ def make_plot(plot):
         plt.xticks(fontsize=plot.tick_marks_size)
     ax.tick_params(axis='x', pad=10)
 
+    # Drawing vertical lines at the positions of the high-symmetry points
     if(not args.no_symm_lines):
-        for line_position in [pos for pos in plot.pos_high_symm_points if pos > plot.kmin and pos < plot.kmax]:
+        for line_position in [pos for pos in plot.pos_high_symm_points if float(round(pos, 3)) > float(round(plot.kmin, 3)) and 
+                                                                          float(round(pos, 3)) < float(round(plot.kmax, 3))]:
             hs_lines = plt.axvline(x=line_position, c=plot.color_high_symm_lines(image), linestyle=plot.line_style_high_symm_points, 
                                    lw=plot.line_width_high_symm_points)
 
@@ -764,8 +874,18 @@ def make_plot(plot):
         print indent + '* Done saving figure (%s).' % args.output_file
 
     if args.saveshow:
-        print 'Opening file (%s)' % args.output_file
-        Popen(['xdg-open', args.output_file], stdout=PIPE, stderr=PIPE)
+        print 'Opening saved figure (%s)...' % default_out_basename
+        # 'xdg-open' might fail to find the defualt program in some systems
+        # For such cases, one can try to use other alternatives (just add more to the list below)
+        image_viewer_list = ['xdg-open', 'eog']
+        for image_viewer in image_viewer_list:
+            open_saved_fig = Popen([image_viewer, args.output_file], stdout=PIPE, stderr=PIPE)
+            std_out, std_err = open_saved_fig.communicate()
+            success_opening_file = std_err.strip() == ''
+            if(success_opening_file):
+                break
+        if(not success_opening_file):
+            print indent + '* Failed (%s): no image viewer detected.' % default_out_basename
 
     if args.show:
         print 'Showing figure (%s)...' % default_out_basename

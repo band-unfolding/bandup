@@ -20,8 +20,30 @@ import os
 import matplotlib.colors
 import matplotlib.pyplot as plt
 from fractions import Fraction
-from PyQt4 import QtGui, QtCore, uic
+try:
+    from PyQt4 import QtGui, QtCore, uic
+except ImportError:
+    import Tkinter
+    import tkMessageBox
+    root = Tkinter.Tk()
+    root.withdraw()
+    tkMessageBox.showerror("BandUP plot GUI", 
+                           "Sorry, but you don't seem to have PyQt4 available in your python install. \n" + 
+                           "Please use the plotting tool through the command line.")
+    sys.exit(0)
 import json
+
+
+# Trick to avoid errors with PlaceholderText for Qt4.X, X<7.
+if('setPlaceholderText' not in dir(QtGui.QLineEdit)):
+    def redefined_setPlaceholderText(lineEdit, text):
+        lineEdit._placeholderText = QtCore.QString(text)
+        lineEdit.setText(text)
+    def redefined_PlaceholderText(lineEdit):
+        return lineEdit._placeholderText
+
+    QtGui.QLineEdit.setPlaceholderText = redefined_setPlaceholderText
+    QtGui.QLineEdit.PlaceholderText = redefined_PlaceholderText
 
 
 def find(name, path):
@@ -170,6 +192,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
             self.min_k_lineEdit.setText(str(self.min_k)) 
         if(self.max_k):
             self.max_k_lineEdit.setText(str(self.max_k)) 
+
 
     def initUI(self):
         # Loading the base UI I've created using QT Designer
@@ -365,7 +388,8 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
 
     def on_editing_output_file_lineEdit(self):
-        if(not self.select_out_figure_file_lineEdit.isModified()): # lineEdit.isModified() returns False unless the text has been manually changed by the user
+        # lineEdit.isModified() returns False unless the text has been manually changed by the user
+        if(not self.select_out_figure_file_lineEdit.isModified()): 
             return
 
         current_file_path = self.out_figure_file_path
@@ -428,6 +452,8 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
         if(self.aspect_ratio is None):
             self.aspect_ratio_lineEdit.setText('')
+            # The next line might look a bit odd, but it's part of the trick to overcome the lack of placeholder text in Qt4.6 and lower
+            self.aspect_ratio_lineEdit.setPlaceholderText(self.aspect_ratio_lineEdit.PlaceholderText())
         else:
             self.aspect_ratio_lineEdit.setText(new_ar)
 
@@ -445,6 +471,8 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
         if(new_value is None):
             lineEdit.setText('')
+            # The next line might look a bit odd, but it's part of the trick to overcome the lack of placeholder text in Qt4.6 and lower
+            lineEdit.setPlaceholderText(lineEdit.PlaceholderText())
         else:
             lineEdit.setText(str(new_value))
 
@@ -593,7 +621,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
         else:
             args_for_plotting_tool.append('--no_cb')
 
-        args_for_plotting_tool = [self.plot_script] + [str(arg) for arg in args_for_plotting_tool]
+        args_for_plotting_tool = [self.plot_script] + [str(arg) for arg in args_for_plotting_tool] + ['--running_from_GUI']
         # Running
         os.chdir(str(self.folder_where_gui_has_been_called)) 
         qProcess = MyQProcess(parent=self, output_window_title=self.windowTitle() + ' - Output')

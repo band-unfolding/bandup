@@ -41,20 +41,25 @@ SRC = main_BandUP.f90
 OBJ = ${SRC:.f90=.o}
 EXE = BandUP.x
 
+
 # "make" builds all
 all: $(EXE)
 
 cla.o: kinds.o
-options_setup_mod.o: cla.o kinds.o
 math_mod.o: spglib_f08.o
-band_unfolding_routines_mod.o: math_mod.o
-read_wavecar_mod.o: math_mod.o general_io_mod.o
+options_setup_mod.o: cla.o kinds.o math_mod.o
+general_io_mod.o: math_mod.o
+band_unfolding_routines_mod.o: math_mod.o general_io_mod.o
+read_wavecar_mod.o: options_setup_mod.o math_mod.o general_io_mod.o
 read_vasp_files_mod.o: math_mod.o general_io_mod.o strings_mod.o
 write_vasp_files_mod.o: math_mod.o general_io_mod.o strings_mod.o
-io_routines_mod.o: math_mod.o strings_mod.o general_io_mod.o read_vasp_files_mod.o write_vasp_files_mod.o read_wavecar_mod.o
-$(OBJ): cla.o kinds.o options_setup_mod.o spglib_f08.o math_mod.o io_routines_mod.o read_wavecar_mod.o read_vasp_files_mod.o write_vasp_files_mod.o band_unfolding_routines_mod.o
-$(EXE): cla.o kinds.o options_setup_mod.o spglib_f08.o math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o read_vasp_files_mod.o write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(OBJ)
-
+io_routines_mod.o: math_mod.o strings_mod.o general_io_mod.o read_vasp_files_mod.o \
+                   write_vasp_files_mod.o read_wavecar_mod.o
+$(OBJ): cla.o kinds.o options_setup_mod.o spglib_f08.o math_mod.o io_routines_mod.o \
+        read_wavecar_mod.o read_vasp_files_mod.o write_vasp_files_mod.o band_unfolding_routines_mod.o
+$(EXE): cla.o kinds.o options_setup_mod.o spglib_f08.o math_mod.o band_unfolding_routines_mod.o \
+        general_io_mod.o read_wavecar_mod.o read_vasp_files_mod.o write_vasp_files_mod.o \
+        strings_mod.o io_routines_mod.o $(OBJ)
 # ======================================================================
 # General rules
 # ======================================================================

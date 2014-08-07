@@ -86,7 +86,8 @@
 
 module read_wavecar
 use math
-use general_io, only : available_io_unit, WF_file
+use options_setup, only: renormalize_wf
+use general_io, only: available_io_unit, WF_file
 !$ use omp_lib
 implicit none
 PRIVATE
@@ -138,6 +139,7 @@ integer :: i, j, iost, irec, ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, ispin,    
 integer, dimension(:), allocatable :: available_io_units
 complex(kind=sp), dimension(:), allocatable :: band_coeff
 complex(kind=sp), dimension(:,:,:), allocatable :: aux_coeff ! Aux coefficients when using spinor wavefunctions
+complex(kind=sp) :: inner_prod, inner_prod1, inner_prod2
 logical :: file_exists, assume_spinor_wavecar
 
 ! Start
@@ -452,15 +454,31 @@ open(unit=input_file_unit,file=WF_file,access='direct',recl=nrecl,iostat=iost,st
 
 close(unit=input_file_unit)
 
-
-if(present(coeff) .and. assume_spinor_wavecar)then
-    allocate(aux_coeff(1:2, 1:ncnt, 1:nband))
-    aux_coeff(1,:,:) = coeff(1, 1:ncnt, :)
-    aux_coeff(2,:,:) = coeff(1, ncnt+1:nplane, :)
-    deallocate(coeff)
-    allocate(coeff(1:2, 1:ncnt, 1:nband)) ! Now using a two-component matrix of coeffs
-    coeff(:,:,:) = aux_coeff(:,:,:)
-    deallocate(aux_coeff)
+if(present(coeff))then
+    if(assume_spinor_wavecar)then
+        allocate(aux_coeff(1:2, 1:ncnt, 1:nband))
+        aux_coeff(1,:,:) = coeff(1, 1:ncnt, :)
+        aux_coeff(2,:,:) = coeff(1, ncnt+1:nplane, :)
+        deallocate(coeff)
+        allocate(coeff(1:2, 1:ncnt, 1:nband)) ! Now using a two-component matrix of coeffs
+        coeff(:,:,:) = aux_coeff(:,:,:)
+        deallocate(aux_coeff)
+        if(renormalize_wf)then
+            do iband=1, size(coeff, dim=3)
+                inner_prod1 = inner_product(coeff(1,:,iband), coeff(1,:,iband))
+                inner_prod2 = inner_product(coeff(2,:,iband), coeff(2,:,iband))
+                inner_prod = inner_prod1 + inner_prod2
+                coeff(:,:,iband) = coeff(:,:,iband) / sqrt(abs(inner_prod))
+            enddo
+        endif
+    else
+        if(renormalize_wf)then
+            do iband=1, size(coeff, dim=3)
+                inner_prod = inner_product(coeff(1,:,iband), coeff(1,:,iband))
+                coeff(:,:,iband) = coeff(:,:,iband) / sqrt(abs(inner_prod))
+            enddo
+        endif
+    endif
 endif
 
 

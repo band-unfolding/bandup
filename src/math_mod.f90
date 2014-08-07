@@ -26,16 +26,16 @@ PUBLIC :: sp, dp, pi, twopi, min_dk, default_tol_for_vec_equality, default_tol_f
           reduce_point_to_bz, same_vector, get_symm, get_star, get_irr_kpts, &
           pt_eqv_by_point_group_symop, bz_direction, eqv_bz_directions, irr_bz_directions, &
           get_all_irr_dirs_req_for_symmavgd_EBS, kpts_line, selected_pcbz_directions, &
-          geom_unfolding_relations_for_each_SCKPT, delta_Ns, allocate_delta_Ns_type, & 
-          delta_Ns_for_output, allocate_delta_Ns_for_output_type, check_if_pc_and_SC_are_commensurate, &
-          crystal_3D, create_crystal, append, operator(+)
+          geom_unfolding_relations_for_each_SCKPT, UnfoldedQuantities, allocate_UnfoldedQuantities, & 
+          UnfoldedQuantitiesForOutput, allocate_UnfoldedQuantitiesForOutput, check_if_pc_and_SC_are_commensurate, &
+          crystal_3D, create_crystal, append, inner_product, versor, operator(+)
 
 interface append
   module procedure append_integer_list, append_character_list
 end interface append
 
 interface operator(+)
-    module procedure sum_delta_Ns_for_output_type
+    module procedure sum_UnfoldedQuantitiesForOutput
 end interface operator(+)
 
 !! Constants used throughout the code
@@ -126,28 +126,35 @@ type :: geom_unfolding_relations_for_each_SCKPT
     integer :: n_pckpts,n_folding_pckpts
 end type geom_unfolding_relations_for_each_SCKPT
 
-!! Defining derived types to support a "delta_Ns" type.
-type :: delta_Ns_and_SFs_at_every_energy_grid_point_for_a_pckpt
-    real(kind=dp), dimension(:), allocatable :: dN,SF  !! delta_Ns and spectral functions at each point of the energy grid
-end type delta_Ns_and_SFs_at_every_energy_grid_point_for_a_pckpt
+!! Defining derived types to support a "UnfoldedQuantities" type.
+type :: unfolded_quantities_for_given_pckpt
+    !! This type holds the unfolded quantities, for a given pc-kpt, 
+    !! at ever point of the energy grid
+    real(kind=dp), dimension(:), allocatable :: dN, SF, &  !! delta_Ns and spectral functions at each point of the energy grid
+                                                spin_proj_perp, spin_proj_para
+    ! sigma(1:nbans,1:3) holds the expected values of the Pauli matrices sigma_i; i=x, y, z (used if spinor WF)
+    real(kind=dp), dimension(:,:), allocatable :: sigma 
+end type unfolded_quantities_for_given_pckpt
 
-type :: list_of_pckpts_for_SFs_and_delta_Ns
-    type(delta_Ns_and_SFs_at_every_energy_grid_point_for_a_pckpt), dimension(:), allocatable :: pckpt
-end type list_of_pckpts_for_SFs_and_delta_Ns
+type :: list_of_pckpts_for_unfolded_quantities
+    type(unfolded_quantities_for_given_pckpt), dimension(:), allocatable :: pckpt
+end type list_of_pckpts_for_unfolded_quantities
 
-type :: delta_N_and_SF_info_for_needed_pcbz_dirs_for_EBS
-    type(list_of_pckpts_for_SFs_and_delta_Ns), dimension(:), allocatable :: needed_dir
-end type delta_N_and_SF_info_for_needed_pcbz_dirs_for_EBS
-!! Defining now the "delta_Ns" type, which can also hold info about spectral functions SFs
-!! The structure of a variable delta_N of type(delta_Ns) is:
-!! delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%[ dN(iener) or SF(iener)]
-type :: delta_Ns
-    type(delta_N_and_SF_info_for_needed_pcbz_dirs_for_EBS), dimension(:), allocatable :: selec_pcbz_dir
-end type delta_Ns
+type :: UnfoldedQuantities_info_for_needed_pcbz_dirs
+    type(list_of_pckpts_for_unfolded_quantities), dimension(:), allocatable :: needed_dir
+end type UnfoldedQuantities_info_for_needed_pcbz_dirs
+!! Defining now the "UnfoldedQuantities" type
+!! It holds info about unfodled properties [delta_Ns (dN), spectral functions (SF), and all
+!! other components of the previously defined type "unfolded_quantities_for_given_pckpt"]
+!! The structure of a variable unf of type(UnfoldedQuantities) is:
+!! unf%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%PROPERTY(iener)
+type :: UnfoldedQuantities
+    type(UnfoldedQuantities_info_for_needed_pcbz_dirs), dimension(:), allocatable :: selec_pcbz_dir
+end type UnfoldedQuantities
 
-type :: delta_Ns_for_output
-    type(list_of_pckpts_for_SFs_and_delta_Ns), dimension(:), allocatable :: pcbz_dir
-end type delta_Ns_for_output
+type :: UnfoldedQuantitiesForOutput
+    type(list_of_pckpts_for_unfolded_quantities), dimension(:), allocatable :: pcbz_dir
+end type UnfoldedQuantitiesForOutput
 
 
 !! Functions and subroutines
@@ -335,9 +342,9 @@ end subroutine check_if_pc_and_SC_are_commensurate
 
 
 
-subroutine allocate_delta_Ns_type(delta_N,pckpts_to_be_checked)
+subroutine allocate_UnfoldedQuantities(delta_N,pckpts_to_be_checked)
 implicit none
-type(delta_Ns), intent(out) :: delta_N
+type(UnfoldedQuantities), intent(out) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked !! Geometric Unfolding Relations
 integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,n_needed_dirs,i_needed_dirs,nkpts
 
@@ -352,11 +359,11 @@ integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,n_needed_dirs,i_needed_dirs,nkpts
         enddo
     enddo
 
-end subroutine allocate_delta_Ns_type
+end subroutine allocate_UnfoldedQuantities
 
-subroutine allocate_delta_Ns_for_output_type(delta_N,pckpts_to_be_checked)
+subroutine allocate_UnfoldedQuantitiesForOutput(delta_N,pckpts_to_be_checked)
 implicit none
-type(delta_Ns_for_output), intent(out) :: delta_N
+type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked !! Geometric Unfolding Relations
 integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,nkpts
 
@@ -367,13 +374,13 @@ integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,nkpts
         allocate(delta_N%pcbz_dir(i_selc_pcbz_dir)%pckpt(1:nkpts))
     enddo
 
-end subroutine allocate_delta_Ns_for_output_type
+end subroutine allocate_UnfoldedQuantitiesForOutput
 
 
-function sum_delta_Ns_for_output_type(delta_N1, delta_N2) result(delta_N_sum)
+function sum_UnfoldedQuantitiesForOutput(delta_N1, delta_N2) result(delta_N_sum)
 implicit none
-type(delta_Ns_for_output) :: delta_N_sum
-type(delta_Ns_for_output), intent(in) :: delta_N1, delta_N2
+type(UnfoldedQuantitiesForOutput) :: delta_N_sum
+type(UnfoldedQuantitiesForOutput), intent(in) :: delta_N1, delta_N2
 integer :: idir, ikpt, n_ener
     
     allocate(delta_N_sum%pcbz_dir(1:size(delta_N1%pcbz_dir)))
@@ -390,11 +397,37 @@ integer :: idir, ikpt, n_ener
                 delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%SF(:) = delta_N1%pcbz_dir(idir)%pckpt(ikpt)%SF(:) + &
                                                                delta_N2%pcbz_dir(idir)%pckpt(ikpt)%SF(:)
             endif
+            ! Now the spin quantities (if spinor WF)
+            if(allocated(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%sigma))then
+                ! Expected values of the Pauli matrices
+                n_ener = size(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%sigma, dim=1)
+                allocate(delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%sigma(1:n_ener, 1:3))
+                delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%sigma(:,:) = delta_N1%pcbz_dir(idir)%pckpt(ikpt)%sigma(:,:)
+            else
+                if(allocated(delta_N2%pcbz_dir(idir)%pckpt(ikpt)%sigma))then
+                    n_ener = size(delta_N2%pcbz_dir(idir)%pckpt(ikpt)%sigma, dim=1)
+                    allocate(delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%sigma(1:n_ener, 1:3))
+                    delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%sigma(:,:) = delta_N2%pcbz_dir(idir)%pckpt(ikpt)%sigma(:,:)
+                endif
+            endif
+            if(allocated(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp))then
+                n_ener = size(delta_N1%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(:))
+                allocate(delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(1:n_ener))
+                delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(:) = delta_N1%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(:)
+            else
+                if(allocated(delta_N2%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp))then
+                    n_ener = size(delta_N2%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(:))
+                    allocate(delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(1:n_ener))
+                    delta_N_sum%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(:) = delta_N2%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(:)
+                endif
+            endif
         enddo
     enddo
+
+
     return
 
-end function sum_delta_Ns_for_output_type
+end function sum_UnfoldedQuantitiesForOutput
 
 
 function time() result(rtn)
@@ -456,7 +489,7 @@ implicit none
   real(kind=dp), dimension(1:3) :: v
   real(kind=dp) :: rtn
 
-  rtn = dsqrt(dot_product(v,v))
+  rtn = sqrt(dot_product(v,v))
 
 end function norm
 
@@ -1745,8 +1778,68 @@ do idir=1,ndirs
     neqv_dirs_SCBZ(idir) = size(dirs_eqv_in_SC_to_selec_pcbz_dir(idir)%eqv_dir)
 enddo
 
-
 end subroutine get_all_irr_dirs_req_for_symmavgd_EBS
 
+
+function inner_product(coeffs1, coeffs2) result(rtn)
+implicit none
+complex(kind=sp) :: rtn
+complex(kind=sp), dimension(:), intent(in) :: coeffs1, coeffs2
+
+    if(size(coeffs1) /= size(coeffs2))then
+        write(*,'(A)')'Error (inner_product): Attempting to calculate the inner product of two vector with different dimensions.'
+        write(*,'(A)')'Stopping now.'
+        stop
+    endif
+    ! Fortran's dot_product reoutine takes care of complex conjugation
+    rtn = dot_product(coeffs1, coeffs2)
+
+end function inner_product
+
+
+function vec_rotated_around_axis(vector, axis, deg) result(rtn)
+implicit none
+real(kind=dp), dimension(1:3) :: rtn
+real(kind=dp), dimension(1:3), intent(in) :: vector, axis
+real(kind=dp), intent(in) :: deg
+real(kind=dp), dimension(1:3, 1:3) :: R
+real(kind=dp) :: a, s, c
+real(kind=dp), dimension(1:3) :: u ! the axis, to simplify the writing
+integer :: i
+    
+    u = axis
+    a = deg * Pi/180.0_dp ! angle in rad
+    s = sin(a)
+    c = cos(a)
+
+    do i=1,3
+        R(i,i) = cos(a) + (1 - cos(a)) * u(i)**2
+    enddo
+    R(2,1) = u(1)*u(2)*(1 - c) + u(3)*s
+    R(1,2) = u(1)*u(2)*(1 - c) - u(3)*s
+   
+    R(3,1) = u(1)*u(3)*(1 - c) - u(2)*s
+    R(1,3) = u(1)*u(3)*(1 - c) + u(2)*s
+
+    R(2,3) = u(2)*u(3)*(1 - c) - u(1)*s
+    R(3,2) = u(2)*u(3)*(1 - c) + u(1)*s
+
+    rtn = matmul(R, vector)
+
+
+end function vec_rotated_around_axis
+
+function versor(v) result(rtn)
+implicit none
+real(kind=dp), dimension(1:3), intent(in) :: v
+real(kind=dp), dimension(1:3) :: rtn
+
+    rtn = 0.0_dp
+    if(norm(v) > 0.0_dp)then
+        rtn = v/norm(v)
+    endif
+    return
+
+end function versor
 
 end module math

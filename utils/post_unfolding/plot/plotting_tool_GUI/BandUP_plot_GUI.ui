@@ -27,7 +27,7 @@
    <enum>Qt::StrongFocus</enum>
   </property>
   <property name="windowTitle">
-   <string>BandUP plotting tool</string>
+   <string>BandUP plot GUI</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="enabled">
@@ -56,7 +56,7 @@
       <rect>
        <x>10</x>
        <y>30</y>
-       <width>271</width>
+       <width>281</width>
        <height>17</height>
       </rect>
      </property>
@@ -303,7 +303,7 @@
       <rect>
        <x>10</x>
        <y>50</y>
-       <width>151</width>
+       <width>161</width>
        <height>27</height>
       </rect>
      </property>
@@ -355,7 +355,7 @@
       <set>Qt::AlignCenter</set>
      </property>
      <property name="placeholderText">
-      <string/>
+      <string>3/4</string>
      </property>
     </widget>
     <widget class="QComboBox" name="fig_orientation_comboBox">
@@ -383,7 +383,7 @@
       <rect>
        <x>130</x>
        <y>99</y>
-       <width>81</width>
+       <width>91</width>
        <height>31</height>
       </rect>
      </property>
@@ -570,7 +570,7 @@
       <rect>
        <x>10</x>
        <y>310</y>
-       <width>241</width>
+       <width>251</width>
        <height>22</height>
       </rect>
      </property>
@@ -632,7 +632,7 @@
       <rect>
        <x>206</x>
        <y>164</y>
-       <width>71</width>
+       <width>81</width>
        <height>17</height>
       </rect>
      </property>
@@ -688,7 +688,7 @@
       <rect>
        <x>206</x>
        <y>250</y>
-       <width>71</width>
+       <width>81</width>
        <height>17</height>
       </rect>
      </property>
@@ -896,7 +896,7 @@
       <rect>
        <x>190</x>
        <y>30</y>
-       <width>41</width>
+       <width>51</width>
        <height>20</height>
       </rect>
      </property>
@@ -1040,9 +1040,9 @@
     <widget class="QSpinBox" name="decimal_digits_cb_spinBox">
      <property name="geometry">
       <rect>
-       <x>129</x>
+       <x>138</x>
        <y>57</y>
-       <width>60</width>
+       <width>51</width>
        <height>27</height>
       </rect>
      </property>
@@ -1072,9 +1072,9 @@
     <widget class="QLabel" name="label_decimal_digits_cb_spinBox_2">
      <property name="geometry">
       <rect>
-       <x>195</x>
+       <x>200</x>
        <y>60</y>
-       <width>61</width>
+       <width>71</width>
        <height>20</height>
       </rect>
      </property>
@@ -1103,7 +1103,7 @@
       <rect>
        <x>26</x>
        <y>90</y>
-       <width>160</width>
+       <width>171</width>
        <height>22</height>
       </rect>
      </property>
@@ -1122,7 +1122,7 @@
       <rect>
        <x>46</x>
        <y>120</y>
-       <width>181</width>
+       <width>191</width>
        <height>22</height>
       </rect>
      </property>
@@ -1136,7 +1136,7 @@
     <widget class="QComboBox" name="interpolation_comboBox">
      <property name="geometry">
       <rect>
-       <x>190</x>
+       <x>201</x>
        <y>200</y>
        <width>81</width>
        <height>27</height>
@@ -1166,7 +1166,7 @@
       <rect>
        <x>10</x>
        <y>204</y>
-       <width>181</width>
+       <width>191</width>
        <height>17</height>
       </rect>
      </property>

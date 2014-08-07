@@ -16,12 +16,13 @@
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
 module options_setup
+use math
 use kinds
 use cla
 implicit none
 PRIVATE
 PUBLIC :: get_commline_args, calc_spec_func_explicitly, &
-          stop_when_a_pckpt_cannot_be_parsed, stop_if_GUR_fails, &
+          stop_when_a_pckpt_cannot_be_parsed, stop_if_GUR_fails, renormalize_wf, &
           get_all_kpts_needed_for_EBS_averaging, print_GUR_pre_unfolding_utility
 
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
@@ -29,7 +30,8 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       stop_when_a_pckpt_cannot_be_parsed = .TRUE., &
                       stop_if_GUR_fails = .TRUE., &
                       get_all_kpts_needed_for_EBS_averaging = .TRUE., &
-                      print_GUR_pre_unfolding_utility = .FALSE.
+                      print_GUR_pre_unfolding_utility = .FALSE., &
+                      renormalize_wf = .TRUE.
 
 !! Functions and subroutines
 CONTAINS
@@ -39,15 +41,18 @@ subroutine get_commline_args(WF_file, input_file_prim_cell, input_file_supercell
                              output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
                              spin_channel, stop_if_not_commensurate, &
                              write_attempted_pc_corresp_to_input_pc, write_attempted_pc_corresp_to_SC, &
-                             out_file_SC_kpts)
+                             out_file_SC_kpts, saxis)
 implicit none
 character(len=*), intent(out) :: WF_file, input_file_prim_cell, input_file_supercell, &
                                  input_file_pc_kpts, input_file_energies, &
                                  output_file_symm_averaged_EBS, output_file_only_user_selec_direcs
 character(len=*), intent(out), optional :: out_file_SC_kpts
 integer, intent(out) :: spin_channel
+real(kind=dp), dimension(1:3), intent(out), optional :: saxis
 logical, intent(out) :: stop_if_not_commensurate, write_attempted_pc_corresp_to_input_pc, &
                         write_attempted_pc_corresp_to_SC
+character(len=STRLEN) :: str_saxis
+integer :: ios
 
     WF_file = ''; input_file_prim_cell = ''; input_file_supercell = ''
     input_file_pc_kpts = ''; input_file_energies = ''
@@ -76,6 +81,8 @@ logical, intent(out) :: stop_if_not_commensurate, write_attempted_pc_corresp_to_
     call cla_register('-skip_propose_pc_for_given_sc', 'Do not attempt to propose a pc &
                                                         for the input SC', &
                       cla_flag, 'F')
+    call cla_register('-saxis', 'Quantization axis. Applies to spin-orbit calculations. Still under test. ' // &
+                                'Usage example: -saxis "0 0 1"', cla_char, '(0+, 0, 1)')
     call cla_validate
 
 
@@ -98,6 +105,18 @@ logical, intent(out) :: stop_if_not_commensurate, write_attempted_pc_corresp_to_
     stop_if_not_commensurate = cla_key_present('-stop_if_not_commensurate')
     write_attempted_pc_corresp_to_input_pc = .not. cla_key_present('-skip_propose_pc_for_given_pc')
     write_attempted_pc_corresp_to_SC = .not. cla_key_present('-skip_propose_pc_for_given_sc')
+
+    if(present(saxis))then
+        saxis = real((/0 + epsilon(1.0_dp), 0, 1/), kind=dp)
+        if(cla_key_present('-saxis'))then
+            call  cla_get('-saxis', str_saxis)
+            ios = -1
+            read(str_saxis, *, iostat=ios) saxis(1), saxis(2), saxis(3)
+            if(ios /= 0)then
+                saxis = real((/0 + epsilon(1.0_dp), 0, 1/), kind=dp)
+            endif
+        endif
+    endif
 
 end subroutine get_commline_args
 

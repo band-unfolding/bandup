@@ -16,6 +16,7 @@
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
 module general_io
+use math
 implicit none
 SAVE
 PRIVATE
@@ -23,10 +24,10 @@ PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           str_len, package_version, file_header_BandUP, file_header_BandUP_short, &
           file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell, &
           input_file_prim_cell, input_file_supercell, input_file_pc_kpts, input_file_energies, &
-          output_file_only_user_selec_direcs, output_file_symm_averaged_EBS, WF_file
+          output_file_only_user_selec_direcs, output_file_symm_averaged_EBS, WF_file, saxis
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="2.4.0 (BETA), 2014-07-19"
+character(len=30), parameter :: package_version="2.4.1, 2014-08-07"
 character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - Band Unfolding code for Plane-wave based calculations, &
                                                         V"//trim(adjustl(package_version)), &
                                      file_header_BandUP_short="# File created by BandUP, V"//trim(adjustl(package_version)), &
@@ -36,6 +37,7 @@ character(len=str_len), parameter :: file_header_BandUP="# File created by BandU
 character(len=str_len) :: input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, WF_file, &
                           output_file_only_user_selec_direcs, output_file_symm_averaged_EBS
+real(kind=dp), dimension(1:3) :: saxis
 !! Functions and subroutines
 CONTAINS 
 

@@ -431,11 +431,12 @@ implicit none
 character(len=*), intent(in) :: out_file
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 real(kind=dp), dimension(:), intent(in) :: energy_grid
-type(delta_Ns_for_output), intent(in) :: delta_N
+type(UnfoldedQuantitiesForOutput), intent(in) :: delta_N
 real(kind=dp), dimension(1:3) :: pckpt, first_pckpt_dir
 real(kind=dp), intent(in), optional :: EF, zero_of_kpts_scale
 integer :: nener, iener, idir, ndirs, nkpts, ikpt
 real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
+logical :: write_spin_info
 
 
     e_fermi = 0.0_dp
@@ -447,12 +448,21 @@ real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
         origin_of_kpts_line = zero_of_kpts_scale
     endif
 
+
+    write_spin_info = allocated(delta_N%pcbz_dir(1)%pckpt(1)%spin_proj_perp)
     nener = size(energy_grid)
     ndirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
     coord_first_k_in_dir = origin_of_kpts_line
     open(unit=12,file=out_file)
         write(12,'(A)')trim(adjustl(file_header_BandUP))
-        write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
+        if(write_spin_info)then
+            write(12, '(A)')'# Please mind that the support to two-component spinor-like wavefunctions is still under test.' 
+            write(12, '(A)')'# Remember this when checking the spin-related unfolded quantities.'
+            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The quantization axis used was saxis = [', saxis, ']'
+            write(12,'(3(A,X), 2X, 2(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N", "#Spin " // '_|_' // " k", "#Spin " // '//' // " k"
+        else
+            write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
+        endif
         do idir=1,ndirs
             first_pckpt_dir(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(1)%coords(:)
             nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(:))
@@ -460,7 +470,15 @@ real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
                 pckpt(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(ikpt)%coords(:)
                 do iener=1,nener
                     coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
-                    write(12,'(2(f8.4,2X),ES10.3)')coord_k,energy_grid(iener)-e_fermi,delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener)
+                    if(write_spin_info)then
+                        write(12,'(2(f8.4,2X),3(ES10.3, 2X))')coord_k, energy_grid(iener) - e_fermi, &
+                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener), &
+                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(iener), &
+                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_para(iener)
+                    else
+                        write(12,'(2(f8.4,2X),ES10.3)')coord_k, energy_grid(iener) - e_fermi, &
+                                                       delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener)
+                    endif
                 enddo
             enddo
             coord_first_k_in_dir = coord_k
@@ -760,18 +778,13 @@ subroutine say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm
                                         pckpts_to_be_checked,energy_grid,e_fermi,zero_of_kpts_scale, &
                                         n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed)
 implicit none
-type(delta_Ns_for_output), dimension(:), intent(in) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
+type(UnfoldedQuantitiesForOutput),  intent(in) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 real(kind=dp), dimension(:), intent(in) :: energy_grid
 real(kind=dp), intent(in) :: e_fermi, zero_of_kpts_scale
 integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
-integer :: n_spinor_components, i_spinor
-character(len=len(output_file_only_user_selec_direcs)), dimension(:), &
-    allocatable :: output_file_only_user_selec_direcs_spinor, output_file_symm_averaged_EBS_spinor
-character(len=1) :: str_i_spinor
 
 
-    n_spinor_components = size(delta_N_only_selected_dirs, dim=1)
     write(*,*)
     write(*,*)
     write(*,'(A)')'Band unfolding process finished.'
@@ -780,64 +793,22 @@ character(len=1) :: str_i_spinor
         if(n_folding_pckpts_parsed /= n_folding_pckpts)then
             write(*,'(A,I0,A)')'From these points, ', n_folding_pckpts_parsed, ' could be used.'
         endif
+        !! Writing delta_N_only_selected_dirs
+        call write_band_struc(output_file_only_user_selec_direcs, &
+                              pckpts_to_be_checked, energy_grid, &
+                              delta_N_only_selected_dirs, &
+                              EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
+        !! Writing the delta_N_symm_avrgd_for_EBS
+        call write_band_struc(output_file_symm_averaged_EBS, &
+                              pckpts_to_be_checked, energy_grid, &
+                              delta_N_symm_avrgd_for_EBS, &
+                              EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
 
-        allocate(output_file_only_user_selec_direcs_spinor(1:n_spinor_components))
-        allocate(output_file_symm_averaged_EBS_spinor(1:n_spinor_components))
-        if(n_spinor_components == 1)then
-            output_file_only_user_selec_direcs_spinor(1) = output_file_only_user_selec_direcs
-            output_file_symm_averaged_EBS_spinor(1) = output_file_symm_averaged_EBS
-        else
-            do i_spinor=1,n_spinor_components
-                write(str_i_spinor,'(I1)') i_spinor
-                output_file_only_user_selec_direcs_spinor(i_spinor) = trim(adjustl(filename_without_extension(output_file_only_user_selec_direcs))) // &
-                                                                      '_spinor_component_' // str_i_spinor // '.' // &
-                                                                      trim(adjustl(file_extension(output_file_only_user_selec_direcs)))
-                output_file_symm_averaged_EBS_spinor(i_spinor) = trim(adjustl(filename_without_extension(output_file_symm_averaged_EBS))) // &
-                                                                 '_spinor_component_' // str_i_spinor // '.' // &
-                                                                 trim(adjustl(file_extension(output_file_symm_averaged_EBS)))
-            enddo
-        endif
+        write(*,'(A)')'>>> The unfolded delta_Ns for the EBS strictly along the direction you requested have been saved to the file listed below:'
+        write(*,'(2A)')'    * ', trim(adjustl(output_file_only_user_selec_direcs))
 
-        do i_spinor=1,n_spinor_components
-            !! Writing delta_N_only_selected_dirs
-            call write_band_struc(output_file_only_user_selec_direcs_spinor(i_spinor), &
-                                  pckpts_to_be_checked, energy_grid, &
-                                  delta_N_only_selected_dirs(i_spinor), &
-                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-            !! Writing the delta_N_symm_avrgd_for_EBS
-            call write_band_struc(output_file_symm_averaged_EBS_spinor(i_spinor), &
-                                  pckpts_to_be_checked, energy_grid, &
-                                  delta_N_symm_avrgd_for_EBS(i_spinor), &
-                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-        enddo
-        if(n_spinor_components==2)then
-            !! Writing the *total* delta_N_only_selected_dirs
-            call write_band_struc(output_file_only_user_selec_direcs, &
-                                  pckpts_to_be_checked, energy_grid, &
-                                  delta_N_only_selected_dirs(1) + delta_N_only_selected_dirs(2), &
-                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-            !! Writing the *total* delta_N_symm_avrgd_for_EBS
-            call write_band_struc(output_file_symm_averaged_EBS, &
-                                  pckpts_to_be_checked, energy_grid, &
-                                  delta_N_only_selected_dirs(1) + delta_N_only_selected_dirs(2), &
-                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-        endif
-
-        write(*,'(A)')'>>> The delta_Ns for the unfolded EBS calculated strictly along the requested directions have been saved to the file(s) listed below:'
-        do i_spinor=1,n_spinor_components
-            write(*,'(2A)')'    * ', trim(adjustl(output_file_only_user_selec_direcs_spinor(i_spinor)))
-        enddo
-        if(n_spinor_components==2)then
-            write(*,'(2A)')'    * ', trim(adjustl(output_file_only_user_selec_direcs))
-        endif
-
-        write(*,'(A)')'>>> The symmetry-averaged delta_Ns for the unfolded EBS have been saved to the file(s) listed below:'
-        do i_spinor=1,n_spinor_components
-            write(*,'(2A)')'    * ', trim(adjustl(output_file_symm_averaged_EBS_spinor(i_spinor)))
-        enddo
-        if(n_spinor_components==2)then
-            write(*,'(2A)')'    * ', trim(adjustl(output_file_symm_averaged_EBS))
-        endif
+        write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS have been saved to the file listed below:'
+        write(*,'(2A)')'    * ', trim(adjustl(output_file_symm_averaged_EBS))
          
         if(zero_of_kpts_scale > 1E-4_dp)then
             write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', zero_of_kpts_scale,'.'

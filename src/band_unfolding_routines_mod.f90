@@ -25,11 +25,12 @@
 module band_unfolding
 !$ use omp_lib
 use math
+use general_io
 implicit none
 PRIVATE
 PUBLIC :: get_geom_unfolding_relations, define_pckpts_to_be_checked, &
-          select_coeffs_to_calc_spectral_weights,calc_spectral_weights, &
-          calc_spectral_function, get_delta_Ns_for_EBS, get_delta_Ns_for_output
+          select_coeffs_to_calc_spectral_weights, get_delta_Ns_for_output, &
+          perform_unfolding
 
 CONTAINS
 
@@ -237,21 +238,19 @@ real(kind=dp) :: tol
 end subroutine select_coeffs_to_calc_spectral_weights
 
 
-subroutine calc_spectral_weights(spectral_weight,coeff,selected_coeff_indices,add_elapsed_time_to)
+function spectral_weight_for_coeff(coeff, selected_coeff_indices, add_elapsed_time_to) result(spectral_weight)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
-real(kind=dp), dimension(:), allocatable, intent(out) :: spectral_weight
 complex(kind=sp), dimension(:,:), intent(in) :: coeff !Coefficients, coeff(ikpt, iband)
+real(kind=dp), dimension(1:size(coeff,dim=2)) :: spectral_weight
 integer, dimension(:), intent(in) :: selected_coeff_indices
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
-integer :: n_bands_SC_calculation, alloc_stat, iband, i, icoeff
+integer :: n_bands_SC_calculation, iband, i, icoeff
 real(kind=dp) :: stime, ftime
 
     stime = time()
 
     n_bands_SC_calculation = size(coeff,dim=2)
-    deallocate(spectral_weight, stat=alloc_stat)
-    allocate(spectral_weight(1:n_bands_SC_calculation))
     spectral_weight(:) = 0.0_dp
     !$omp parallel do &
     !$    schedule(guided) default(none) &
@@ -269,21 +268,24 @@ real(kind=dp) :: stime, ftime
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
 
-end subroutine calc_spectral_weights
+end function spectral_weight_for_coeff
 
-subroutine calc_spectral_function(SF_at_pckpt,energies,SC_calc_ener,spectral_weight,sigma,add_elapsed_time_to)
+
+subroutine calc_spectral_function(SF_at_pckpt,energies,SC_calc_ener,spectral_weight,std_dev,add_elapsed_time_to)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 real(kind=dp), dimension(:), allocatable, intent(out) :: SF_at_pckpt
 real(kind=dp), dimension(:), intent(in) :: energies, spectral_weight, &
                                            SC_calc_ener ! E(K;i_SC_band)
-real(kind=dp), intent(in) :: sigma
+real(kind=dp), intent(in), optional :: std_dev
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer :: alloc_stat,n_SC_bands,iener,i_SC_band
-real(kind=dp) :: E, E_SC_band, stime, ftime
+real(kind=dp) :: E, E_SC_band, stime, ftime, sigma
 
     stime = time()
 
+    sigma = 0.025_dp
+    if(present(std_dev)) sigma = std_dev
     ! Calculating the spectral function A(pc_kpt,E) 
     n_SC_bands = size(spectral_weight)
     deallocate(SF_at_pckpt, stat=alloc_stat)
@@ -310,6 +312,49 @@ real(kind=dp) :: E, E_SC_band, stime, ftime
 end subroutine calc_spectral_function
 
 
+
+subroutine calc_unfolded_delta_Q_pckpt(delta_Q_pckpt, Q_SC, energies,SC_calc_ener,spectral_weight,sigma)
+!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+! Q = Q[current_SCKPT](1:n_SC_bands) is any property calculated, using the SC,
+! at the current SC-KPT and for all SC bands.
+implicit none
+real(kind=dp), dimension(:), allocatable, intent(out) :: delta_Q_pckpt
+! Make sure size(Q_SC) == n_SC_bands, because I don't check this!!
+real(kind=dp), dimension(:), intent(in) :: Q_SC, energies, spectral_weight
+real(kind=dp), dimension(:), intent(in) :: SC_calc_ener ! E(K;i_SC_band)
+real(kind=dp), intent(in), optional :: sigma
+integer :: alloc_stat,n_SC_bands,iener,i_SC_band
+real(kind=dp) :: E, E_SC_band, delta_e, std_dev
+
+    
+    std_dev = epsilon(1D0)
+    if(present(sigma)) std_dev = sigma
+    delta_e = energies(2)  - energies(1) !! Uniform energy grid 
+    n_SC_bands = size(spectral_weight)
+    deallocate(delta_Q_pckpt, stat=alloc_stat)
+    allocate(delta_Q_pckpt(1:size(energies)))
+    delta_Q_pckpt(:) = 0.0_dp
+    !$omp parallel do &
+    !$    schedule(guided) default(none) &
+    !$    private(iener,E,i_SC_band,E_SC_band)  &
+    !$    shared(energies,n_SC_bands,SC_calc_ener,delta_Q_pckpt,spectral_weight, Q_SC, delta_e,std_dev)
+    do iener=1,size(energies)  ! For E in the list of energy values for the E(k) plot
+        E = energies(iener)
+        do i_SC_band=1,n_SC_bands
+            E_SC_band = SC_calc_ener(i_SC_band)
+            delta_Q_pckpt(iener) = delta_Q_pckpt(iener) + &
+                                      spectral_weight(i_SC_band) * Q_SC(i_SC_band) * &
+                                      integral_delta_x_minus_x0(x0=E_SC_band, &
+                                                                lower_lim=E-0.5_dp*delta_e, &
+                                                                upper_lim=E+0.5_dp*delta_e, &
+                                                                std_dev=std_dev)
+        enddo
+    enddo
+
+end subroutine calc_unfolded_delta_Q_pckpt
+
+
+
 subroutine calc_delta_N_pckpt(delta_N_pckpt,energies,SC_calc_ener,spectral_weight,sigma)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
@@ -317,33 +362,53 @@ real(kind=dp), dimension(:), allocatable, intent(out) :: delta_N_pckpt
 real(kind=dp), dimension(:), intent(in) :: energies, spectral_weight
 real(kind=dp), dimension(:), intent(in) :: SC_calc_ener ! E(K;i_SC_band)
 real(kind=dp), intent(in) :: sigma
-integer :: alloc_stat,n_SC_bands,iener,i_SC_band
-real(kind=dp) :: E, E_SC_band, delta_e
+integer :: alloc_stat
+real(kind=dp), dimension(:), allocatable :: N_SC
 
-
-    delta_e = energies(2)  - energies(1) !! Uniform energy grid 
-    n_SC_bands = size(spectral_weight)
-    deallocate(delta_N_pckpt, stat=alloc_stat)
-    allocate(delta_N_pckpt(1:size(energies)))
-    delta_N_pckpt(:) = 0.0_dp
-    !$omp parallel do &
-    !$    schedule(guided) default(none) &
-    !$    private(iener,E,i_SC_band,E_SC_band)  &
-    !$    shared(energies,n_SC_bands,SC_calc_ener,delta_N_pckpt,spectral_weight,delta_e,sigma)
-    do iener=1,size(energies)  ! For E in the list of energy values for the E(k) plot
-        E = energies(iener)
-        do i_SC_band=1,n_SC_bands
-            E_SC_band = SC_calc_ener(i_SC_band)
-            delta_N_pckpt(iener) = delta_N_pckpt(iener) + &
-                                   spectral_weight(i_SC_band)*integral_delta_x_minus_x0(x0=E_SC_band, &
-                                                                                        lower_lim=E-0.5_dp*delta_e, &
-                                                                                        upper_lim=E+0.5_dp*delta_e, &
-                                                                                        std_dev=sigma)
-        enddo
-    enddo
+    deallocate(N_SC, stat=alloc_stat)
+    allocate(N_SC(1:size(SC_calc_ener)))
+    N_SC = 1.0_dp ! By construction
+    call calc_unfolded_delta_Q_pckpt(delta_N_pckpt, N_SC, energies, SC_calc_ener, spectral_weight, sigma)
 
 
 end subroutine calc_delta_N_pckpt
+
+
+subroutine calc_SC_spin_info_from_spinor_WF(expec_val_pauli_M, spin_proj_perp, spin_proj_para, &
+                                            cart_coords_kpt, coeff)
+!! Copyright (C) 2014 Paulo V. C. Medeiros
+!! This is a BETA feature, and should be used with caution
+implicit none
+real(kind=dp), dimension(:,:), allocatable, intent(out) :: expec_val_pauli_M
+real(kind=dp), dimension(:), allocatable, intent(out) :: spin_proj_perp, spin_proj_para
+real(kind=dp), dimension(1:3), intent(in) :: cart_coords_kpt
+complex(kind=sp), dimension(:,:,:), intent(in) :: coeff ! coefficients(i_spinor_comp, ikpt, iband)
+real(kind=dp), dimension(1:3) :: quantization_axis, versor_k, versor_normal_to_k
+complex(kind=sp) :: inner_prod
+integer :: iband, nbands
+
+    quantization_axis = saxis ! saxis is defined in the general_io and options_setup modules
+    versor_k = versor(cart_coords_kpt)                                       
+    versor_normal_to_k = versor(cross(quantization_axis, versor_k)) 
+ 
+    nbands = size(coeff, dim=3)
+    if(.not. allocated(expec_val_pauli_M)) allocate(expec_val_pauli_M(1:nbands, 1:3))
+    if(.not. allocated(spin_proj_perp)) allocate(spin_proj_perp(1:nbands))
+    if(.not. allocated(spin_proj_para)) allocate(spin_proj_para(1:nbands))
+    do iband=1, nbands
+        inner_prod = inner_product(coeff(1,:,iband), coeff(2,:,iband))
+        !! expec_val_pauli_M = <psi_spinor| (sigma_x, sigma_y, sigma_z) |psi_spinor>
+        expec_val_pauli_M(iband,1) = 2.0_dp * real(inner_prod)
+        expec_val_pauli_M(iband,2) = 2.0_dp * aimag(inner_prod)
+        expec_val_pauli_M(iband,3) = real(inner_product(coeff(1,:,iband), coeff(1,:,iband)) - & 
+                                          inner_product(coeff(2,:,iband), coeff(2,:,iband)))    
+
+        spin_proj_perp(iband) = dot_product(expec_val_pauli_M(iband,:), versor_normal_to_k)
+        spin_proj_para(iband) = dot_product(expec_val_pauli_M(iband,:), versor_k)
+    enddo
+
+end subroutine calc_SC_spin_info_from_spinor_WF
+
 
 
 subroutine get_delta_Ns_for_EBS(delta_N_pckpt, energy_grid, SC_calc_ener, spectral_weight, &
@@ -358,7 +423,7 @@ real(kind=dp) :: sigma, stime, ftime
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
     stime = time()
-    sigma = epsilon(1D0)
+    sigma = epsilon(1.0_dp)
     if(present(smearing_for_delta_function))then
         sigma = max(sigma,abs(smearing_for_delta_function))
     endif
@@ -375,38 +440,111 @@ subroutine get_delta_Ns_for_output(delta_N_only_selected_dirs,delta_N_symm_avrgd
                                    delta_N,dirs_req_for_symmavgd_EBS_along_pcbz_dir,pckpts_to_be_checked)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
-type(delta_Ns_for_output), dimension(:), allocatable, intent(out) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
-type(delta_Ns), dimension(:), intent(in) :: delta_N
+type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
+type(UnfoldedQuantities), intent(in) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(irr_bz_directions), dimension(:), intent(in) :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
-integer :: nener, i_selec_pcbz_dir, ipc_kpt, i_needed_dirs, n_spinor_components, i_spinor
-real(kind=dp), dimension(:), allocatable :: avrgd_dNs
+integer :: nener, i_selec_pcbz_dir, ipc_kpt, i_needed_dirs
+real(kind=dp), dimension(:), allocatable :: avrgd_dNs, avrgd_spin_proj, avrgd_parallel_proj
 real(kind=dp) :: weight
+logical :: output_spin_info
 
-    n_spinor_components = size(delta_N, dim=1)
-    allocate(delta_N_only_selected_dirs(1:n_spinor_components))
-    allocate(delta_N_symm_avrgd_for_EBS(1:n_spinor_components))
 
-    nener = size(delta_N(1)%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%dN(:))
+    nener = size(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%dN(:))
     allocate(avrgd_dNs(1:nener))
-    do i_spinor=1,n_spinor_components
-        call allocate_delta_Ns_for_output_type(delta_N_only_selected_dirs(i_spinor), pckpts_to_be_checked)
-        call allocate_delta_Ns_for_output_type(delta_N_symm_avrgd_for_EBS(i_spinor), pckpts_to_be_checked)
-        do i_selec_pcbz_dir=1,size(delta_N(i_spinor)%selec_pcbz_dir(:))
-            delta_N_only_selected_dirs(i_spinor)%pcbz_dir(i_selec_pcbz_dir) = delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
-            do ipc_kpt=1, size(delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
-                avrgd_dNs(:) = 0.0_dp
-                allocate(delta_N_symm_avrgd_for_EBS(i_spinor)%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(1:nener))
-                do i_needed_dirs=1,size(delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
-                    weight = dirs_req_for_symmavgd_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
-                    avrgd_dNs = avrgd_dNs + weight*delta_N(i_spinor)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(:)
-                enddo
-                delta_N_symm_avrgd_for_EBS(i_spinor)%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs(:)
-           enddo     
-        enddo
+    call allocate_UnfoldedQuantitiesForOutput(delta_N_only_selected_dirs, pckpts_to_be_checked)
+    call allocate_UnfoldedQuantitiesForOutput(delta_N_symm_avrgd_for_EBS, pckpts_to_be_checked)
+    do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
+        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
+        do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
+            avrgd_dNs(:) = 0.0_dp
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(1:nener))
+            do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
+                weight = dirs_req_for_symmavgd_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
+                avrgd_dNs = avrgd_dNs + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(:)
+            enddo
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs(:)
+       enddo     
     enddo
 
+    output_spin_info = allocated(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%spin_proj_perp)
+    if(.not. output_spin_info) return
+    allocate(avrgd_spin_proj(1:nener))
+    allocate(avrgd_parallel_proj(1:nener))
+    do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
+        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
+        do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
+            avrgd_spin_proj(:) = 0.0_dp
+            avrgd_parallel_proj(:) = 0.0_dp
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_perp(1:nener))
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_para(1:nener))
+            do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
+                weight = dirs_req_for_symmavgd_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
+                avrgd_spin_proj = avrgd_spin_proj + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(:)
+                avrgd_parallel_proj = avrgd_parallel_proj + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(:)
+            enddo
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_perp(:) = avrgd_spin_proj(:)
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_para(:) = avrgd_parallel_proj(:)
+       enddo     
+    enddo
+  
+
 end subroutine get_delta_Ns_for_output
+
+
+subroutine perform_unfolding(delta_N, time_calc_spectral_weights, time_spent_calculating_delta_Ns, time_calc_spectral_function, & 
+                             i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, cart_coords_pckpt, & 
+                             coefficients, selected_coeff_indices, energy_grid, ener_SC_bands, calc_spec_func_explicitly)
+implicit none 
+type(UnfoldedQuantities), intent(inout) :: delta_N
+real(kind=dp), intent(out) :: time_calc_spectral_weights, time_spent_calculating_delta_Ns, time_calc_spectral_function
+integer, intent(in) :: i_selec_pcbz_dir, i_needed_dirs, ipc_kpt
+real(kind=dp), dimension(1:3), intent(in) :: cart_coords_pckpt
+complex(kind=sp), dimension(:,:,:), intent(in) :: coefficients ! Coefficients, coefficients(i_spinor_comp, ikpt, iband)
+integer, dimension(:), intent(in) :: selected_coeff_indices
+real(kind=dp), dimension(:), intent(in) :: energy_grid, ener_SC_bands
+logical, intent(in) :: calc_spec_func_explicitly
+integer :: n_WF_components, n_bands_SC_calculation, i_spinor
+real(kind=dp), dimension(:), allocatable :: spectral_weight
+real(kind=dp), dimension(:), allocatable :: spin_proj_perp, spin_proj_para, & 
+                                            unf_spin_proj_perp, unf_spin_proj_para
+real(kind=dp), dimension(:,:), allocatable :: expec_val_pauli_M
+
+    n_WF_components = size(coefficients, dim=1) ! 1 for a regular WF, and 2 for a spinor WF
+    n_bands_SC_calculation = size(coefficients, dim=3)
+    allocate(spectral_weight(1:n_bands_SC_calculation))
+
+    spectral_weight = 0.0_dp
+    do i_spinor=1,n_WF_components
+        ! Calculating spectral_weights
+        spectral_weight = spectral_weight + spectral_weight_for_coeff(coefficients(i_spinor,:,:), &
+                                                                      selected_coeff_indices, &
+                                                                      add_elapsed_time_to=time_calc_spectral_weights)
+
+    enddo
+    ! Calculating the delta_Ns
+    call get_delta_Ns_for_EBS(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN, &
+                              energy_grid, ener_SC_bands, spectral_weight, &
+                              add_elapsed_time_to=time_spent_calculating_delta_Ns)
+    if(calc_spec_func_explicitly)then
+        ! Calculating the spectral_function (optional)
+        call calc_spectral_function(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%SF, &
+                                    energy_grid, ener_SC_bands, spectral_weight, &
+                                    add_elapsed_time_to=time_calc_spectral_function)
+    endif
+
+    if(n_WF_components==2)then
+        call calc_SC_spin_info_from_spinor_WF(expec_val_pauli_M, spin_proj_perp, spin_proj_para, &
+                                              cart_coords_pckpt, coefficients)
+        call calc_unfolded_delta_Q_pckpt(unf_spin_proj_perp, spin_proj_perp, energy_grid, ener_SC_bands, spectral_weight)
+        call calc_unfolded_delta_Q_pckpt(unf_spin_proj_para, spin_proj_para, energy_grid, ener_SC_bands, spectral_weight)
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(1:size(unf_spin_proj_perp)))
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(1:size(unf_spin_proj_para)))
+        delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp = unf_spin_proj_perp 
+        delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para = unf_spin_proj_para
+    endif
+
+end subroutine perform_unfolding
 
 
 end module band_unfolding
