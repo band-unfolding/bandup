@@ -15,6 +15,7 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 module write_vasp_files
+use constants_and_types
 use strings
 use math
 use general_io
@@ -131,7 +132,7 @@ open(unit=unit_num,file=output_file)
 close(unit_num)
 
 if(file_exists .and. .not. stop_if_file_exists)then
-    write(*,'(3A)')'WARNING: The file "',trim(adjustl(output_file)),'" has been overwritten.'
+    write(*,'(3A)')'       WARNING: The file "',trim(adjustl(output_file)),'" has been overwritten.'
 endif
 if(present(success)) success = .TRUE.
 

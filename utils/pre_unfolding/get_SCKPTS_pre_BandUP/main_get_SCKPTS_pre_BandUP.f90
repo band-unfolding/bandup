@@ -15,7 +15,8 @@
 !    You should have received a copy of the GNU General Public License
 !    along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 program get_wavefunc_SCKPTS_needed_for_EBS
-use options_setup
+use constants_and_types
+use cla_wrappers
 use general_io
 use io_routines
 use read_vasp_files
@@ -25,87 +26,51 @@ use band_unfolding
 implicit none
 type(vec3d), dimension(:), allocatable :: irr_unfolding_SCKPTS, irr_unfolding_SCKPTS_frac_coords, &
                                           aux_irr_unfolding_SCKPTS, aux_irr_unfolding_SCKPTS_frac_coords
-type(crystal_3D), allocatable :: crystal_pc, crystal_SC
+type(crystal_3D) :: crystal_pc, crystal_SC
 real(kind=dp), dimension(:,:), allocatable :: k_starts, k_ends
-real(kind=dp), dimension(1:3,1:3) :: matrix_M
 real(kind=dp), dimension(1:3) :: point
 integer :: n_irr_unfolding_SCKPTS,ikpt,i,ios,n_selec_pcbz_dirs,idir, &
-           n_decimals, total_size_float_format, icoord, spin_channel
-character(len=str_len) :: out_file_SC_kpts
+           n_decimals, total_size_float_format, icoord
 character(len=str_len) :: file_line, str_n_decimals, str_total_size_float_format, float_format
 ! Variables for the symmetry analysis
-type(irr_bz_directions), dimension(:), allocatable :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
+type(irr_bz_directions), dimension(:), allocatable :: all_dirs_used_for_EBS_along_pcbz_dir
 type(vec3d), dimension(:), allocatable :: considered_kpts_list
 type(selected_pcbz_directions) :: pckpts_to_be_checked
 type(geom_unfolding_relations_for_each_SCKPT) :: GUR !! Geometric Unfolding Relations
-type(crystal_3D), allocatable :: crystal_SC_reduced_to_prim_cell, crystal_pc_reduced_to_prim_cell
-integer, dimension(:), allocatable :: n_pckpts_dirs,n_dirs_for_EBS_along_pcbz_dir, &
-                                      neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs
+integer, dimension(:), allocatable :: n_pckpts_dirs,n_dirs_for_EBS_along_pcbz_dir
 integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
-logical :: stop_if_not_commensurate,are_commens, &
-           pc_is_prim_cell, write_attempted_pc_corresp_to_input_pc, &
-           SC_is_prim_cell, write_attempted_pc_corresp_to_SC
 !!!**********************************************************************************************
 
     call print_welcome_messages(package_version)
     write(*,'(A)')'               Pre-processing utility "get_SCKPTS_pre_BandUP"'
     write(*,'(A)')'   >>> Getting the SC-KPTS you will need for your plane-wave calculation <<<'
     write(*,*)
-    call get_commline_args(WF_file, input_file_prim_cell, input_file_supercell, &
-                           input_file_pc_kpts, input_file_energies, &
-                           output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
-                           spin_channel, stop_if_not_commensurate, &
-                           write_attempted_pc_corresp_to_input_pc, write_attempted_pc_corresp_to_SC, &
-                           out_file_SC_kpts)
-    call get_crystal_from_file(crystal_pc,input_file=input_file_prim_cell, &
-                               stop_if_file_not_found=.TRUE.)
-    call get_crystal_from_file(crystal_SC,input_file=input_file_supercell, &
-                               stop_if_file_not_found=.TRUE.)
-    ! Checking if the SC and PC are commensurate
-    call check_if_pc_and_SC_are_commensurate(commensurate=are_commens, M=matrix_M, &
-                                             b_matrix_pc=crystal_pc%rec_latt_vecs, &
-                                             B_matrix_SC=crystal_SC%rec_latt_vecs, &
-                                             tol=default_tol_for_int_commens_test)
-    if(are_commens)then
-        call print_message_commens_test(commensurate=are_commens,M=matrix_M, &
-                                        stop_if_not_commens=stop_if_not_commensurate)
-    else
-        if(stop_if_not_commensurate)then
-            call print_message_commens_test(commensurate=are_commens,M=matrix_M, &
-                                            stop_if_not_commens=stop_if_not_commensurate)
-            stop
-        endif
-    endif
-    !! Reading selected pckpts from the input file
+    call get_commline_args(args)
+    call get_crystal_from_file(crystal_pc,input_file=args%input_file_prim_cell, stop_if_file_not_found=.TRUE.)
+    call get_prim_cell(crystal_pc, symprec=default_symprec)
+    call get_crystal_from_file(crystal_SC,input_file=args%input_file_supercell, stop_if_file_not_found=.TRUE.)
+    call get_prim_cell(crystal_SC, symprec=default_symprec)
+    call write_attempted_pc_assoc_with_input_unit_cell_and_SC(crystal_pc, crystal_SC)
+    call verify_commens(crystal_pc, crystal_SC, args)
+    call analise_symm_pc_SC(crystal_pc, crystal_SC)
+
     call read_pckpts_selected_by_user(k_starts=k_starts, k_ends=k_ends, &
                                       ndirs=n_selec_pcbz_dirs, n_kpts_dirs=n_pckpts_dirs, &
-                                      input_file=input_file_pc_kpts, &
+                                      input_file=args%input_file_pc_kpts, &
                                       b_matrix_pc=crystal_pc%rec_latt_vecs)
-    call get_all_irr_dirs_req_for_symmavgd_EBS(dirs_req_for_symmavgd_EBS_along_pcbz_dir, &
-                                               n_dirs_for_EBS_along_pcbz_dir, &
-                                               neqv_dirs_pcbz, neqv_dirs_SCBZ, &
-                                               ncompl_dirs, n_irr_compl_dirs,&
-                                               crystal_pc_reduced_to_prim_cell, &
-                                               pc_is_prim_cell, &
-                                               crystal_SC_reduced_to_prim_cell, &
-                                               SC_is_prim_cell, &
-                                               crystal_pc=crystal_pc, crystal_SC=crystal_SC, &
-                                               k_starts=k_starts(:,:),k_ends=k_ends(:,:))
-    call write_attempted_pc_assoc_with_input_unit_cell_and_SC(crystal_pc_reduced_to_prim_cell, &
-                                                                    crystal_SC_reduced_to_prim_cell, &
-                                                                    pc_is_prim_cell,SC_is_prim_cell, &
-                                                                    write_attempted_pc_corresp_to_input_pc, &
-                                                                    write_attempted_pc_corresp_to_SC)
-    call print_symm_analysis_for_selected_pcbz_dirs(dirs_req_for_symmavgd_EBS_along_pcbz_dir, &
-                                                    neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, &
-                                                    n_irr_compl_dirs)
+    call get_pcbz_dirs_2b_used_for_EBS(all_dirs_used_for_EBS_along_pcbz_dir, crystal_pc, crystal_SC, &
+                                       k_starts, k_ends, args)
+    call print_symm_analysis_for_selected_pcbz_dirs(all_dirs_used_for_EBS_along_pcbz_dir)
+    call define_pckpts_to_be_checked(pckpts_to_be_checked, all_dirs_used_for_EBS_along_pcbz_dir, n_pckpts_dirs(:))
 
-    ! List of all considered pc-kpts, including the ones chosen by the user and
+    ! Getting a list of all considered pc-kpts, including the ones chosen by the user and
     ! the ones obtained by symmetry for the complementary directions
-    call define_pckpts_to_be_checked(pckpts_to_be_checked, &
-                                     dirs_req_for_symmavgd_EBS_along_pcbz_dir,n_pckpts_dirs(:))
-    allocate(considered_kpts_list(1:dot_product(n_pckpts_dirs(:), &
-                                                n_dirs_for_EBS_along_pcbz_dir(:))))
+    call define_pckpts_to_be_checked(pckpts_to_be_checked, all_dirs_used_for_EBS_along_pcbz_dir,n_pckpts_dirs(:))
+    allocate(n_dirs_for_EBS_along_pcbz_dir(1:n_selec_pcbz_dirs))
+    do idir=1,n_selec_pcbz_dirs
+        n_dirs_for_EBS_along_pcbz_dir(idir) = size(all_dirs_used_for_EBS_along_pcbz_dir(idir)%irr_dir(:))
+    enddo
+    allocate(considered_kpts_list(1:dot_product(n_pckpts_dirs(:), n_dirs_for_EBS_along_pcbz_dir(:))))
     ikpt = 0
     do idir=1,n_selec_pcbz_dirs
         do i_req_dir=1,n_dirs_for_EBS_along_pcbz_dir(idir)
@@ -119,9 +84,9 @@ logical :: stop_if_not_commensurate,are_commens, &
     !! Getting the smallest possible number of SCBZ KPTS for the calculation of the
     !! EBS along the selected direction(s) of the pcbz
     write(*,'(A)')'Getting the needed SCBZ-Kpoints...'
-    call get_irr_kpts(n_irr_kpts=aux_n_irr_unfolding_SCKPTS,irr_kpts_list=aux_irr_unfolding_SCKPTS, &
-                      irr_kpts_list_frac_coords=aux_irr_unfolding_SCKPTS_frac_coords, &
-                      kpts_list=considered_kpts_list,crystal=crystal_SC,reduce_to_bz=.TRUE.)
+    call get_irr_SC_kpts(n_irr_kpts=aux_n_irr_unfolding_SCKPTS,irr_kpts_list=aux_irr_unfolding_SCKPTS, &
+                         irr_kpts_list_frac_coords=aux_irr_unfolding_SCKPTS_frac_coords, &
+                         kpts_list=considered_kpts_list,crystal=crystal_SC,args=args,reduce_to_bz=.TRUE.)
     call get_geom_unfolding_relations(GUR,aux_irr_unfolding_SCKPTS,pckpts_to_be_checked,crystal_SC)
     
     n_irr_unfolding_SCKPTS = count(GUR%SCKPT_used_for_unfolding(:))
@@ -147,31 +112,41 @@ logical :: stop_if_not_commensurate,are_commens, &
     endif
 
     if(print_GUR_pre_unfolding_utility)then 
-        call print_geom_unfolding_relations(GUR,irr_unfolding_SCKPTS, &
-                                            crystal_pc%rec_latt_vecs, &
-                                            crystal_SC%rec_latt_vecs)
+        call print_geom_unfolding_relations(GUR, irr_unfolding_SCKPTS, crystal_pc, crystal_SC)
     endif
 
-    write(*,'(A,I0,A)')'A total of ',n_irr_unfolding_SCKPTS, &
-                       " SCBZ-Kpoints will be needed to obtain a symmetry-averaged EBS along the selected direction(s) of the reference pcbz."
-    write(*,"(3A)")'>>> The SCBZ-Kpoints you will need to run your plane-wave calculation have been stored in the file "',trim(adjustl(out_file_SC_kpts)),'".'
-    if(any(ncompl_dirs > 0))then
-        write(*,"(6(A,/),A)")"====================================================================================================", &
-                             "NOTICE:                                                                                             ", &
-                             "       We have considered more pcbz directions than what you asked for. We did this because the SC", &
-                             "       and the pc belong to different symmetry groups, and, therefore, some pcbz k-points that  ", &
-                             "       are equivalent by symmetry operations of the pc might not be equivalent by symmetry ops. of", & 
-                             "       the SC. Don't worry, though: Only irreducible complementary directions have been kept.    ", &
-                             "===================================================================================================="
+    if(args%no_symm_avg)then
+        write(*,'(A,I0,A)')'A total of ',n_irr_unfolding_SCKPTS, &
+                           " SCBZ-Kpoints will be needed to perform the unfolding along the &
+                             selected direction(s) of the reference pcbz."
+    else
+        write(*,'(A,I0,A)')'A total of ',n_irr_unfolding_SCKPTS, &
+                           " SCBZ-Kpoints will be needed to obtain a symmetry-averaged EBS along the &
+                             selected direction(s) of the reference pcbz."
     endif
+    write(*,"(3A)")'>>> The SCBZ-Kpoints you will need to run your plane-wave calculation have &
+                        been stored in the file "',trim(adjustl(args%out_file_SC_kpts)),'".'
+
+    do idir=1, size(all_dirs_used_for_EBS_along_pcbz_dir(:))
+        if(all_dirs_used_for_EBS_along_pcbz_dir(idir)%ncompl_dirs > 0)then
+            write(*,"(6(A,/),A)")"====================================================================================================", &
+                                 "NOTICE:                                                                                             ", &
+                                 "       We have considered more pcbz directions than what you asked for. We did this because the SC", &
+                                 "       and the pc belong to different symmetry groups, and, therefore, some pcbz k-points that  ", &
+                                 "       are equivalent by symmetry operations of the pc might not be equivalent by symmetry ops. of", & 
+                                 "       the SC. Don't worry, though: Only irreducible complementary directions have been kept.    ", &
+                                 "===================================================================================================="
+            exit
+        endif
+    enddo
     !!! Writing results to the output file
     n_decimals = nint(abs((log10(default_symprec))))
     total_size_float_format = 3 + n_decimals ! The numbers will be between -1 and 1
     write(str_n_decimals,'(I0)') n_decimals
     write(str_total_size_float_format,'(I0)') total_size_float_format
     float_format = 'f' // trim(adjustl(str_total_size_float_format)) // '.' // trim(adjustl(str_n_decimals))
-    open(unit=03, file=out_file_SC_kpts)
-        open(unit=04, file=input_file_pc_kpts)
+    open(unit=03, file=args%out_file_SC_kpts)
+        open(unit=04, file=args%input_file_pc_kpts)
             read(04,'(A)')file_line
             write(03,'(A)')trim(adjustl(file_line))//' (this is exactly the header of the input kpts file) ' // trim(adjustl(file_header_BandUP_short))
         close(04)
@@ -189,7 +164,7 @@ logical :: stop_if_not_commensurate,are_commens, &
         write(03,'(A)')'! The above SCKPTS (and/or some other SCKPTS related to them by symm. ops. of the SCBZ)' 
         write(03,'(A)')'! unfold onto the pckpts listed below (selected by you) (and/or some other pckpts related to them by symm. ops. of the pcbz): '
         write(03,'(A)')'! (Fractional coords. w.r.t. the pcrl vectors) '
-        open(unit=04, file=input_file_pc_kpts)
+        open(unit=04, file=args%input_file_pc_kpts)
             ios=0
             do while(ios==0)
                 read(04,'(A)',iostat=ios)file_line
@@ -198,9 +173,5 @@ logical :: stop_if_not_commensurate,are_commens, &
         close(04)
     close(03)
 
-    if(.not. are_commens)then
-        call print_message_commens_test(commensurate=are_commens,M=matrix_M, &
-                                        stop_if_not_commens=stop_if_not_commensurate)
-    endif
 
 end program get_wavefunc_SCKPTS_needed_for_EBS

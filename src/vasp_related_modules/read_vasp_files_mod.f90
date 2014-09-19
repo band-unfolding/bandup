@@ -15,6 +15,7 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 module read_vasp_files
+use constants_and_types
 use strings
 use math
 use general_io
@@ -63,7 +64,7 @@ subroutine get_crystal_from_file(crystal,input_file,stop_if_file_not_found,succe
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 ! The output positions will be given in cartesian coordinates
 implicit none
-type(crystal_3D), intent(out), allocatable :: crystal
+type(crystal_3D), intent(out) :: crystal
 character(len=*), intent(in) :: input_file
 logical, intent(in), optional :: stop_if_file_not_found
 logical, intent(out), optional :: success

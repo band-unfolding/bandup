@@ -15,6 +15,7 @@
 !    You should have received a copy of the GNU General Public License
 !    along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 module strings
+use constants_and_types
 use math
 implicit none
 PRIVATE

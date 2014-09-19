@@ -15,6 +15,8 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 module io_routines
+use constants_and_types
+use cla_wrappers
 use strings
 use general_io
 use read_wavecar
@@ -112,13 +114,13 @@ format_string = '(2(A,/),3(A,' // adjustl(trim(float_format(1))) // &
                          ',A,' // adjustl(trim(float_format(2))) // &
                          ',A,' // adjustl(trim(float_format(3))) // &
                          ',A,/))'
-write(*,format_string)' The following relation holds between the real space vectors of the chosen SC and PC:', &
+write(*,format_string)' The following relation holds between the lattice vectors of the chosen SC and reference unit cell:', &
                       '                                                                                     ', &
                       '      A[1] = (',M(1,1),')*a[1] + (',M(1,2),')*a[2] + (',M(1,3),')*a[3]               ', & 
                       '      A[2] = (',M(2,1),')*a[1] + (',M(2,2),')*a[2] + (',M(2,3),')*a[3]               ', & 
                       '      A[3] = (',M(3,1),')*a[1] + (',M(3,2),')*a[2] + (',M(3,3),')*a[3]               '
 if(commensurate)then
-    write(*,'(A)')    '      * The SC and the reference PC are commensurate. Good!'
+    write(*,'(A)')    '      * The SC and the reference unit cell are commensurate. Good!'
 else
     write(*,*)''
     write(*,'(A)')message_footer
@@ -126,47 +128,57 @@ else
     write(*,'(A)')'====================================================================================='
 endif
 write(*,*)''
-write(*,*)''
 
 end subroutine print_message_commens_test
 
 
-subroutine write_attempted_pc_assoc_with_input_unit_cell_and_SC(crystal_pc_reduced_to_prim_cell, &
-                                                                crystal_SC_reduced_to_prim_cell, &
-                                                                pc_is_prim_cell,SC_is_prim_cell, &
-                                                                write_attempted_pc_corresp_to_input_pc, &
-                                                                write_attempted_pc_corresp_to_SC)
+subroutine write_attempted_pc_assoc_with_input_unit_cell_and_SC(crystal_pc, crystal_SC)
 implicit none
-type(crystal_3D), intent(in) :: crystal_pc_reduced_to_prim_cell, crystal_SC_reduced_to_prim_cell
-logical, intent(in) :: pc_is_prim_cell, SC_is_prim_cell,  &
-                       write_attempted_pc_corresp_to_input_pc, write_attempted_pc_corresp_to_SC
+type(crystal_3D), intent(in) :: crystal_pc, crystal_SC
 
     write(*,*)
-    if((.not. SC_is_prim_cell) .and. write_attempted_pc_corresp_to_SC)then
-        call write_crystal_to_file(crystal_SC_reduced_to_prim_cell,file_for_SC_reduced_to_prim_cell)
-        write(*,'(A)')'>>> We attempted to find a possible primitive cell associated with your SC.'
-        write(*,'(3A)')'    Please take a look at the file "',trim(adjustl(file_for_SC_reduced_to_prim_cell)),'".'
+    write(*,'(A)')' Checking if you are working with the smallest possible SC:'
+    if(crystal_SC%is_prim_cell)then
+        write(*,'(A)') '     * OK!'
+    else
+        write(*,'(A)') '     * Your SC seems to be a perfect repetition of a smaller PC!'
+        write(*,'(A)') "       > That's OK if you really want it, but using the smallest" 
+        write(*,'(A)') "         possible SC will certainly save you some time!"
+        write(*,'(A)') '     * We attempted to find a possible PC associated with it.'
+        write(*,'(3A)')'       Please take a look at the file "', &
+                                trim(adjustl(file_for_SC_reduced_to_prim_cell)),'".'
+        call write_crystal_to_file(crystal_SC%corresp_pc,file_for_SC_reduced_to_prim_cell)
     endif
-    if((.not. pc_is_prim_cell) .and. write_attempted_pc_corresp_to_input_pc)then
-        call write_crystal_to_file(crystal_pc_reduced_to_prim_cell,file_for_pc_reduced_to_prim_cell)
-        write(*,'(A)')'>>> Just in case:'
-        write(*,'(A)')'    We attempted to find a possible primitive cell associated with your input reference unit cell.'
-        write(*,'(3A)')'    Please take a look at the file "',trim(adjustl(file_for_pc_reduced_to_prim_cell)),'".'
+
+    write(*,*)
+    write(*,'(A)')' Checking if you are working with the smallest possible reference unit cell:'
+    if(crystal_pc%is_prim_cell)then
+        write(*,'(A)') '     * OK!'
+    else
+        call write_crystal_to_file(crystal_pc%corresp_pc,file_for_pc_reduced_to_prim_cell)
+        write(*,'(A)') "     * Your reference unit cell doesn't seem to be a primitive cell!"
+        write(*,'(A)') "       > That's fine if you really want it."
+        write(*,'(A)') '       > Anyway, we attempted to find a possible PC associated with it.'
+        write(*,'(3A)')'         Please take a look at the file "', &
+                              trim(adjustl(file_for_pc_reduced_to_prim_cell)),'".'
     endif
 
 end subroutine write_attempted_pc_assoc_with_input_unit_cell_and_SC
 
 
-subroutine print_geom_unfolding_relations(GUR,list_SC_kpts_in_wavecar,b_matrix_pc,B_matrix_SC)
+subroutine print_geom_unfolding_relations(GUR, list_SC_kpts_in_wavecar, crystal_pc, crystal_SC)
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR !! Geometric Unfolding Relations
 type(vec3d), dimension(:), intent(in) :: list_SC_kpts_in_wavecar
-real(kind=dp), dimension(1:3,1:3), intent(in) :: b_matrix_pc,B_matrix_SC
+type(crystal_3D), intent(in) :: crystal_pc, crystal_SC
 integer :: nkpts, i_SCKPT, i_selc_pcbz_dir,i_needed_dirs,ipc_kpt
 integer, dimension(:), allocatable :: n_pckpts_dirs
 real(kind=dp), dimension(1:3) :: current_SCKPT, actual_folding_SCKPT, pc_kpt, folding_G
+real(kind=dp), dimension(1:3,1:3) :: b_matrix_pc,B_matrix_SC
 
 
+    b_matrix_pc = crystal_pc%rec_latt_vecs
+    B_matrix_SC = crystal_SC%rec_latt_vecs
     nkpts = size(list_SC_kpts_in_wavecar)
     allocate(n_pckpts_dirs(1:size(GUR%SCKPT(1)%selec_pcbz_dir(:))))
     do i_selc_pcbz_dir=1,size(GUR%SCKPT(1)%selec_pcbz_dir(:))
@@ -272,12 +284,13 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
-subroutine print_last_messages_before_unfolding(file_size_in_bytes,nkpts,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi)
+subroutine print_last_messages_before_unfolding(file_size_in_bytes,nkpts,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi,spinor_wf)
 implicit none
 integer(8), intent(in) :: file_size_in_bytes
 integer, intent(in) :: nkpts
 real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
 real(kind=dp), intent(in) :: vbz,E_start,E_end,delta_e,e_fermi
+logical, intent(in) :: spinor_wf
 real(kind=dp) :: file_size_in_MB, file_size_in_GB, file_size, &
                  approx_mem_per_kpt_in_bytes, mem_per_kpt_in_MB, mem_per_kpt_in_GB, mem_per_kpt
 character(len=2) :: file_size_units, mem_per_kpt_units
@@ -340,7 +353,17 @@ logical :: using_omp
                          '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
                          '                                                                                               ', &
                          '        (http://dx.doi.org/10.1103/PhysRevB.89.041407) and the appropriate references therein.' 
+    if(spinor_wf)then
+        write(*,*)
+        write(*,'(5(A,/),A)')'        Additionally, since you are working with spinor eigenstates (spin-orbit coupling, noncollinear magnetism), ', &
+                             '        you should as well read and cite', &
+                             '                                                                                                   ', &
+                             '  >>>   Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, submitted (2014)', &
+                             '                                                                                               ', &
+                             '        Preprint available at <http://arxiv.org/abs/1409.5343>.'
+    endif
     write(*,'(A)')       '=========================================================================================================================='
+
     !! End of message
     write(*,*)
     write(*,'(A)')'Band unfolding starts now.'
@@ -389,39 +412,37 @@ character(len=10) :: str_SCKPT_number
 end subroutine print_message_pckpt_folds
 
 
-subroutine get_SCKPTS_contained_in_wavecar(nkpts,B_matrix_SC,list_SC_kpts_in_wavecar,nearest_neigh_dist_SC_kpts)
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+subroutine get_SCKPTS_contained_in_wavecar(list_SC_kpts_in_wavecar, B_matrix_SC)
 implicit none
-integer, intent(in) :: nkpts
-real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
 type(vec3d), dimension(:), allocatable, intent(out) :: list_SC_kpts_in_wavecar
-real(kind=dp), intent(out), optional :: nearest_neigh_dist_SC_kpts
-integer :: i_SCKPT, alloc_stat, i
+real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
+integer :: i_SCKPT, alloc_stat, i, input_file_unit, nrecl, iost, nband, irec, nkpts
+real(kind=dp) :: xnrecl, xnspin, xnprec, xnwk, xnband, xnplane
 real(kind=dp), dimension(1:3) :: SCKPT_coords
-real(kind=dp) :: dist
 
+    input_file_unit = available_io_unit()
+    nrecl=24 ! Trial record length
     ! Reading WAVECAR file
-    ! nplane is the number of wave-vectors of the SCBZ that differ from SCBZ_kpt(ikpt) by vectors of the SC rec. latt.
-    deallocate(list_SC_kpts_in_wavecar,stat=alloc_stat)
-    allocate(list_SC_kpts_in_wavecar(1:nkpts))
-    do i_SCKPT=1,nkpts
-        call read_from_wavefunc_file(spin_channel=1,i_selected_kpt=i_SCKPT, kpt_frac_coords=SCKPT_coords)
-        list_SC_kpts_in_wavecar(i_SCKPT)%coord(:) = SCKPT_coords(1)*B_matrix_SC(1,:) + &
-                                                    SCKPT_coords(2)*B_matrix_SC(2,:) + &
-                                                    SCKPT_coords(3)*B_matrix_SC(3,:)
-    enddo
+    open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
+        read(unit=input_file_unit,rec=1) xnrecl, xnspin, xnprec
+    close(unit=input_file_unit)
+    nrecl=nint(xnrecl) ! Correct record length
 
-    if(present(nearest_neigh_dist_SC_kpts).and.(nkpts>1))then
-        nearest_neigh_dist_SC_kpts = huge(real(1.0, kind=dp))
-        do i_SCKPT=1,nkpts-1
-            do i=i_SCKPT+1,nkpts
-                dist = norm(list_SC_kpts_in_wavecar(i_SCKPT)%coord(:) - list_SC_kpts_in_wavecar(i)%coord(:))
-               if((dist < nearest_neigh_dist_SC_kpts).and.(dist > 5d-4))then
-                   nearest_neigh_dist_SC_kpts = dist
-               endif 
-            enddo
+    open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
+        read(unit=input_file_unit,rec=2) xnwk,xnband
+        nband=nint(xnband) ! Number of bands
+        nkpts = nint(xnwk)
+
+        deallocate(list_SC_kpts_in_wavecar,stat=alloc_stat)
+        allocate(list_SC_kpts_in_wavecar(1:nkpts))
+        do i_SCKPT=1,nkpts
+            irec = 2 + (i_SCKPT-1)*(1+nband) + 1 ! Positioning the register at the correct k-point
+            read(unit=input_file_unit,rec=irec) xnplane,(SCKPT_coords(i),i=1,3)
+            list_SC_kpts_in_wavecar(i_SCKPT)%coord(:) = SCKPT_coords(1)*B_matrix_SC(1,:) + &
+                                                        SCKPT_coords(2)*B_matrix_SC(2,:) + &
+                                                        SCKPT_coords(3)*B_matrix_SC(3,:)
         enddo
-    endif
+    close(unit=input_file_unit)
 
 end subroutine get_SCKPTS_contained_in_wavecar
 
@@ -458,8 +479,11 @@ logical :: write_spin_info
         if(write_spin_info)then
             write(12, '(A)')'# Please mind that the support to two-component spinor-like wavefunctions is still under test.' 
             write(12, '(A)')'# Remember this when checking the spin-related unfolded quantities.'
-            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The quantization axis used was saxis = [', saxis, ']'
-            write(12,'(3(A,X), 2X, 2(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N", "#Spin " // '_|_' // " k", "#Spin " // '//' // " k"
+            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The quantization axis assumed was saxis = [', args%saxis, ']'
+            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The projection axis used for "#Spin _|_ k" is also _|_ to [',args%normal_to_proj_plane,'].'
+            write(12,'(3(A,X), 2X, 5(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N", &
+                                            "#sigma_x   ", "#sigma_y   ", "#sigma_z   ", &
+                                            "#Spin _|_ k", "#Spin // k "
         else
             write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
         endif
@@ -471,8 +495,9 @@ logical :: write_spin_info
                 do iener=1,nener
                     coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
                     if(write_spin_info)then
-                        write(12,'(2(f8.4,2X),3(ES10.3, 2X))')coord_k, energy_grid(iener) - e_fermi, &
+                        write(12,'(2(f8.4,2X),6(ES10.3, 2X))')coord_k, energy_grid(iener) - e_fermi, &
                                                               delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener), &
+                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%sigma(iener,:), &
                                                               delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(iener), &
                                                               delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_para(iener)
                     else
@@ -677,31 +702,38 @@ write(*,*)''
 end subroutine read_pckpts_selected_by_user
 
 
-subroutine print_symm_analysis_for_selected_pcbz_dirs(dirs_req_for_symmavgd_EBS_along_pcbz_dir, & 
-                                                      neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs, n_irr_compl_dirs)
+subroutine print_symm_analysis_for_selected_pcbz_dirs(all_dirs_used_for_EBS_along_pcbz_dir) 
 implicit none
-type(irr_bz_directions), dimension(:), intent(in) :: dirs_req_for_symmavgd_EBS_along_pcbz_dir
-integer, dimension(:), intent(in) :: neqv_dirs_pcbz,neqv_dirs_SCBZ,ncompl_dirs,n_irr_compl_dirs
-integer :: ndirs,idir,n_needed_dirs
+type(irr_bz_directions), dimension(:), intent(in) :: all_dirs_used_for_EBS_along_pcbz_dir
+integer :: ndirs,idir,n_needed_dirs, neqv_dirs_pcbz, neqv_dirs_SCBZ, ncompl_dirs,n_irr_compl_dirs
 
-ndirs = size(dirs_req_for_symmavgd_EBS_along_pcbz_dir(:))
-write(*,*)
-write(*,"(A)")"Symmetry analysis for the selected pcbz directions:"
-do idir=1,ndirs
-    n_needed_dirs = size(dirs_req_for_symmavgd_EBS_along_pcbz_dir(idir)%irr_dir(:))
-    write(*,"(A,I0,A)")"    >>> Direction #",idir,":"
-    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz(idir)," equivalent directions w.r.t. symmetry operations of the pc"
-    write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ(idir)," equivalent directions w.r.t. symmetry operations of the SC"
-    if(n_needed_dirs > 1)then
-        write(*,"(A,I0,A)")"        * ",ncompl_dirs(idir)," complementary pcbz directions will need to be considered in order to get a proper &
-                                                            symmetry-averaged EBS."
-        if(ncompl_dirs(idir) /= n_irr_compl_dirs(idir))then
-            write(*,"(A,I0,A)")"        * The number of irreducible complementary directions is ",n_irr_compl_dirs(idir),"." 
+if(args%no_symm_avg)then
+    write(*,"(A)")'Running with the flag "-no_symm_avg".'
+    write(*,"(A)")'    * No average over complementary pcbz directions will be performed.'
+else
+    ndirs = size(all_dirs_used_for_EBS_along_pcbz_dir(:))
+    write(*,"(A)")"Symmetry analysis for the selected pcbz directions:"
+    do idir=1,ndirs
+        neqv_dirs_pcbz = all_dirs_used_for_EBS_along_pcbz_dir(idir)%neqv
+        neqv_dirs_SCBZ = all_dirs_used_for_EBS_along_pcbz_dir(idir)%neqv_SCBZ
+        write(*,"(A,I0,A)")"    >>> Direction #",idir,":"
+        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz," equivalent directions w.r.t. symmetry operations of the pc"
+        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ," equivalent directions w.r.t. symmetry operations of the SC"
+
+        n_needed_dirs = size(all_dirs_used_for_EBS_along_pcbz_dir(idir)%irr_dir(:))
+        if(n_needed_dirs > 1)then
+            ncompl_dirs = all_dirs_used_for_EBS_along_pcbz_dir(idir)%ncompl_dirs 
+            n_irr_compl_dirs = all_dirs_used_for_EBS_along_pcbz_dir(idir)%n_irr_compl_dirs
+            write(*,"(A,I0,A)")"        * ",ncompl_dirs," complementary pcbz directions will be considered in order to get a &
+                                                                symmetry-averaged EBS."
+            if(ncompl_dirs /= n_irr_compl_dirs)then
+                write(*,"(A,I0,A)")"        * The number of irreducible complementary directions is ",n_irr_compl_dirs,"." 
+            endif
+        else
+            write(*,"(A)")"        * No complementary pcbz directions are needed."
         endif
-    else
-        write(*,"(A)")"        * No complementary pcbz directions are needed."
-    endif
-enddo
+    enddo
+endif
 write(*,*)
 
 end subroutine print_symm_analysis_for_selected_pcbz_dirs
@@ -793,22 +825,26 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
         if(n_folding_pckpts_parsed /= n_folding_pckpts)then
             write(*,'(A,I0,A)')'From these points, ', n_folding_pckpts_parsed, ' could be used.'
         endif
+
+        if(args%no_symm_avg)then
+            write(*,"(A)")'>>> No symmetry-averaged EBS has been calculated ("-no_symm_avg" flag used).'
+        else
+            !! Writing the delta_N_symm_avrgd_for_EBS
+            call write_band_struc(args%output_file_symm_averaged_EBS, &
+                                  pckpts_to_be_checked, energy_grid, &
+                                  delta_N_symm_avrgd_for_EBS, &
+                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
+            write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS have been saved to the file listed below:'
+            write(*,'(2A)')'    * ', trim(adjustl(args%output_file_symm_averaged_EBS))
+        endif
+
         !! Writing delta_N_only_selected_dirs
-        call write_band_struc(output_file_only_user_selec_direcs, &
+        call write_band_struc(args%output_file_only_user_selec_direcs, &
                               pckpts_to_be_checked, energy_grid, &
                               delta_N_only_selected_dirs, &
                               EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-        !! Writing the delta_N_symm_avrgd_for_EBS
-        call write_band_struc(output_file_symm_averaged_EBS, &
-                              pckpts_to_be_checked, energy_grid, &
-                              delta_N_symm_avrgd_for_EBS, &
-                              EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-
-        write(*,'(A)')'>>> The unfolded delta_Ns for the EBS strictly along the direction you requested have been saved to the file listed below:'
-        write(*,'(2A)')'    * ', trim(adjustl(output_file_only_user_selec_direcs))
-
-        write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS have been saved to the file listed below:'
-        write(*,'(2A)')'    * ', trim(adjustl(output_file_symm_averaged_EBS))
+        write(*,'(A)')'>>> The delta_Ns for the unfolding strictly along the direction(s) you requested have been saved to the file listed below:'
+        write(*,'(2A)')'    * ', trim(adjustl(args%output_file_only_user_selec_direcs))
          
         if(zero_of_kpts_scale > 1E-4_dp)then
             write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', zero_of_kpts_scale,'.'
@@ -820,40 +856,51 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
 end subroutine say_goodbye_and_save_results
 
 
-subroutine print_final_times(stime,ftime, &
-                       total_time_reading_wavecar,time_calc_spectral_weights,&
-                       calc_spec_func,time_calc_spectral_function,&
-                       time_spent_calculating_delta_Ns)
+subroutine print_final_times(times)
 implicit none
-real(kind=dp), intent(in) :: stime,ftime,total_time_reading_wavecar,time_calc_spectral_weights, &
-                             time_calc_spectral_function,time_spent_calculating_delta_Ns
-logical, intent(in) :: calc_spec_func
+type(timekeeping), intent(inout) :: times
 real(kind=dp) :: elapsed_time, time_percentual
 
-    elapsed_time = ftime-stime
+
+    times%end = time()
+    elapsed_time = times%end - times%start
     write(*,*)
     write(*,'(A,f0.1,A)')           'Total elapsed time:                                                ',elapsed_time,' s.'
 
-    time_percentual = 100.0_dp*total_time_reading_wavecar/elapsed_time
+    time_percentual = 100.0_dp*times%read_wf/elapsed_time
     if(time_percentual>=1.0_dp)then
         write(*,'(2(A,f0.1),A)')    'Time spent reading the WAVECAR file:                               ',&
-                                     total_time_reading_wavecar,'s (',time_percentual,'%).'
+                                     times%read_wf,'s (',time_percentual,'%).'
     endif
-    time_percentual = 100.0_dp*time_calc_spectral_weights/elapsed_time
+
+    time_percentual = 100.0_dp*times%calc_spec_weights/elapsed_time
     if(time_percentual>=1.0_dp)then
         write(*,'(2(A,f0.1),A)')    'Time spent calculating spectral weights:                           ',&
-                                     time_calc_spectral_weights,'s (',time_percentual,'%).'
+                                     times%calc_spec_weights,'s (',time_percentual,'%).'
     endif
-    if(calc_spec_func)then
-        time_percentual = 100.0_dp*time_calc_spectral_function/elapsed_time
-        if(time_percentual>=1.0_dp)then
-            write(*,'(2(A,f0.1),A)')'Time spent calculating spectral functions:                         ',&
-                                     time_calc_spectral_function,'s (',time_percentual,'%).'
-        endif
+
+    time_percentual = 100.0_dp*times%calc_SF/elapsed_time
+    if(time_percentual>=1.0_dp)then
+        write(*,'(2(A,f0.1),A)')'Time spent calculating spectral functions:                         ',&
+                                 times%calc_SF,'s (',time_percentual,'%).'
     endif
-    time_percentual = 100.0_dp*time_spent_calculating_delta_Ns/elapsed_time
+
+    time_percentual = 100.0_dp*times%calc_dN/elapsed_time
     write(*,'(2(A,f0.1),A)')        'Time spent calculating the delta_Ns:                               ',&
-                                     time_spent_calculating_delta_Ns,'s (',time_percentual,'%).'
+                                     times%calc_dN,'s (',time_percentual,'%).'
+
+!    return
+    time_percentual = 100.0_dp*times%calc_rho/elapsed_time
+    if(time_percentual>=1.0_dp)then
+        write(*,'(2(A,f0.1),A)')'Time spent calculating unfolding-density matrices:               ',&
+                                 times%calc_rho,'s (',time_percentual,'%).'
+    endif
+
+    time_percentual = 100.0_dp*times%calc_pauli_vec/elapsed_time
+    if(time_percentual>=1.0_dp)then
+        write(*,'(2(A,f0.1),A)')'Time spent calculating SC matrix elements of Pauli spin matrices:  ',&
+                                 times%calc_pauli_vec,'s (',time_percentual,'%).'
+    endif
 
 end subroutine print_final_times
 

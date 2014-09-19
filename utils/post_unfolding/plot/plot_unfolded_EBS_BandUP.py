@@ -72,6 +72,7 @@ class BandUpPlotOptions(argparse.ArgumentParser):
         linestyles = ['solid', 'dashed', 'dashdot', 'dotted', '-', '--', '-.', ':']
         self.add_argument('--line_style_high_symm_points', default=None, choices=linestyles)
         self.add_argument('--line_style_E_f', default=None, choices=linestyles)
+        self.add_argument('--tick_marks_size', type=float, default=8.0)
 
         self.add_argument('--save', action='store_true', default=False, 
                           help='Saves the figue to a file. Default: False')
@@ -105,13 +106,17 @@ class BandUpPlotOptions(argparse.ArgumentParser):
 
 
         self.plot_spin_projections = self.add_mutually_exclusive_group()
+        self.plot_spin_projections.add_argument('--plot_sigma_x', action='store_true', default=False)
+        self.plot_spin_projections.add_argument('--plot_sigma_y', action='store_true', default=False)
+        self.plot_spin_projections.add_argument('--plot_sigma_z', action='store_true', default=False)
         self.plot_spin_projections.add_argument('--plot_spin_perp', action='store_true', default=False)
         self.plot_spin_projections.add_argument('--plot_spin_para', action='store_true', default=False)
-        self.add_argument('--plot_spin_as_contour', action='store_true', default=False)
+        self.add_argument('--clip_spin', type=float, default=None)
+        self.add_argument('--spin_marker', default='_', choices=['_', 'o'])
 
 
-        self.add_argument('-nlev', '--n_levels', type=int, default=1001, 
-                          help='Number of different levels used in the contour plot. Default: 1001')
+        self.add_argument('-nlev', '--n_levels', type=int, default=101, 
+                          help='Number of different levels used in the contour plot. Default: 101')
         self.add_argument('-kmin', type=float, default=None)
         self.add_argument('-kmax', type=float, default=None)
         self.add_argument('-shift_k', '--shift_kpts_coords', type=float, default=0.0, 
@@ -123,8 +128,8 @@ class BandUpPlotOptions(argparse.ArgumentParser):
         self.add_argument('-shift_e', '--shift_energy', type=float, default=0.0,
                           help='Shift in the energy grid. Default: 0.0')
 
-        self.add_argument('-interp', '--interpolation', default='linear', choices=['nearest', 'linear', 'cubic'], 
-                          help='Interpolation scheme used. Default: linear')
+        self.add_argument('-interp', '--interpolation', default=None, choices=['nearest', 'linear', 'cubic'], 
+                          help='Interpolation scheme used. Default: None')
 
         self.add_argument('-vmin', '--minval_for_colorbar', type=float, 
                           help='Value to which the first color of the colormap will be normalized.')
@@ -254,7 +259,7 @@ class BandUpPlot():
         self.title_size = 10*self.scaling_factor_fig_size
         self.yaxis_labels_size = 14*self.scaling_factor_fig_size
         self.xaxis_labels_size = 10*self.scaling_factor_fig_size
-        self.tick_marks_size = 8*self.scaling_factor_fig_size
+        self.tick_marks_size = args.tick_marks_size * self.scaling_factor_fig_size
         self.colorbar_label_size = 8*self.scaling_factor_fig_size
         self.colorbar_tick_marks_size = 7*self.scaling_factor_fig_size
 
@@ -332,24 +337,30 @@ class BandUpPlot():
         spin_projections = None
         spin_projections_read = False
         failed_reading_spin_projections = False
-        if(self.args.plot_spin_perp):
-            try:
+        try:
+            if(self.args.plot_sigma_x):
                 KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,3),unpack=True)
                 spin_projections_read = True
-            except IndexError:
-                failed_reading_spin_projections = True
-                pass
-        elif(self.args.plot_spin_para):
-            try:
+            elif(self.args.plot_sigma_y):
                 KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,4),unpack=True)
                 spin_projections_read = True
-            except IndexError:
-                failed_reading_spin_projections = True
-                pass
+            elif(self.args.plot_sigma_z):
+                KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,5),unpack=True)
+                spin_projections_read = True
+            elif(self.args.plot_spin_perp):
+                KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,6),unpack=True)
+                spin_projections_read = True
+            elif(self.args.plot_spin_para):
+                KptsCoords, energies, delta_Ns, spin_projections = np.loadtxt(self.args.input_file, usecols=(0,1,2,7),unpack=True)
+                spin_projections_read = True
+        except IndexError:
+            failed_reading_spin_projections = True
+            pass
         if(not spin_projections_read):
             KptsCoords, energies, delta_Ns = np.loadtxt(self.args.input_file, usecols=(0,1,2),unpack=True)
             if(failed_reading_spin_projections):
                 print self.indent + 'WARNING: Could not read spin info.'
+
 
         print self.indent + '* Max. delta_N:          ' + "{:7.3f}".format(np.max(delta_Ns))
         print self.indent + '* Min. non-zero delta_N: ' + "{:7.3f}".format(min([value for value in delta_Ns if abs(value) > 0.95E-3]))
@@ -641,12 +652,17 @@ class BandUpPlot():
 
 
     def greek_letters(self, input_list):
-        symb_dict = {'G':'$\Gamma$', 'GAMMA':'$\Gamma$','DELTA':'$\Delta$',
-                     'LAMBDA':'$\Lambda$','SIGMA':'$\Sigma$'}
+        symb_dict = {'G':'$\Gamma$', 'GAMMA':'$\Gamma$',
+                     'G-':'$\overline{\Gamma}$', 'GAMMA-':'$\overline{\Gamma}$',
+                     'DELTA':'$\Delta$', 'DELTA-':'$\overline{\Delta}$',
+                     'LAMBDA':'$\Lambda$', 'LAMBDA-':'$\overline{\Lambda}$',
+                     'SIGMA':'$\Sigma$', 'SIGMA-':'$\overline{\Sigma}$'}
         output_list = input_list[:]
         for i in range(len(input_list)):
             if symb_dict.has_key(input_list[i].upper()):
                 output_list[i] = symb_dict[input_list[i].upper()]
+            if output_list[i].endswith('-'):
+                output_list[i] = '$\overline{\mathrm{' + output_list[i][:-1] + '}}$'
         return output_list
 
 
@@ -693,11 +709,18 @@ def make_plot(plot):
 
     # Building the countour plot from the read data
     # Defining the (ki,Ej) grid.
-    ki = np.linspace(plot.kmin, plot.kmax, 2 * len(set(plot.KptsCoords)) + 1, endpoint=True)
-    Ei = np.arange(plot.emin, plot.emax + plot.dE_for_hist2d, plot.dE_for_hist2d)
-    # Interpolating
-    grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, (ki[None,:], Ei[:,None]), 
-                         method=args.interpolation, fill_value=0.0)
+    if(args.interpolation is not None):
+        ki = np.linspace(plot.kmin, plot.kmax, 2 * len(set(plot.KptsCoords)) + 1, endpoint=True)
+        Ei = np.arange(plot.emin, plot.emax + plot.dE_for_hist2d, plot.dE_for_hist2d)
+        # Interpolating
+        grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, (ki[None,:], Ei[:,None]), 
+                             method=args.interpolation, fill_value=0.0)
+    else:
+        ki = np.unique(np.clip(plot.KptsCoords, plot.kmin, plot.kmax))
+        Ei = np.unique(np.clip(plot.energies, plot.emin,  plot.emax))
+        grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, (ki[None,:], Ei[:,None]), 
+                             method='nearest', fill_value=0.0)
+
     if(not args.skip_grid_freq_clip):
         grid_freq = grid_freq.clip(0.0) # Values smaller than zero are just noise.
     # Normalizing and building the countour plot
@@ -741,33 +764,53 @@ def make_plot(plot):
                                 'due to the interpolation scheme used for the plot.')
         # values > vmax will be set to vmax, and #<vmin will be set to vmin 
         grid_freq = grid_freq.clip(minval_for_colorbar, maxval_for_colorbar)
-     
         v = np.linspace(minval_for_colorbar, maxval_for_colorbar, args.n_levels, endpoint=True)
-        image = ax.contourf(ki, Ei, grid_freq, levels=v, cmap=plot.cmap)
     else: 
-        image = ax.contourf(ki, Ei, grid_freq, args.n_levels, cmap=plot.cmap)
+        v = np.linspace(np.min(grid_freq), np.max(grid_freq), args.n_levels, endpoint=True)
+    print indent + '* Drawing contour plot...'
+    print 2 * indent + '> Using %i color levels. Use the option "--n_levels" to choose a different number.' %args.n_levels
+    image = ax.contourf(ki, Ei, grid_freq, levels=v, cmap=plot.cmap)
 
-    plot_spin_proj_requested = args.plot_spin_perp or args.plot_spin_para
+    plot_spin_proj_requested = args.plot_spin_perp or args.plot_spin_para or args.plot_sigma_x or args.plot_sigma_y or args.plot_sigma_z
     if(plot_spin_proj_requested and plot.spin_projections is not None):
-        print indent + '* Drawing spin projection info (still under test!)...'
-        if(args.plot_spin_as_contour):
-            grid_freq_spin = griddata((plot.KptsCoords, plot.energies), plot.spin_projections, (ki[None,:], Ei[:,None]), 
-                                       method='linear', fill_value=0.0)
-            for i_grid_freq in range(len(grid_freq_spin)):
-                for i_grid_freq2 in range(len(grid_freq_spin[i_grid_freq])):
-                    if(abs(grid_freq_spin[i_grid_freq][i_grid_freq2]) < 1E-3):
-                        grid_freq_spin[i_grid_freq][i_grid_freq2] = float('nan')
-            image2 = ax.contourf(ki, Ei, grid_freq_spin, 101, cmap=plt.cm.seismic_r)
+        print indent + '* Drawing spin projection info (still under test!)'
+        cmap_for_spin_plot = [plt.cm.bwr, plt.cm.RdBu, plt.cm.seismic_r][0]
+
+        if(args.clip_spin is None):
+            vmin_spin = np.min(plot.spin_projections)
+            vmax_spin = np.max(plot.spin_projections)
         else:
-            points_for_scatter = [index for index in range(len(plot.spin_projections)) if abs(plot.spin_projections[index]) >= 1E-2]
-            k_for_scatter = plot.KptsCoords[points_for_scatter]
-            E_for_scatter = plot.energies[points_for_scatter]
-            spin_projections_for_scatter = plot.spin_projections[points_for_scatter]
-            image2 = ax.scatter(k_for_scatter, E_for_scatter, marker='o', 
-                                s=[2.0E4 * (plot.dE_for_hist2d ** 2) * abs(item) for item in spin_projections_for_scatter], 
-                                c=spin_projections_for_scatter, cmap=plt.cm.seismic_r)
+            vmax_spin = abs(args.clip_spin)
+            vmin_spin = -1.0 * abs(args.clip_spin)
+            print 2 * indent + '* New maxval for spin: %.2f' % vmax_spin
+            print 2 * indent + '* New minval for spin: %.2f' % vmin_spin
+ 
+        spin_projections = np.clip(plot.spin_projections, vmin_spin, vmax_spin)
+        grid_freq_spin = griddata((plot.KptsCoords, plot.energies), spin_projections, (ki[None,:], Ei[:,None]), 
+                                  method='nearest', fill_value=0.0)
 
+        k_for_scatter = [] 
+        E_for_scatter = [] 
+        spin_projections_for_scatter = [] 
+        for iener in range(len(Ei)):
+            for ikpt in range(len(ki)):
+                if(abs(grid_freq_spin[iener, ikpt]) > 1E-3):
+                    k_for_scatter.append(ki[ikpt])
+                    E_for_scatter.append(Ei[iener])
+                    spin_projections_for_scatter.append(grid_freq_spin[iener, ikpt])
 
+        if(spin_projections_for_scatter):
+            if(args.spin_marker=='o'):
+                image2 = ax.scatter(k_for_scatter, E_for_scatter, marker='o', 
+                                    s=[10.0 * abs(item) for item in spin_projections_for_scatter], 
+                                    c=spin_projections_for_scatter, cmap=cmap_for_spin_plot)
+            else:
+                image2 = ax.scatter(k_for_scatter, E_for_scatter, marker='_', 
+                                    s=[500.0 * (ki[1] - ki[0]) for item in spin_projections_for_scatter], 
+                                    linewidth=[100.0 * plot.dE_for_hist2d * (item ** 2) for item in spin_projections_for_scatter], 
+                                    c=spin_projections_for_scatter, cmap=cmap_for_spin_plot)
+        else:
+            print 2 * indent + '* The abs values of the spin projections were all < 1E-3.'
 
     #Preparing the plot
     ax.set_xlim(plot.kmin, plot.kmax)
