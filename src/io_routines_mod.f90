@@ -856,53 +856,58 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
 end subroutine say_goodbye_and_save_results
 
 
+subroutine print_time(t_in_sec, message, ref_time)
+implicit none
+real(kind=dp), intent(in) :: t_in_sec
+character(len=*), intent(in) :: message
+real(kind=dp), intent(in), optional :: ref_time
+real(kind=dp) :: time_percentual
+
+    time_percentual = 100.0_dp
+    if(present(ref_time))then
+        if(ref_time > epsilon(1.0_dp)) time_percentual = 100.0_dp*t_in_sec/ref_time
+    endif
+
+    if(abs(time_percentual - 100.0_dp) <= epsilon(1.0_dp))then
+        if(t_in_sec < 60.0_dp)then
+            write(*,'(A,f7.2,A)') message, t_in_sec, 's.'
+        else
+            write(*,'(A,f7.2,3A)') message, t_in_sec, 's (', &
+                                   trim(adjustl(formatted_time(t_in_sec))),').'
+        endif
+    else
+        if(t_in_sec >= 0.1_dp .or. (time_percentual >= 1.0_dp))then
+            if(t_in_sec < 60.0_dp)then
+                write(*,'(A,f7.2,A,f0.1,A)') message, t_in_sec, 's (', time_percentual, '%).'
+            else
+                    write(*,'(A,f7.2,A,f0.1,3A)') message, t_in_sec, 's (', time_percentual, '%, ', &
+                    trim(adjustl(formatted_time(t_in_sec))),').'
+            endif
+        endif
+    endif
+
+end subroutine print_time
+
+
 subroutine print_final_times(times)
 implicit none
 type(timekeeping), intent(inout) :: times
-real(kind=dp) :: elapsed_time, time_percentual
-
+real(kind=dp) :: elapsed_time
 
     times%end = time()
     elapsed_time = times%end - times%start
     write(*,*)
-    write(*,'(A,f0.1,A)')           'Total elapsed time:                                                ',elapsed_time,' s.'
+    call print_time(elapsed_time,            'Total elapsed time:                                               ', elapsed_time)
+    call print_time(times%read_wf,           'Time spent reading the wavefunctions file:                        ', elapsed_time)
+    call print_time(times%calc_spec_weights, 'Time spent calculating spectral weights:                          ', elapsed_time)
+    call print_time(times%calc_SF,           'Time spent calculating spectral functions:                        ', elapsed_time)
+    call print_time(times%calc_dN,           'Time spent calculating the delta_Ns:                              ', elapsed_time)
+    call print_time(times%calc_rho,          'Time spent calculating unfolding-density matrices:                ', elapsed_time)
+    call print_time(times%calc_pauli_vec,    'Time spent calculating SC matrix elements of Pauli spin matrices: ', elapsed_time)
 
-    time_percentual = 100.0_dp*times%read_wf/elapsed_time
-    if(time_percentual>=1.0_dp)then
-        write(*,'(2(A,f0.1),A)')    'Time spent reading the WAVECAR file:                               ',&
-                                     times%read_wf,'s (',time_percentual,'%).'
-    endif
-
-    time_percentual = 100.0_dp*times%calc_spec_weights/elapsed_time
-    if(time_percentual>=1.0_dp)then
-        write(*,'(2(A,f0.1),A)')    'Time spent calculating spectral weights:                           ',&
-                                     times%calc_spec_weights,'s (',time_percentual,'%).'
-    endif
-
-    time_percentual = 100.0_dp*times%calc_SF/elapsed_time
-    if(time_percentual>=1.0_dp)then
-        write(*,'(2(A,f0.1),A)')'Time spent calculating spectral functions:                         ',&
-                                 times%calc_SF,'s (',time_percentual,'%).'
-    endif
-
-    time_percentual = 100.0_dp*times%calc_dN/elapsed_time
-    write(*,'(2(A,f0.1),A)')        'Time spent calculating the delta_Ns:                               ',&
-                                     times%calc_dN,'s (',time_percentual,'%).'
-
-!    return
-    time_percentual = 100.0_dp*times%calc_rho/elapsed_time
-    if(time_percentual>=1.0_dp)then
-        write(*,'(2(A,f0.1),A)')'Time spent calculating unfolding-density matrices:               ',&
-                                 times%calc_rho,'s (',time_percentual,'%).'
-    endif
-
-    time_percentual = 100.0_dp*times%calc_pauli_vec/elapsed_time
-    if(time_percentual>=1.0_dp)then
-        write(*,'(2(A,f0.1),A)')'Time spent calculating SC matrix elements of Pauli spin matrices:  ',&
-                                 times%calc_pauli_vec,'s (',time_percentual,'%).'
-    endif
 
 end subroutine print_final_times
+
 
 
 end module io_routines

@@ -26,7 +26,7 @@ PUBLIC :: star, time, n_digits_integer, cross, norm, angle, real_seq, delta, &
           get_symm, get_prim_cell, get_irr_SC_kpts, get_star, pt_eqv_by_point_group_symop, &
           check_if_pc_and_SC_are_commensurate, get_pcbz_dirs_2b_used_for_EBS, kpts_line, &
           allocate_UnfoldedQuantities, allocate_UnfoldedQuantitiesForOutput, create_crystal, &
-          append,  versor, trace_AB, initialize, analise_symm_pc_SC
+          append,  versor, trace_AB, initialize, analise_symm_pc_SC, trace, formatted_time
 
 
 interface append
@@ -36,6 +36,10 @@ end interface append
 interface trace_AB
     module procedure trace_AB_real, trace_AB_cplx
 end interface trace_AB
+
+interface trace
+    module procedure trace_cplx
+end interface trace
 
 
 CONTAINS
@@ -67,6 +71,50 @@ type(timekeeping), intent(out) :: times
     times%calc_pauli_vec=0.0_dp
 
 end subroutine initialize
+
+
+function formatted_time(t_in_sec) result(rtn)
+implicit none
+character(len=127) :: rtn
+real(kind=dp), intent(in) :: t_in_sec
+real(kind=dp) :: unaccounted_t, secs
+integer :: days, hours, minutes
+character(len=127) :: aux_char
+
+    unaccounted_t = t_in_sec
+    days = int(unaccounted_t/86400.0_dp)
+
+    unaccounted_t = unaccounted_t - real(days, kind=dp) * 86400.0_dp
+    hours = int(unaccounted_t/3600.0_dp)
+
+    unaccounted_t = unaccounted_t - real(hours, kind=dp) * 3600.0_dp
+
+    minutes = int(unaccounted_t/60.0_dp)
+    unaccounted_t = unaccounted_t - real(minutes, kind=dp) * 60.0_dp
+
+    secs = unaccounted_t
+   
+    rtn = ''
+    if(days > 0)then
+        write(aux_char,'(I0,A1)') days, 'D '
+        write(rtn,'(A)') trim(adjustl(aux_char))
+    endif
+    if(hours > 0)then
+        write(aux_char,'(I0,A1)') hours, 'h '
+        write(rtn,'(2A)')rtn(1:len_trim(rtn) + 1), trim(adjustl(aux_char))
+    endif     
+    if(minutes > 0)then
+        write(aux_char,'(I0,A1)') minutes, 'm'
+        write(rtn,'(2A)')rtn(1:len_trim(rtn) + 1), trim(adjustl(aux_char))
+    endif     
+    if(secs > epsilon(1.0_dp))then
+        write(aux_char,'(f0.2,A1)') secs, 's'
+        write(rtn,'(2A)')rtn(1:len_trim(rtn) + 1), trim(adjustl(aux_char))
+    endif
+    
+    rtn = trim(adjustl(rtn)) 
+
+end function formatted_time
 
 
 subroutine append_integer_list(item, list)
@@ -1170,6 +1218,23 @@ integer :: msize, i
     enddo
 
 end function trace_AB_hermit
+
+
+function trace_cplx(A) result(rtn)
+complex(kind=kind_cplx_coeffs) :: rtn
+complex(kind=kind_cplx_coeffs), dimension(:,:), intent(in) :: A
+integer :: i
+
+    rtn = 0.0_kind_cplx_coeffs
+    !$omp parallel do default(none) schedule(guided) &
+    !$    private(i) &
+    !$    shared(A) &
+    !$    reduction(+:rtn)
+    do i=1, size(A, dim=1)
+        rtn = rtn + A(i,i)
+    enddo
+
+end function trace_cplx
 
 
 subroutine get_compl_pcbz_direcs(compl_pcdirs,ncompl,dirs_eqv_in_pcbz,dirs_eqv_in_SCBZ,symops_SC,symprec)

@@ -1,7 +1,7 @@
-=====================================================================================
+======================================================================================
              BandUP: Band Unfolding code for Plane-wave based calculations           
               Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          
-=====================================================================================
+======================================================================================
 Copyright (C) 2013, 2014 Paulo V. C. Medeiros - paume@ifm.liu.se
 
 BandUP is free software: you can redistribute it and/or modify
@@ -18,9 +18,9 @@ You should have received a copy of the GNU General Public License
 along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
 
-===================================================================================
+======================================================================================
 How to compile BandUP
-===================================================================================
+======================================================================================
     * To compile BandUP, run the "build.sh" script: ./build.sh
     * A folder named "BandUP_bin" will be created.
         * You'll find the executable for BandUP in it.
@@ -28,9 +28,9 @@ How to compile BandUP
         * Do check, however, the system requirements below if you have any problem.
 
 
-===================================================================================
+======================================================================================
 System requirements:
-===================================================================================
+======================================================================================
     * Preferably Linux
         * Might work in other environments based on Unix
     * Fortran 90 and C compilers
@@ -52,9 +52,9 @@ System requirements:
             
 
 
-===================================================================================
+======================================================================================
 Tips:
-===================================================================================
+======================================================================================
     * It might be handy to include the BandUP_bin folder in your PATH. By doing so,
       you'll be able to use BandUP in whataver folder you're working at.
     * BandUP accepts some optional command line arguments and flags. To know them, 
@@ -67,12 +67,18 @@ Tips:
 
 
 
-===================================================================================
+======================================================================================
 Please mind that:
-===================================================================================
-    * If you use BandUP (or any part of it) in your work, please be so kind as to 
-      state that you've used the BandUP code, and don't forget to cite our paper,
-      Phys. Rev. B 89, 041407(R) (2014).
+======================================================================================
+    * If you use BandUP (or any part of it) in your work, please state that you've
+      used the BandUP code (or a modified version fo it), and read and cite our paper: 
+                     >>> Phys. Rev. B 89, 041407(R) (2014).
+
+    * Additionally, if you perform unfolding along with calculations employing spinor 
+      eigenstates (noncollinear magnetism, spin-orbit coupling, etc), then you should
+      also read and cite our paper that describes the methodology used:
+         >>> arXiv:1409.5343, Submitted (2014) <http://arxiv.org/abs/1409.5343>
+
     * Although I've tried to make the compilation as simple as possible - and it has 
       indeed worked fine so far with many combinations of compilers, computers, and 
       operating systems, I cannot guarantee that it will always work smoothly. 
@@ -91,4 +97,3 @@ Please mind that:
 
 Have fun! 
 Let us know if you have problems! 
-

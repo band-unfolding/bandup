@@ -767,11 +767,11 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         spectral_weight = 1.0_dp
     endif
     
-
     ! Calculating the delta_Ns
     call get_delta_Ns_for_EBS(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN, &
                               energy_grid, ener_SC_bands, spectral_weight, &
                               add_elapsed_time_to=times%calc_dN)
+
     if(calc_spec_func_explicitly)then
         ! Calculating the spectral_function (optional)
         call calc_spectral_function(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%SF, &
