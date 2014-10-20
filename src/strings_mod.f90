@@ -14,6 +14,17 @@
 !
 !    You should have received a copy of the GNU General Public License
 !    along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+
+!===============================================================================
+! MODULE: strings
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION: 
+!> Provides basic methods to operate with strings.
+!===============================================================================
+
 module strings
 use constants_and_types
 use math
@@ -21,17 +32,30 @@ implicit none
 PRIVATE
 PUBLIC :: lower_case, upper_case, split, compact
 
+!===============================================================================
+!> Splits the input string and puts the result in the output array.
+!> Assumes spaces as separators. 
+!> If the output array is of type *type*, then the interface will assume that 
+!! all elements in the input string can be converted to the type *type*
+!!
+!! @param[in] string Input string
+!! @param[out] splitted_string Output array
+!===============================================================================
 interface split
   module procedure split_string_into_strings, split_string_into_integers, split_string_into_floats
 end interface split
 
-
 contains
-!**************************************************************************************************
+
+!===============================================================================
+!> Returns a lower-case version of the input string.
+!! Based on the extended ASCII table (see http://www.ascii-code.com)
+!!
+!! @param[in] input_string String of arbitrary length.
+!===============================================================================
 function lower_case(input_string) result(rtn)
-! Based on the extended ASCII table (see http://www.ascii-code.com)
 implicit none
-character(len=*) :: input_string
+character(len=*), intent(in) :: input_string
 character(len=len(input_string)) :: rtn
 integer, parameter :: upper_to_lower=ichar('a')-ichar('A')
 integer :: i
@@ -46,11 +70,16 @@ integer :: i
    enddo
 
 end function lower_case
-!**************************************************************************************************
+
+!===============================================================================
+!> Returns an upper-case version of the input string.
+!! Based on the extended ASCII table (see http://www.ascii-code.com)
+!!
+!! @param[in] input_string String of arbitrary length.
+!===============================================================================
 function upper_case(input_string) result(rtn)
-! Based on the extended ASCII table (see http://www.ascii-code.com)
 implicit none
-character(len=*) :: input_string
+character(len=*), intent(in) :: input_string
 character(len=len(input_string)) :: rtn
 integer, parameter :: lower_to_upper=ichar('A')-ichar('a')
 integer :: i
@@ -65,7 +94,13 @@ integer :: i
    enddo
 
 end function upper_case
-!**************************************************************************************************
+
+!===============================================================================
+!> Returns the number of occurancies of a given substring in a given string.
+!!
+!! @param[in] string Input string
+!! @param[in] substring Substring to be searched
+!===============================================================================
 recursive function count_occurencies_substring(string, substring) result(occ_count)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
@@ -84,7 +119,13 @@ integer :: occ_count, new_start, pos_substr_in_str
     endif 
 
 end function count_occurencies_substring
-!**************************************************************************************************
+
+!===============================================================================
+!> Removes leading spaces, trailing blanks and double spaces from the input
+!! string.
+!!
+!! @param[in, out] io_string String of arbitrary length.
+!===============================================================================
 subroutine compact(io_string)
 implicit none
 character(len=*), intent(inout) :: io_string
@@ -110,7 +151,14 @@ integer i,num_spaces_excluded,end_of_io_string,selected_position,new_end_of_io_s
     io_string(new_end_of_io_string + 1:end_of_io_string) = ''
 
 end subroutine compact
-!*************************************************************************************************
+
+!===============================================================================
+!> Splits the input string and puts the result in an array of strings.
+!> Assumes spaces as separators.
+!!
+!! @param[in] string Input string
+!! @param[out] splitted_string Output array of strings
+!===============================================================================
 subroutine split_string_into_strings(string, splitted_string)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
@@ -133,7 +181,15 @@ integer :: n_components, alloc_stat, icomp
     endif
 
 end subroutine split_string_into_strings
-!*************************************************************************************************
+
+!===============================================================================
+!> Splits the input string and puts the result in an array of integers.
+!> Assumes spaces as separators. Assumes that the input string contains only
+!! integer numbers. 
+!!
+!! @param[in] string Input string
+!! @param[out] splitted_string Output array of integers
+!===============================================================================
 subroutine split_string_into_integers(string, splitted_string)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
@@ -157,7 +213,15 @@ integer :: n_components, alloc_stat, icomp
     endif
 
 end subroutine split_string_into_integers
-!*************************************************************************************************
+
+!===============================================================================
+!> Splits the input string and puts the result in an array of floats.
+!> Assumes spaces as separators. Assumes that the input string contains only
+!! real numbers. 
+!!
+!! @param[in] string Input string
+!! @param[out] splitted_string Output array of floats
+!===============================================================================
 subroutine split_string_into_floats(string, splitted_string)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
