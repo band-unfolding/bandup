@@ -267,24 +267,18 @@ type(vec3d), dimension(:), allocatable :: kline
 end subroutine define_pckpts_to_be_checked
 
 
-subroutine select_coeffs_to_calc_spectral_weights(selected_coeff_indices, iall_G, crystal_pc, &
-                                                  crystal_SC, GUR)
+subroutine select_coeffs_to_calc_spectral_weights(selected_coeff_indices, wf, crystal_pc, GUR)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 integer, dimension(:), allocatable, intent(out) :: selected_coeff_indices
-integer, dimension(:,:), intent(in) :: iall_G !Coordinates of the G points in the [b1, b2, b3] basis.
-type(crystal_3D), intent(in) :: crystal_pc, crystal_SC
+type(pw_wavefunction), intent(in) :: wf
+type(crystal_3D), intent(in) :: crystal_pc
 type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
-
-integer :: alloc_stat, ig, nplane, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt
-real(kind=dp), dimension(1:3) :: SC_G, trial_pc_g, g, folding_G, &
-                                 current_SCKPT, symmetrized_unf_pc_kpt
-real(kind=dp), dimension(1:3,1:3) :: b_matrix_pc, B_matrix_SC
+! Local variables
+integer :: alloc_stat, ig, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt
+real(kind=dp), dimension(1:3) :: trial_pc_g, folding_G, current_SCKPT, symmetrized_unf_pc_kpt
 real(kind=dp) :: tol, tol_for_vec_equality
 
-
-    b_matrix_pc = crystal_pc%rec_latt_vecs
-    B_matrix_SC = crystal_SC%rec_latt_vecs
 
     i_SCKPT = GUR%current_index%i_SCKPT
     i_selec_pcbz_dir = GUR%current_index%i_selec_pcbz_dir
@@ -298,19 +292,17 @@ real(kind=dp) :: tol, tol_for_vec_equality
 
     tol_for_vec_equality = default_tol_for_vec_equality
     tol = 0.1_dp * tol_for_vec_equality
-    nplane = size(iall_G, dim=2)
     deallocate(selected_coeff_indices, stat=alloc_stat)
     do while((.not. allocated(selected_coeff_indices)) .and. &
               (tol <= max_tol_for_vec_equality))
         tol = 10_dp * tol
         !$omp parallel do &
         !$    schedule(guided) default(none) &
-        !$    shared(nplane,iall_G,B_matrix_SC,folding_G,b_matrix_pc,tol,selected_coeff_indices) &
-        !$    private(ig,g,SC_G,trial_pc_g) 
-        do ig=1, nplane
-            SC_G = iall_G(1,ig)*B_matrix_SC(1,:) + iall_G(2,ig)*B_matrix_SC(2,:) + iall_G(3,ig)*B_matrix_SC(3,:)
-            trial_pc_g = SC_G(:) - folding_G(:)
-            if(vec_in_latt(vec=trial_pc_g, latt=b_matrix_pc, tolerance=tol))then
+        !$    shared(wf, folding_G, crystal_pc, tol, selected_coeff_indices) &
+        !$    private(ig, trial_pc_g) 
+        do ig=1, wf%n_pw
+            trial_pc_g = wf%G_cart(ig)%coord(:) - folding_G(:)
+            if(vec_in_latt(vec=trial_pc_g, latt=crystal_pc%rec_latt_vecs, tolerance=tol))then
                  !$omp critical
                  call append(item=ig,list=selected_coeff_indices) ! pc_g + folding_G has to belong to the 
                  !$omp end critical
@@ -544,16 +536,13 @@ logical :: output_spin_info
 end subroutine get_delta_Ns_for_output
 
 
-
-subroutine calc_rho(rho, delta_N, pc_ener, SC_ener_bands, delta_e, coeffs, &
-                                      selected_coeff_indices, std_dev, add_elapsed_time_to)
+subroutine calc_rho(rho, delta_N, pc_ener, delta_e, wf, selected_coeff_indices, std_dev, add_elapsed_time_to)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 !! Please make sure that delta_N /= 0 before calling this subroutine
 implicit none
 complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable, intent(out) :: rho
 real(kind=dp), intent(in) :: delta_N, pc_ener, delta_e
-real(kind=dp), intent(in), dimension(:) :: SC_ener_bands
-complex(kind=kind_cplx_coeffs), dimension(:,:,:), intent(in) :: coeffs
+type(pw_wavefunction), intent(in) :: wf
 integer, dimension(:), intent(in) :: selected_coeff_indices
 real(kind=dp), intent(in), optional :: std_dev
 real(kind=dp) :: min_prefactor, lamb_ee1, lamb_ee2, prefactor, sigma, stime, ftime
@@ -574,9 +563,9 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     sigma = epsilon(1.0_dp)
     if(present(std_dev)) sigma = std_dev
 
-    n_spinor = size(coeffs, dim=1)
-    n_coeffs = size(coeffs, dim=2)
-    n_SC_bands = size(coeffs, dim=3)
+    n_spinor = size(wf%pw_coeffs, dim=1)
+    n_coeffs = size(wf%pw_coeffs, dim=2)
+    n_SC_bands = size(wf%pw_coeffs, dim=3)
     n_coeffs_pf = size(selected_coeff_indices)
     deallocate(rho, stat=alloc_stat)
     allocate(rho(1:n_SC_bands, 1:n_SC_bands))
@@ -585,15 +574,15 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     if(args.perform_unfold)then
         !$omp parallel do &
         !$    schedule(guided) default(none) &
-        !$    shared(n_SC_bands, pc_ener, SC_ener_bands, delta_e, sigma, min_prefactor, delta_N, &
-        !$           n_coeffs_pf, n_spinor, coeffs, selected_coeff_indices, rho) &
+        !$    shared(n_SC_bands, pc_ener, wf, delta_e, sigma, min_prefactor, delta_N, &
+        !$           n_coeffs_pf, n_spinor, selected_coeff_indices, rho) &
         !$    private(m1, m2, lamb_ee1, lamb_ee2, prefactor, pf_coeffs_m1, pf_coeffs_m2, alloc_stat, &
         !$            i_spinor, pf_pw_index)
         do m1=1, n_SC_bands - 1
-            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=SC_ener_bands(m1), delta_e=delta_e, std_dev=sigma)
+            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), delta_e=delta_e, std_dev=sigma)
             if(lamb_ee1 < min_prefactor) cycle
             do m2=m1, n_SC_bands
-                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=SC_ener_bands(m2), delta_e=delta_e, std_dev=sigma)
+                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m2), delta_e=delta_e, std_dev=sigma)
                 prefactor = (lamb_ee1 * lamb_ee2) / delta_N
                 if(prefactor < min_prefactor) cycle
             
@@ -602,8 +591,8 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
                     pf_pw_index = 0
                     do pw_index = 1, n_coeffs_pf
                         pf_pw_index = pf_pw_index + 1
-                        pf_coeffs_m1(pf_pw_index) = coeffs(i_spinor, selected_coeff_indices(pw_index), m1)
-                        pf_coeffs_m2(pf_pw_index) = coeffs(i_spinor, selected_coeff_indices(pw_index), m2)
+                        pf_coeffs_m1(pf_pw_index) = wf%pw_coeffs(i_spinor, selected_coeff_indices(pw_index), m1)
+                        pf_coeffs_m2(pf_pw_index) = wf%pw_coeffs(i_spinor, selected_coeff_indices(pw_index), m2)
                     enddo
                     rho(m1,m2) = rho(m1,m2) + dot_product(pf_coeffs_m1, pf_coeffs_m2)
                 enddo
@@ -615,11 +604,11 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     else
         n_picked_bands = 0
         do m1=1, n_SC_bands
-            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=SC_ener_bands(m1), delta_e=delta_e, std_dev=sigma)
+            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), delta_e=delta_e, std_dev=sigma)
             if(lamb_ee1 < min_prefactor) cycle
             n_picked_bands = n_picked_bands + 1
             do m2=1, n_SC_bands
-                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=SC_ener_bands(m2), delta_e=delta_e, std_dev=sigma)
+                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m2), delta_e=delta_e, std_dev=sigma)
                 prefactor = (lamb_ee1 * lamb_ee2) / delta_N
                 if(prefactor < min_prefactor) cycle
                 rho(m1,m2) = 1.0_dp
@@ -637,15 +626,13 @@ end subroutine calc_rho
 
 
 subroutine get_SC_pauli_matrix_elmnts(SC_pauli_matrix_elmnts, pauli_mtx_elmts_already_calc, &
-                                      coeff, SC_band_energies, selected_pc_ener, delta_e, &
-                                      add_elapsed_time_to)
+                                      wf, selected_pc_ener, delta_e, add_elapsed_time_to)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
 complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable, intent(inout) :: SC_pauli_matrix_elmnts
 logical, dimension(:,:), allocatable, intent(inout) :: pauli_mtx_elmts_already_calc
-real(kind=dp), dimension(:), intent(in) :: SC_band_energies
+type(pw_wavefunction), intent(in) :: wf
 real(kind=dp), intent(in) :: selected_pc_ener, delta_e
-complex(kind=kind_cplx_coeffs), dimension(:,:,:), intent(in) :: coeff ! coefficients(i_spinor_comp, iplane, iband)
 complex(kind=kind_cplx_coeffs) :: inner_prod_Km2Alpha_Km1Beta, inner_prod_Km2Beta_Km1Alpha, &
                                   inner_prod_Km2Alpha_Km1Alpha, inner_prod_Km2Beta_Km1Beta
 complex(kind=kind_cplx_coeffs), parameter :: J = (0.0_kind_cplx_coeffs, 1.0_kind_cplx_coeffs), &
@@ -657,7 +644,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
 
     stime = time()
-    n_SC_bands = size(coeff, dim=3)
+    n_SC_bands = size(wf%pw_coeffs, dim=3)
     if(.not. allocated(pauli_mtx_elmts_already_calc))then
         allocate(pauli_mtx_elmts_already_calc(1:n_SC_bands, 1:n_SC_bands))
         pauli_mtx_elmts_already_calc(:,:) = .FALSE.
@@ -669,7 +656,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     endif
 
     do m1=1, n_SC_bands
-        lambd = lambda(pc_ener=selected_pc_ener, SC_ener=SC_band_energies(m1), delta_e=delta_e)
+        lambd = lambda(pc_ener=selected_pc_ener, SC_ener=wf%band_energies(m1), delta_e=delta_e)
         if(lambd > 1E-1)then
             call append(list=picked_SC_bands, item=m1)
         endif
@@ -677,7 +664,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     if(allocated(picked_SC_bands))then
         !$omp parallel do collapse(2) &
         !$    schedule(guided) default(none) &
-        !$    shared(coeff, SC_pauli_matrix_elmnts, picked_SC_bands, pauli_mtx_elmts_already_calc) &
+        !$    shared(wf, SC_pauli_matrix_elmnts, picked_SC_bands, pauli_mtx_elmts_already_calc) &
         !$    private(m1, m2, m3, m4, inner_prod_Km2Alpha_Km1Beta, inner_prod_Km2Beta_Km1Alpha, &
         !$            inner_prod_Km2Alpha_Km1Alpha, inner_prod_Km2Beta_Km1Beta) 
         do m3=1,size(picked_SC_bands)
@@ -685,10 +672,10 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
                 m1 = picked_SC_bands(m3)
                 m2 = picked_SC_bands(m4)
                 if(pauli_mtx_elmts_already_calc(m2,m1)) cycle
-                inner_prod_Km2Alpha_Km1Beta = dot_product(coeff(1,:,m2), coeff(2,:,m1))
-                inner_prod_Km2Beta_Km1Alpha = dot_product(coeff(2,:,m2), coeff(1,:,m1))
-                inner_prod_Km2Alpha_Km1Alpha = dot_product(coeff(1,:,m2), coeff(1,:,m1))
-                inner_prod_Km2Beta_Km1Beta = dot_product(coeff(2,:,m2), coeff(2,:,m1))
+                inner_prod_Km2Alpha_Km1Beta = dot_product(wf%pw_coeffs(1,:,m2), wf%pw_coeffs(2,:,m1))
+                inner_prod_Km2Beta_Km1Alpha = dot_product(wf%pw_coeffs(2,:,m2), wf%pw_coeffs(1,:,m1))
+                inner_prod_Km2Alpha_Km1Alpha = dot_product(wf%pw_coeffs(1,:,m2), wf%pw_coeffs(1,:,m1))
+                inner_prod_Km2Beta_Km1Beta = dot_product(wf%pw_coeffs(2,:,m2), wf%pw_coeffs(2,:,m1))
 
                 SC_pauli_matrix_elmnts(1,m2,m1) = inner_prod_Km2Alpha_Km1Beta + inner_prod_Km2Beta_Km1Alpha
                 SC_pauli_matrix_elmnts(2,m2,m1) = J * (inner_prod_Km2Beta_Km1Alpha - inner_prod_Km2Alpha_Km1Beta) 
@@ -731,16 +718,15 @@ real(kind=dp), dimension(1:3) :: versor_para, versor_perp, normal2proj_plane, ca
 end subroutine calc_spin_projections
 
 
-subroutine perform_unfolding(delta_N, times, GUR, coefficients, selected_coeff_indices, &
-                             energy_grid, ener_SC_bands)
+subroutine perform_unfolding(delta_N, times, GUR, wf, selected_coeff_indices, energy_grid)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none 
 type(UnfoldedQuantities), intent(inout) :: delta_N
 type(timekeeping), intent(inout) :: times
 type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
-complex(kind=kind_cplx_coeffs), dimension(:,:,:), intent(in) :: coefficients ! Coefficients, coefficients(i_spinor_comp, ikpt, iband)
+type(pw_wavefunction), intent(in) :: wf
 integer, dimension(:), intent(in) :: selected_coeff_indices
-real(kind=dp), dimension(:), intent(in) :: energy_grid, ener_SC_bands
+real(kind=dp), dimension(:), intent(in) :: energy_grid
 
 integer :: n_WF_components, n_bands_SC_calculation, i_spinor, iener, nener, iener2, alloc_stat, i, &
            i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, i_SCKPT
@@ -761,15 +747,15 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
     symmetrized_unf_pc_kpt(:) = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
                                     needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Scoords(:)
 
-    n_WF_components = size(coefficients, dim=1) ! 1 for a regular WF, and 2 for a spinor WF
-    n_bands_SC_calculation = size(coefficients, dim=3)
+    n_WF_components = size(wf%pw_coeffs, dim=1) ! 1 for a regular WF, and 2 for a spinor WF
+    n_bands_SC_calculation = size(wf%pw_coeffs, dim=3)
     allocate(spectral_weight(1:n_bands_SC_calculation))
 
     if(args.perform_unfold)then
         spectral_weight = 0.0_dp
         do i_spinor=1,n_WF_components
            ! Calculating spectral_weights
-            spectral_weight = spectral_weight + spectral_weight_for_coeff(coefficients(i_spinor,:,:), &
+            spectral_weight = spectral_weight + spectral_weight_for_coeff(wf%pw_coeffs(i_spinor,:,:), &
                                                                           selected_coeff_indices, &
                                                                           add_elapsed_time_to=times%calc_spec_weights)
         enddo
@@ -780,13 +766,13 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
     
     ! Calculating the delta_Ns
     call get_delta_Ns_for_EBS(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN, &
-                              energy_grid, ener_SC_bands, spectral_weight, &
+                              energy_grid, wf%band_energies, spectral_weight, &
                               add_elapsed_time_to=times%calc_dN)
 
     if(calc_spec_func_explicitly)then
         ! Calculating the spectral_function (optional)
         call calc_spectral_function(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%SF, &
-                                    energy_grid, ener_SC_bands, spectral_weight, &
+                                    energy_grid, wf%band_energies, spectral_weight, &
                                     add_elapsed_time_to=times%calc_SF)
     endif
 
@@ -820,12 +806,11 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
             iener = pc_energies_to_calc_eigenvalues(iener2)
             selected_pc_ener = energy_grid(iener)
             dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
-            call calc_rho(rho, dN, energy_grid(iener), ener_SC_bands, delta_e, &
-                                            coefficients, selected_coeff_indices, &
-                                            add_elapsed_time_to=times%calc_rho)
+            call calc_rho(rho, dN, energy_grid(iener), delta_e, wf, selected_coeff_indices, &
+                          add_elapsed_time_to=times%calc_rho)
 
             call get_SC_pauli_matrix_elmnts(SC_pauli_matrix_elmnts, pauli_mtx_elmts_already_calc, &
-                                            coefficients, ener_SC_bands, selected_pc_ener, delta_e, &
+                                            wf, selected_pc_ener, delta_e, &
                                             add_elapsed_time_to=times%calc_pauli_vec)
             do i=1,3
                 unf_pauli_vec(i) = real(trace_AB(A=rho, B=SC_pauli_matrix_elmnts(i,:,:)), kind=dp)

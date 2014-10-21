@@ -21,11 +21,12 @@ use cla_wrappers
 use math
 use general_io
 use io_routines
-use read_wavecar
+use read_wavefunctions
 use read_vasp_files
 use write_vasp_files
 use band_unfolding
 implicit none
+type(pw_wavefunction) :: wf
 type(UnfoldedQuantities) :: delta_N
 type(UnfoldedQuantitiesForOutput) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
 type(geom_unfolding_relations_for_each_SCKPT) :: GUR
@@ -34,27 +35,30 @@ type(selected_pcbz_directions) :: pckpts_to_be_checked
 type(crystal_3D) :: crystal_SC, crystal_pc
 type(vec3d), dimension(:), allocatable :: list_of_SCKPTS
 type(timekeeping) :: times
-complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: coefficients
 real(kind=dp), dimension(:,:), allocatable :: k_starts,k_ends
-real(kind=dp), dimension(:), allocatable :: energy_grid, ener_SC_bands
+real(kind=dp), dimension(:), allocatable :: energy_grid
 real(kind=dp) :: e_fermi, vbz, E_start, E_end, delta_e, elapsed, zero_of_kpts_scale
-integer, dimension(:,:), allocatable :: iall_G ! Coordinates of the G points in the SCRL.
 integer, dimension(:), allocatable :: selected_coeff_indices,n_pckpts_dirs
 integer(8) :: file_size
 integer :: nkpts, ipc_kpt, i_SCKPT, n_selec_pcbz_dirs, & ! nkpts = #SCkpts
            alloc_stat, n_folding_pckpts_parsed, i_selec_pcbz_dir, i_needed_dirs
-logical :: pckpt_folds, crystal_SC_read_from_file, spinor_wf
+logical :: pckpt_folds, crystal_SC_read_from_file
 !!*************************************************************************************************
 call initialize(times)
 !$ call omp_set_dynamic(.FALSE.)
 call print_welcome_messages(package_version)
 call get_commline_args(args)
+wf%i_spin = args%spin_channel
 
 call get_crystal_from_file(crystal_SC,input_file=args%input_file_supercell, &
                            stop_if_file_not_found=.FALSE., success=crystal_SC_read_from_file)
-call read_from_wavefunc_file(rec_latt_B_matrix=crystal_SC%rec_latt_vecs, &
-                             latt_vecs=crystal_SC%latt_vecs, total_nkpts=nkpts, &
-                             file_size_in_bytes=file_size, spinor_wf=spinor_wf)
+
+call get_file_size_in_bytes(file_size, file=args%WF_file)
+call get_total_n_SC_kpts(nkpts, file=args%WF_file)
+call read_wavefunction(wf, file=args%WF_file, ikpt=1, read_coeffs=.FALSE.)
+
+crystal_SC%rec_latt_vecs = wf%B_matrix
+crystal_SC%latt_vecs = wf%A_matrix
 if(.not. crystal_SC_read_from_file) call create_crystal(crystal_SC, latt_vecs=crystal_SC%latt_vecs)
 call get_prim_cell(crystal_SC, symprec=default_symprec)
 call get_crystal_from_file(crystal_pc,input_file=args%input_file_prim_cell, stop_if_file_not_found=.TRUE.)
@@ -81,13 +85,14 @@ call print_geom_unfolding_relations(GUR, list_of_SCKPTS, crystal_pc, crystal_SC)
 
 call read_energy_info_for_band_search(args%input_file_energies,e_fermi,E_start,E_end,delta_e)
 call real_seq(first_term=E_start,last_term=E_end,increment=delta_e, return_list=energy_grid)
-call print_last_messages_before_unfolding(file_size,nkpts,crystal_SC%rec_latt_vecs,vbz,E_start,E_end,delta_e,e_fermi, spinor_wf)
+call print_last_messages_before_unfolding(file_size,nkpts,crystal_SC%rec_latt_vecs,vbz,E_start,E_end,delta_e,e_fermi, wf%is_spinor)
 call allocate_UnfoldedQuantities(delta_N, pckpts_to_be_checked)
 
 ! Main loop
 n_folding_pckpts_parsed = 0
 do i_SCKPT=1,nkpts
-    deallocate(ener_SC_bands, coefficients, iall_G, stat=alloc_stat)
+    deallocate(wf%pw_coeffs, stat=alloc_stat)
+    wf%i_kpt = i_SCKPT
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
         do i_needed_dirs=1, size(all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(:))
             do ipc_kpt=1, n_pckpts_dirs(i_selec_pcbz_dir)
@@ -95,19 +100,16 @@ do i_SCKPT=1,nkpts
                 if(pckpt_folds)then
                     call update_GUR_indices(GUR, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt)
                     ! Reading the wavefunction file
-                    if(.not. allocated(coefficients))then
+                    if(.not. allocated(wf%pw_coeffs))then
                         write(*,"(A,I0,3A)")'Reading plane-wave coefficients for SC-Kpoint K(',i_SCKPT, &
                                             ') from file "', trim(adjustl(args%WF_file)), '"...'
-                        call read_from_wavefunc_file(spin_channel=args%spin_channel,i_selected_kpt=i_SCKPT, &
-                                                     energies_bands=ener_SC_bands, coeff=coefficients, i_allg_in_file=iall_G, &
-                                                     elapsed_time=elapsed,add_elapsed_time_to=times%read_wf)
+                        call read_wavefunction(wf, file=args%WF_file, ikpt=i_SCKPT, &
+                                               elapsed_time=elapsed, add_elapsed_time_to=times%read_wf)
                         write(*,'(A,f0.1,A)')'    * Done in ',elapsed,'s.'
                     endif
-                    call select_coeffs_to_calc_spectral_weights(selected_coeff_indices, iall_G, &
-                                                                crystal_pc, crystal_SC, GUR)
+                    call select_coeffs_to_calc_spectral_weights(selected_coeff_indices, wf, crystal_pc, GUR)
                     if(allocated(selected_coeff_indices))then
-                        call perform_unfolding(delta_N, times, GUR, coefficients, &
-                                               selected_coeff_indices, energy_grid, ener_SC_bands)
+                        call perform_unfolding(delta_N, times, GUR, wf, selected_coeff_indices, energy_grid)
                         n_folding_pckpts_parsed = n_folding_pckpts_parsed + 1
                     else
                         call print_message_pckpt_cannot_be_parsed(stop_when_a_pckpt_cannot_be_parsed)

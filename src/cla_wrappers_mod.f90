@@ -137,8 +137,8 @@ integer :: spin_channel
 
     call cla_get('-spin_channel', spin_channel)
     spin_channel = abs(spin_channel)
-    if(spin_channel == 0 .or. spin_channel > 2)then 
-        if(spin_channel == 0) spin_channel = 1
+    if(spin_channel < 1 .or. spin_channel > 2)then 
+        if(spin_channel < 1) spin_channel = 1
         if(spin_channel > 2) spin_channel = 2
         write(*,'(A,I0,A)')'WARNING (get_commline_args): Resetting spin channel to ', spin_channel, '.'
     endif

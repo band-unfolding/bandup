@@ -26,7 +26,7 @@
 !/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! module read_wavefunctions
 ! ===================
-!  Contains a function "read_wavecar", which returns information about any
+!  Contains a function "read_wavefunction", which returns information about any
 !  selected k-point, skipping the others. This is very important for the
 !  performance of the BandUP code (or any other code that would require similar functionality).
 !  See the definition of the function for more information on the arguments.
@@ -97,58 +97,16 @@ use general_io, only: available_io_unit
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: read_wavecar, vasp_2m_over_hbar_sqrd 
+PUBLIC :: read_wavefunction, get_total_n_SC_kpts, vasp_2m_over_hbar_sqrd 
 !!$* Comments adapted from WaveTrans: The value of vasp_2m_over_hbar_sqrd has been adjusted in final decimal places to agree with VASP value
 !!$*                                  The routine "read_wavecar" checks for discrepancy of any results between this and VASP values
 real(kind=dp), parameter :: vasp_2m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2
 
 CONTAINS
 
-subroutine read_wavefunction(wf, file, read_coeffs, elapsed_time, add_elapsed_time_to, iostat)
+
+subroutine get_wavecar_record_lenght(nrecl, wf_file, iost)
 implicit none
-type(pw_wavefunction), intent(out) :: wf
-character(len=*), intent(in) :: file
-logical, intent(in), optional :: read_coeffs
-real(kind=dp), intent(out), optional :: elapsed_time
-real(kind=dp), intent(inout), optional :: add_elapsed_time_to
-integer, intent(out), optional :: iostat
-integer :: ios
-real(kind=dp) :: stime, ftime
-logical :: file_exists, spin_reset, read_coefficients
-
-    stime = time()
-    ios = 0
-    ! Check if file exists
-    inquire(file=file, exist=file_exists)
-    if(.not. file_exists)then
-        write(*,'(A)')"ERROR (read_wavefunction): File ", trim(adjustl(file), " doesn't exist."
-        ios = -1
-    else
-        ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
-        if(wf%i_kpt <=0) wf%i_kpt = 1
-        spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
-        if(spin_reset)then
-            if(wf%i_spin < 1) wf%i_spin = 1
-            if(wf%i_spin > 2) wf%i_spin = 2
-            write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
-        endif
-        read_coefficients = .TRUE. ! Reading the coeffs by default
-        if(present(read_coeffs)) read_coefficients = read_coeffs
-
-        call read_wavecar(wf, read_coeffs=read_coefficients, iostat=ios)
-        
-    endif
-
-    ftime = time()
-    if(present(elapsed_time)) elapsed_time = ftime - stime
-    if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
-    if(present(iostat)) iostat = ios
-    return
-
-end subroutine read_wavefunction
-
-
-subroutine get_wavecar_record_lenght(nrecl, wf_file)
 integer(kind=selected_int_kind(18)), intent(out) :: nrecl
 character(len=*), intent(in) :: wf_file
 integer, intent(out) :: iost
@@ -159,18 +117,41 @@ real(kind=dp) :: xnrecl
     nrecl=24 ! Trial record length
     open(unit=input_file_unit, file=wf_file, access='direct', recl=nrecl, iostat=iost, status='old')
         read(unit=input_file_unit, rec=1, iostat=iost) xnrecl
+        nrecl = nint(xnrecl)
     close(unit=input_file_unit)
 
 end subroutine get_wavecar_record_lenght
 
 
-subroutine read_wavecar(wf, total_nkpts, file_size_in_bytes, file, read_coeffs, iostat)
+subroutine get_total_n_SC_kpts(nkpts, file)
+implicit none
+integer, intent(out) :: nkpts
+character(len=*), intent(in) :: file
+integer :: input_file_unit, iost
+integer(kind=selected_int_kind(18)) :: nrecl
+real(kind=dp) :: xnwk
+
+    nkpts = 0
+    call get_wavecar_record_lenght(nrecl, file, iost)
+    if(iost==0)then
+        input_file_unit = available_io_unit()
+        open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, status='old')
+            read(unit=input_file_unit, rec=2, iostat=iost) xnwk
+        close(input_file_unit)
+        if(iost==0) nkpts = nint(xnwk)
+    endif
+
+end subroutine get_total_n_SC_kpts
+
+
+subroutine read_wavecar(wf, file, ikpt, read_coeffs, iostat)
 implicit none
 ! Mandatory input and output variables
 type(pw_wavefunction), intent(inout) :: wf
 character(len=*), intent(in) :: file
+integer, intent(in) :: ikpt
 ! Optional input and output variables
-integer, optional, intent(out) :: total_nkpts, file_size_in_bytes, iostat
+integer, optional, intent(out) :: iostat
 logical, optional, intent(in) :: read_coeffs
 ! Parameters
 integer, parameter :: size_of_a_coeff_in_bytes = sizeof(cmplx(1, kind=kind_cplx_coeffs))
@@ -183,8 +164,8 @@ real(kind=dp), dimension(1:3) :: a1, a2, a3, b1, b2, b3, sumkg
 real(kind=dp), dimension(1:3,1:3) :: b_matrix 
 real(kind=dp) :: b1mag, b2mag, b3mag, ecut, gtot, etot, phi12, phi13, phi23, sinphi123, &
                  xnwk, xnband, xnrecl, xnspin, xnprec, xnplane
-integer :: nplane, i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, ispin, &
-           irec_start_first_spin, irec_start_chosen_spin, nwk, nspin, nprec, nband, &
+integer :: i_kpt, nplane, i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, ispin, &
+           irec_start_first_spin, irec_start_chosen_spin, nwk, nprec, nband, &
            nb1maxA, nb2maxA, nb3maxA, nb1maxB, nb2maxB, nb3maxB, nb1maxC, nb2maxC, nb3maxC, &
            npmaxA, npmaxB, npmaxC, nb1max, nb2max, nb3max, npmax, iband, ncnt,  &
            input_file_unit, irec_before_loop,temp_unit, alloc_stat, i_wf_comp, &
@@ -192,28 +173,32 @@ integer :: nplane, i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, ispin, 
 integer(kind=selected_int_kind(18)) :: stream_pos, irec, nrecl
 integer, dimension(:), allocatable :: io_unit_for_thread
 complex(kind=kind_cplx_coeffs) :: inner_prod
+logical :: read_coefficients, reset_spin
 
 ! Start
 read_coefficients = .TRUE. ! Reading the coeffs by default
 if(present(read_coeffs)) read_coefficients = read_coeffs
-if(present(file_size_in_bytes)) inquire(file=file, size=file_size_in_bytes)
+if(present(iostat)) iostat = -1
 
 call get_wavecar_record_lenght(nrecl, file, iost)
 if(iost /= 0)then
     write(*,'(A)')'ERROR (read_wavecar): Could not determine record legth for the file.'
     write(*,'(A)')'Stopping now.'     
+    if(present(iostat)) iostat = iost
     stop
 endif
 
+input_file_unit = available_io_unit()
 open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, status='old')
     read(unit=input_file_unit, rec=1, iostat=iost) xnrecl, xnspin, xnprec
-    if (iost.ne.0) then
+    if(iost /= 0)then
         write(*,'(2A)')'Error reading the header of the input wavefunction file ', trim(adjustl(file))
         write(*,'(A)')'Stopping now.'     
+        if(present(iostat)) iostat = iost
         stop
     endif      
-    nprec=nint(xnprec) ! Numerical precision flag
-    if(nprec /= 45200 .and. kind_cplx_coeffs /= dp) then
+    nprec = nint(xnprec) ! Numerical precision flag
+    if(nprec /= 45200 .and. kind_cplx_coeffs /= dp)then
         write(*,'(A)') 'ERROR (read_wavecar module): You seem to be using a double-precision WAVECAR (WAVECAR_double),'
         write(*,'(A)') '                             but you are using a version of BandUP compiled for single-precision.' 
         write(*,'(A)') '                             To generate a double-precision version of BandUP, please change the variable' 
@@ -222,7 +207,7 @@ open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, 
         stop
     endif
 
-    wf%n_spin=nint(xnspin) ! Number of spin channels
+    wf%n_spin = nint(xnspin) ! Number of spin channels
     reset_spin = (wf%i_spin < 1 .or. wf%i_spin > wf%n_spin)
     if(wf%i_spin < 1) wf%i_spin = 1
     if(wf%i_spin > wf%n_spin) wf%i_spin = wf%n_spin
@@ -230,33 +215,34 @@ open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, 
     ispin = wf%i_spin
  
     read(unit=input_file_unit,rec=2, iostat=iost) xnwk,xnband,ecut,(a1(j),j=1,3),(a2(j),j=1,3),(a3(j),j=1,3)
-    nwk=nint(xnwk) ! Number of k-points
+    nwk = nint(xnwk) ! Number of k-points
     if(nwk==0 .or. iost/=0)then
-        write(*,'(3A)')'ERROR (read_wavecar): Unexpected file format (file "',trim(adjustl(file),'")'
+        write(*,'(3A)')'ERROR (read_wavecar): Unexpected file format (file "',trim(adjustl(file)),'")'
         if(nwk==0) write(*,'(A)')"Ifort users: You can try adding/removing the flag '-assume byterecl' when compiling the code."
         write(*,'(A)')'Stopping now.'
+        if(present(iostat)) iostat = iost
         stop
     endif
     nband=nint(xnband) ! Number of bands
     wf%n_bands = nband
     wf%Vcell= dabs(dot_product(a1, cross(a2,a3)))
     ! Vectors of the direct lattice.
-    wf%A_matrix(1:) = a1; wf%A_matrix(2:) = a2; wf%A_matrix(3:) = a3
+    wf%A_matrix(1,:) = a1; wf%A_matrix(2,:) = a2; wf%A_matrix(3,:) = a3
     ! Vectors of the reciprocal lattice.
-    b1 = twopi*cross(a2,a3)/Vcell; b1mag = norm(b1); b_matrix(1,:) = b1
-    b2 = twopi*cross(a3,a1)/Vcell; b2mag = norm(b2); b_matrix(2,:) = b2
-    b3 = twopi*cross(a1,a2)/Vcell; b3mag = norm(b3); b_matrix(3,:) = b3
+    b1 = twopi*cross(a2,a3)/wf%Vcell; b1mag = norm(b1); b_matrix(1,:) = b1
+    b2 = twopi*cross(a3,a1)/wf%Vcell; b2mag = norm(b2); b_matrix(2,:) = b2
+    b3 = twopi*cross(a1,a2)/wf%Vcell; b3mag = norm(b3); b_matrix(3,:) = b3
     wf%B_matrix = b_matrix
 
     wf%encut = ecut
-    if(present(total_nkpts)) total_nkpts = nwk
 
-    if((wf%i_kpt > nwk).or.(wf%i_kpt < 1))then
-        write(*,'(2(A,I0))')"WARNING (read_wavecar): Invalid choice of wf%i_kpt! &
-                             wf%i_kpt should lie between 1 and ", nwk,
+    i_kpt = ikpt
+    if((i_kpt > nwk).or.(i_kpt < 1))then
+        write(*,'(2(A,I0))')"WARNING (read_wavecar): Invalid choice of i_kpt! &
+                             i_kpt should lie between 1 and ", nwk, &
                              ". Reading info for k-point #1 instead of k-point #", &
-                             wf%i_kpt
-        wf%i_kpt = 1
+                             i_kpt
+        i_kpt = 1
     endif
 
     ! Positioning file register...
@@ -264,7 +250,7 @@ open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, 
     ! ... at the correct spin channel
     irec_start_chosen_spin = irec_start_first_spin + (ispin-1)*nwk*(1+nband) 
     ! ... at the correct k-point
-    irec = irec_start_chosen_spin + (wf%i_kpt-1)*(1+nband) + 1 
+    irec = irec_start_chosen_spin + (i_kpt-1)*(1+nband) + 1 
 
     allocate(cener(nband)) ! Band energies (as complex numbers)
     allocate(occ(nband)) ! Occupations 
@@ -273,12 +259,12 @@ open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, 
 close(unit=input_file_unit)
 
 nplane=nint(xnplane)
-wf%n_pw = nplane
 wf%kpt_frac_coords = frac_coords_selected_kpt
+deallocate(wf%band_energies, wf%band_occupations, stat=alloc_stat)
 allocate(wf%band_energies(1:nband))
 allocate(wf%band_occupations(1:nband))
 wf%band_energies(:) = real(cener(:), kind=dp)
-wf%occupations(:) = occ(:)
+wf%band_occupations(:) = occ(:)
 deallocate(cener)
 deallocate(occ)
 
@@ -352,13 +338,14 @@ if(ncnt /= nplane)then
         nplane = ncnt
         wf%n_spinor = 2
     else
-        write(*,'(A,I0,A)')'ERROR reading coefficients for wave vector K(',wf%i_kpt,'):' 
+        write(*,'(A,I0,A)')'ERROR reading coefficients for wave vector K(',i_kpt,'):' 
         write(*,'(A,I0)')  '    * Number of plane-waves expected for this wave vector: ', ncnt
         write(*,'(A,I0)')  '    * Number plane-waves found in the input file: ', nplane
         write(*,'(A)')     'Cannot continue. Stopping now.'
         stop
     endif
 endif
+wf%n_pw = nplane
 wf%is_spinor = wf%n_spinor==2
 
 ! Allocating the matrix that will contain the coordinates (n1,n2,n3) of the vectors 
@@ -386,17 +373,18 @@ do ig3=0,2*nb3max
             etot=gtot**2/c
             if (etot.lt.ecut) then
                 iplane = iplane + 1
-                G_cart(iplane)%coords(:) = ig1p*b1(:) + ig2p*b2(:) + ig3p*b3(:)
-                G_frac(iplane)%coords(1) = ig1p
-                G_frac(iplane)%coords(2) = ig2p
-                G_frac(iplane)%coords(3) = ig3p
+                wf%G_cart(iplane)%coord(:) = ig1p*b1(:) + ig2p*b2(:) + ig3p*b3(:)
+                wf%G_frac(iplane)%coord(1) = ig1p
+                wf%G_frac(iplane)%coord(2) = ig2p
+                wf%G_frac(iplane)%coord(3) = ig3p
             end if
         enddo
     enddo
 enddo
 
 if(read_coefficients)then
-    allocate(pw_coeffs(1:wf%n_spinor, nplane, nband))
+    deallocate(wf%pw_coeffs, stat=alloc_stat)
+    allocate(wf%pw_coeffs(1:wf%n_spinor, nplane, nband))
     ! The variables "io_unit_for_thread", "irec_before_loop" and "temp_unit" have been added
     ! to make it possible to use openmp to parallelize (over bands) 
     ! the reading of the WAVECAR file.
@@ -413,7 +401,7 @@ if(read_coefficients)then
     irec_before_loop = irec
     !$omp parallel default(none) &
     !$    private(temp_unit, iost, irec, stream_pos, inner_prod) &
-    !$    shared(io_unit_for_thread, irec_before_loop, nrecl, wf)
+    !$    shared(io_unit_for_thread, file, irec_before_loop, nrecl, wf)
     temp_unit = io_unit_for_thread(omp_get_thread_num() + 1)
     open(unit=temp_unit,file=file,access='stream',iostat=iost,status='old')
     !$omp do schedule(guided)
@@ -431,8 +419,53 @@ if(read_coefficients)then
     !$omp end parallel
     deallocate(io_unit_for_thread)
 endif
+if(present(iostat)) iostat = 0
 
 end subroutine read_wavecar
+
+
+subroutine read_wavefunction(wf, file, ikpt, read_coeffs, elapsed_time, add_elapsed_time_to, iostat)
+implicit none
+type(pw_wavefunction), intent(inout) :: wf
+character(len=*), intent(in) :: file
+integer, intent(in) :: ikpt
+logical, intent(in), optional :: read_coeffs
+real(kind=dp), intent(out), optional :: elapsed_time
+real(kind=dp), intent(inout), optional :: add_elapsed_time_to
+integer, intent(out), optional :: iostat
+integer :: ios, i_kpt
+real(kind=dp) :: stime, ftime
+logical :: file_exists, spin_reset, read_coefficients
+
+    stime = time()
+    ios = 0
+    ! Check if file exists
+    inquire(file=file, exist=file_exists)
+    if(.not. file_exists)then
+        write(*,'(3A)')"ERROR (read_wavefunction): File ", trim(adjustl(file)), " doesn't exist."
+        ios = -1
+    else
+        i_kpt = ikpt
+        ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
+        if(i_kpt < 1) i_kpt = 1
+        spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
+        if(spin_reset)then
+            if(wf%i_spin < 1) wf%i_spin = 1
+            if(wf%i_spin > 2) wf%i_spin = 2
+            write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
+        endif
+        read_coefficients = .TRUE. ! Reading the coeffs by default
+        if(present(read_coeffs)) read_coefficients = read_coeffs
+        call read_wavecar(wf, file=file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
+    endif
+
+    ftime = time()
+    if(present(elapsed_time)) elapsed_time = ftime - stime
+    if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
+    if(present(iostat)) iostat = ios
+    return
+
+end subroutine read_wavefunction
 
 
 end module read_wavefunctions

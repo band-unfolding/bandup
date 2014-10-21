@@ -30,7 +30,7 @@ use constants_and_types
 use cla_wrappers
 use strings
 use general_io
-use read_wavecar
+use read_wavefunctions
 use read_vasp_files
 use write_vasp_files
 use math

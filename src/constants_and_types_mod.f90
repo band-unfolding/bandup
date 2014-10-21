@@ -42,10 +42,10 @@ PUBLIC :: calc_spec_func_explicitly, stop_when_a_pckpt_cannot_be_parsed, &
           print_GUR_pre_unfolding_utility, renormalize_wf 
 
 ! Derived types
-PUBLIC :: timekeeping, vec3d, symmetry_operation, crystal_3D, star_point_properties, &
+PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_point_properties, &
           star, bz_direction, eqv_bz_directions, irr_bz_directions, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, UnfoldedQuantities, & 
-          UnfoldedQuantitiesForOutput, comm_line_args
+          UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction
 
 
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
@@ -68,17 +68,6 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       renormalize_wf = .TRUE.
 
 !! Derived type definitions
-type :: pw_wavefunction
-    integer :: i_kpt, i_spin, &
-               n_pw, n_spin, n_bands, n_spinor
-    ! G(ipw,1:3) := fractional coords of RL vec associated with pw_coeff(ipw)
-    integer, dimension(:,:), allocatable :: G 
-    real(kind=dp) :: encut, Vcell
-    real(kin=dp), dimension(1:3) :: kpt_frac_coords, kpt_cart_coords
-    real(kin=dp), dimension(1:3,1:3) :: A_matrix, B_matrix ! Direct and reciprocal lattice vectors
-    real(kind=dp), dimension(:), allocatable :: band_energies, band_occupations
-    complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: pw_coeffs
-end type pw_wavefunction
 
 type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
@@ -100,6 +89,25 @@ end type timekeeping
 type :: vec3d
   real(kind=dp), dimension(1:3) :: coord
 end type vec3d
+
+type :: vec3d_int
+  integer, dimension(1:3) :: coord
+end type vec3d_int
+
+type :: pw_wavefunction
+    integer :: i_kpt, i_spin, &
+               n_pw, n_spin, n_bands, n_spinor
+    ! G(ipw,1:3) := fractional coords of RL vec associated with pw_coeff(ipw)
+    integer, dimension(:,:), allocatable :: G 
+    real(kind=dp) :: encut, Vcell
+    real(kind=dp), dimension(1:3) :: kpt_frac_coords, kpt_cart_coords
+    real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix ! Direct and reciprocal lattice vectors
+    real(kind=dp), dimension(:), allocatable :: band_energies, band_occupations
+    type(vec3d), dimension(:), allocatable :: G_cart
+    type(vec3d_int), dimension(:), allocatable :: G_frac
+    complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: pw_coeffs
+    logical :: is_spinor
+end type pw_wavefunction
 
 type :: symmetry_operation
     integer, dimension(1:3) :: translation_fractional_coords

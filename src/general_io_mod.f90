@@ -31,12 +31,12 @@ use math
 implicit none
 SAVE
 PRIVATE
-PUBLIC :: available_io_unit, file_extension, filename_without_extension, & 
+PUBLIC :: available_io_unit, file_extension, filename_without_extension, get_file_size_in_bytes, & 
           str_len, package_version, file_header_BandUP, file_header_BandUP_short, &
           file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="2.5.0 (BETA), 2014-09-19"
+character(len=30), parameter :: package_version="2.5.0 (BETA), 2014-10-22"
 character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - Band Unfolding code for Plane-wave based calculations, &
                                                         V"//trim(adjustl(package_version)), &
                                      file_header_BandUP_short="# File created by BandUP, V"//trim(adjustl(package_version)), &
@@ -125,6 +125,20 @@ integer :: dot_position
     endif
 
 end function filename_without_extension
+
+
+subroutine get_file_size_in_bytes(file_size, file)
+implicit none
+integer(8), intent(out) :: file_size
+character(len=*), intent(in) :: file
+logical :: file_exists
+
+    file_size = 0
+    inquire(file=file, exist=file_exists)
+    if(file_exists) inquire(file=file, size=file_size)
+    return
+
+end subroutine get_file_size_in_bytes
 
 
 end module general_io
