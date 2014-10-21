@@ -15,6 +15,17 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
+
+!===============================================================================
+! MODULE: constants_and_types 
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION:
+!> Provides all constants and derived types used in BandUP.
+!===============================================================================
+
 module constants_and_types
 implicit none
 PRIVATE
@@ -57,6 +68,18 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       renormalize_wf = .TRUE.
 
 !! Derived type definitions
+type :: pw_wavefunction
+    integer :: i_kpt, i_spin, &
+               n_pw, n_spin, n_bands, n_spinor
+    ! G(ipw,1:3) := fractional coords of RL vec associated with pw_coeff(ipw)
+    integer, dimension(:,:), allocatable :: G 
+    real(kind=dp) :: encut, Vcell
+    real(kin=dp), dimension(1:3) :: kpt_frac_coords, kpt_cart_coords
+    real(kin=dp), dimension(1:3,1:3) :: A_matrix, B_matrix ! Direct and reciprocal lattice vectors
+    real(kind=dp), dimension(:), allocatable :: band_energies, band_occupations
+    complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: pw_coeffs
+end type pw_wavefunction
+
 type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &

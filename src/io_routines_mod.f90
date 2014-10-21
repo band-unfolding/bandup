@@ -14,6 +14,17 @@
 !!
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+
+!===============================================================================
+! MODULE: io_routines
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION:
+!> Contains most of the specific I/O routines used by BandUP.
+!===============================================================================
+
 module io_routines
 use constants_and_types
 use cla_wrappers

@@ -22,6 +22,17 @@
 ! of the bands.
 !/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
+!===============================================================================
+! MODULE: band_unfolding 
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION:
+!> Contains all routines employed to perform unfolding in BandUP.
+!===============================================================================
+
 module band_unfolding
 !$ use omp_lib
 use constants_and_types

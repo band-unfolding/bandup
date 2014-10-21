@@ -15,6 +15,16 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
+!===============================================================================
+! MODULE: general_io
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION: 
+!> Provides routines and constants to perform general I/O.
+!===============================================================================
+
 module general_io
 use constants_and_types
 use math

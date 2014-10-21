@@ -15,6 +15,17 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
+!===============================================================================
+! MODULE: cla_wrappers 
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION:
+!> Wrappers to the CLA-F90 module, used for command-line arguments.
+!> See http://web.cecs.pdx.edu/~zaron/pub/CLA-F90.html
+!===============================================================================
+
 module cla_wrappers
 use cla
 use kinds

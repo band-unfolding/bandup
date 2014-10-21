@@ -14,6 +14,17 @@
 !!
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+
+!===============================================================================
+! MODULE: math 
+!
+!> @author
+!> Paulo V C Medeiros, Linköping University
+!
+! DESCRIPTION: 
+!> Defines some mathematical functions and subroutines used by BandUP.
+!===============================================================================
+
 module math
 use constants_and_types
 use spglib_f08
