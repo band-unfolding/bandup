@@ -24,7 +24,7 @@
 !! has been granted by WaveTrans' Copyright holders. Thanks!
 
 !/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! module read_wavecar
+! module read_wavefunctions
 ! ===================
 !  Contains a function "read_wavecar", which returns information about any
 !  selected k-point, skipping the others. This is very important for the
@@ -36,7 +36,7 @@
 !!$************************* List of major changes from the WaveTrans code ****************************************
 !!$*
 !!$*       1: Turned the code into a module (read_wavecar), which can be used in the  program.
-!!$*          1.a: The routine "read_from_wavefunc_file" returns information about any selected k-point, skipping the others.
+!!$*          1.a: The routine "read_wavecar" returns information about any selected k-point, skipping the others.
 !!$*               In order to do that, I have changed a bit the way the positioning of the 
 !!$*               register is handled (which is also needed for openmp, see item 2)
 !!$*          1.b: The GCOEFF.txt file is no longer created
@@ -89,7 +89,7 @@
 !!$*   investigated thus far)
 !!$******* End of comments in the header of the WaveTrans code **************************************************       
 
-module read_wavecar
+module read_wavefunctions
 use constants_and_types
 use cla_wrappers
 use math
@@ -97,360 +97,342 @@ use general_io, only: available_io_unit
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: read_from_wavefunc_file, vasp_2m_over_hbar_sqrd 
+PUBLIC :: read_wavecar, vasp_2m_over_hbar_sqrd 
 !!$* Comments adapted from WaveTrans: The value of vasp_2m_over_hbar_sqrd has been adjusted in final decimal places to agree with VASP value
-!!$*                                  The routine "read_from_wavefunc_file" checks for discrepancy of any results between this and VASP values
+!!$*                                  The routine "read_wavecar" checks for discrepancy of any results between this and VASP values
 real(kind=dp), parameter :: vasp_2m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2
-
 
 CONTAINS
 
-
-subroutine read_from_wavefunc_file(i_selected_kpt, kpt_frac_coords, n_spin_channels, spin_channel, n_plane_waves, &
-                                   energies_bands, occupations, i_allg_in_file, coeff, &
-                                   file_size_in_bytes, rec_latt_b_matrix, latt_vecs, total_nkpts, ENCUT, &
-                                   spinor_wf, elapsed_time, add_elapsed_time_to, iostat)
+subroutine read_wavefunction(wf, file, read_coeffs, elapsed_time, add_elapsed_time_to, iostat)
 implicit none
-!!$* Input and output variables
-integer, optional, intent(in) :: i_selected_kpt ! Index of the selected SCBZ k-point
-real(kind=dp), dimension(1:3), optional, intent(out) :: kpt_frac_coords ! Coords of the SCBZ k-point in the [b1, b2, b3] basis
-integer, intent(out), optional :: n_plane_waves ! Number of SCBZ K-wave-vectors that differ from the selected kpt by vectors of the SC rec. latt.
-integer(8), intent(out), optional :: file_size_in_bytes
-integer, optional, intent(out) :: n_spin_channels
-integer, optional, intent(in) :: spin_channel
-real(kind=dp), dimension(:), allocatable, optional, intent(out) :: energies_bands, occupations  ! E = E(K; iband)
-integer, dimension(:,:), allocatable, optional, intent(out) :: i_allg_in_file
-complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable, optional, intent(out) :: coeff ! Coefficients, coeff(ikpt, iband)
-logical, intent(out), optional :: spinor_wf
-! Matrices of the direct/reciprocal lattice vectors. b_matrix(i,:) = bi
-real(kind=dp), dimension(1:3,1:3), intent(out), optional :: rec_latt_b_matrix, latt_vecs 
-integer, optional, intent(out) :: total_nkpts ! Total number of k-points in the input file
-real(kind=dp), optional, intent(out) :: ENCUT
-real(kind=dp), optional, intent(inout) :: add_elapsed_time_to, elapsed_time
-integer, optional, intent(out) :: iostat
-!!$* Parameters
+type(pw_wavefunction), intent(out) :: wf
+character(len=*), intent(in) :: file
+logical, intent(in), optional :: read_coeffs
+real(kind=dp), intent(out), optional :: elapsed_time
+real(kind=dp), intent(inout), optional :: add_elapsed_time_to
+integer, intent(out), optional :: iostat
+integer :: ios
+real(kind=dp) :: stime, ftime
+logical :: file_exists, spin_reset, read_coefficients
+
+    stime = time()
+    ios = 0
+    ! Check if file exists
+    inquire(file=file, exist=file_exists)
+    if(.not. file_exists)then
+        write(*,'(A)')"ERROR (read_wavefunction): File ", trim(adjustl(file), " doesn't exist."
+        ios = -1
+    else
+        ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
+        if(wf%i_kpt <=0) wf%i_kpt = 1
+        spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
+        if(spin_reset)then
+            if(wf%i_spin < 1) wf%i_spin = 1
+            if(wf%i_spin > 2) wf%i_spin = 2
+            write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
+        endif
+        read_coefficients = .TRUE. ! Reading the coeffs by default
+        if(present(read_coeffs)) read_coefficients = read_coeffs
+
+        call read_wavecar(wf, read_coeffs=read_coefficients, iostat=ios)
+        
+    endif
+
+    ftime = time()
+    if(present(elapsed_time)) elapsed_time = ftime - stime
+    if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
+    if(present(iostat)) iostat = ios
+    return
+
+end subroutine read_wavefunction
+
+
+subroutine get_wavecar_record_lenght(nrecl, wf_file)
+integer(kind=selected_int_kind(18)), intent(out) :: nrecl
+character(len=*), intent(in) :: wf_file
+integer, intent(out) :: iost
+integer :: input_file_unit
+real(kind=dp) :: xnrecl
+
+    input_file_unit = available_io_unit()
+    nrecl=24 ! Trial record length
+    open(unit=input_file_unit, file=wf_file, access='direct', recl=nrecl, iostat=iost, status='old')
+        read(unit=input_file_unit, rec=1, iostat=iost) xnrecl
+    close(unit=input_file_unit)
+
+end subroutine get_wavecar_record_lenght
+
+
+subroutine read_wavecar(wf, total_nkpts, file_size_in_bytes, file, read_coeffs, iostat)
+implicit none
+! Mandatory input and output variables
+type(pw_wavefunction), intent(inout) :: wf
+character(len=*), intent(in) :: file
+! Optional input and output variables
+integer, optional, intent(out) :: total_nkpts, file_size_in_bytes, iostat
+logical, optional, intent(in) :: read_coeffs
+! Parameters
 integer, parameter :: size_of_a_coeff_in_bytes = sizeof(cmplx(1, kind=kind_cplx_coeffs))
 real(kind=dp), parameter :: c = vasp_2m_over_hbar_sqrd ! 2m/hbar**2 in units of 1/eV Ang^2
-!!$* Variables used internally
+! Local variables
 real(kind=dp), dimension(1:3) :: frac_coords_selected_kpt 
-integer :: nplane ! Number of SCBZ K-wave-vectors that differ from the selected kpt by vectors of the SC rec. latt.
 complex(kind=dp), allocatable :: cener(:)  ! Re{cener(iband)} = E(K; iband)
 real(kind=dp), dimension(:), allocatable :: occ
-real(kind=dp), dimension(1:3) :: a1,a2,a3,b1,b2,b3,sumkg
-real(kind=dp), dimension(1:3,1:3) :: b_matrix ! Matrix of the reciprocal lattice vectors. b_matrix(i,:) = bi
-real(kind=dp) :: vcell, b1mag, b2mag, b3mag, ecut, gtot, etot, phi12, phi13, phi23, sinphi123, &
-                 xnwk, xnband, xnrecl, xnspin, xnprec, xnplane, stime, ftime
-integer :: i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, ispin, &
+real(kind=dp), dimension(1:3) :: a1, a2, a3, b1, b2, b3, sumkg
+real(kind=dp), dimension(1:3,1:3) :: b_matrix 
+real(kind=dp) :: b1mag, b2mag, b3mag, ecut, gtot, etot, phi12, phi13, phi23, sinphi123, &
+                 xnwk, xnband, xnrecl, xnspin, xnprec, xnplane
+integer :: nplane, i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, ispin, &
            irec_start_first_spin, irec_start_chosen_spin, nwk, nspin, nprec, nband, &
            nb1maxA, nb2maxA, nb3maxA, nb1maxB, nb2maxB, nb3maxB, nb1maxC, nb2maxC, nb3maxC, &
            npmaxA, npmaxB, npmaxC, nb1max, nb2max, nb3max, npmax, iband, ncnt,  &
-           input_file_unit, irec_before_loop,temp_unit, alloc_stat, n_wf_comp, i_wf_comp, i_selec_kpt
+           input_file_unit, irec_before_loop,temp_unit, alloc_stat, i_wf_comp, &
+           n_threads, ithread
 integer(kind=selected_int_kind(18)) :: stream_pos, irec, nrecl
-integer, dimension(:), allocatable :: available_io_units
+integer, dimension(:), allocatable :: io_unit_for_thread
 complex(kind=kind_cplx_coeffs) :: inner_prod
-logical :: file_exists
-
 
 ! Start
-stime = time()
+read_coefficients = .TRUE. ! Reading the coeffs by default
+if(present(read_coeffs)) read_coefficients = read_coeffs
+if(present(file_size_in_bytes)) inquire(file=file, size=file_size_in_bytes)
 
-if(present(iostat)) iostat = -1
-
-if(.not.present(i_selected_kpt))then
-    if(present(n_plane_waves)   .or. &
-       present(kpt_frac_coords) .or. &
-       present(energies_bands)  .or. &
-       present(occupations)     .or. &
-       present(i_allg_in_file)  .or. &
-       present(coeff)          )then
-        write(*,'(A)')'ERROR (read_wavecar_mod): Not able to retrieve information from the &
-                       wavefunctions file. Please specify a k-point index.'
-        write(*,'(A)')'                          Stopping now.'
-        stop
-    endif
-endif
-
-
-input_file_unit = available_io_unit()
-nrecl=24 ! Trial record length (recl = length of each record in a file connected for direct access)
-open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
-    if (iost.ne.0) then
-        write(*,'(2A)')'Error opening the input wavefunction file ', trim(adjustl(args%WF_file))
-        inquire(file=args%WF_file, exist=file_exists)
-        if(file_exists)then
-            write(*,'(A)')'    * The file exists, but could not be read.'
-        else
-            write(*,'(A)')'    * It seems that the file is missing.'
-        endif 
-        write(*,'(A)')'Stopping now.'     
-        stop
-    else
-        if(present(file_size_in_bytes)) inquire(unit=input_file_unit, size=file_size_in_bytes)
-    endif       
-    read(unit=input_file_unit,rec=1) xnrecl,xnspin,xnprec
-close(unit=input_file_unit)
-
-nrecl=nint(xnrecl) ! Correct record length
-nprec=nint(xnprec) ! Numerical precision flag
-if(nprec /= 45200 .and. kind_cplx_coeffs /= dp) then
-    write(*,'(A)') 'ERROR (read_wavecar module): You seem to be using a double-precision WAVECAR (WAVECAR_double),'
-    write(*,'(A)') '                             but you are using a version of BandUP compiled for single-precision.' 
-    write(*,'(A)') '                             To generate a double-precision version of BandUP, please change the variable' 
-    write(*,'(A)') '                             "kind_cplx_coeffs" from "sp" to "dp" in the file src/math_mod.f90, and recompile the code.'
-    write(*,'(A)') 'Stopping now.'
+call get_wavecar_record_lenght(nrecl, file, iost)
+if(iost /= 0)then
+    write(*,'(A)')'ERROR (read_wavecar): Could not determine record legth for the file.'
+    write(*,'(A)')'Stopping now.'     
     stop
 endif
 
-nspin=nint(xnspin) ! Number of spin channels
-if(present(n_spin_channels)) n_spin_channels = nspin
-
-ispin = 1
-if(present(spin_channel))then
-    if((spin_channel>=1).and.(spin_channel<=nspin))then
-        ispin = spin_channel
-    else
-        write(*,'(A)')'WARNING (read_wavecar_mod): The wavefunction contains only 1 spin channel.'
-        write(*,'(A)')'                            Reading information on the this spin.'
-    endif
-endif
-
-
-input_file_unit = available_io_unit()
-open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
-    if(iost.ne.0)then
-        write(*,'(2A)')'ERROR opening the input wavefunction file ', trim(adjustl(args%WF_file))
-        write(*,'(A)')'    * The file exists, but could not be read.'
-        write(*,'(A)')'Stopping now.'
-        close(unit=input_file_unit)
+open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, status='old')
+    read(unit=input_file_unit, rec=1, iostat=iost) xnrecl, xnspin, xnprec
+    if (iost.ne.0) then
+        write(*,'(2A)')'Error reading the header of the input wavefunction file ', trim(adjustl(file))
+        write(*,'(A)')'Stopping now.'     
         stop
-    endif       
-    read(unit=input_file_unit,rec=2) xnwk,xnband,ecut,(a1(j),j=1,3),(a2(j),j=1,3),(a3(j),j=1,3)
+    endif      
+    nprec=nint(xnprec) ! Numerical precision flag
+    if(nprec /= 45200 .and. kind_cplx_coeffs /= dp) then
+        write(*,'(A)') 'ERROR (read_wavecar module): You seem to be using a double-precision WAVECAR (WAVECAR_double),'
+        write(*,'(A)') '                             but you are using a version of BandUP compiled for single-precision.' 
+        write(*,'(A)') '                             To generate a double-precision version of BandUP, please change the variable' 
+        write(*,'(A)') '                             "kind_cplx_coeffs" from "sp" to "dp" in the file src/math_mod.f90, and recompile the code.'
+        write(*,'(A)') 'Stopping now.'
+        stop
+    endif
+
+    wf%n_spin=nint(xnspin) ! Number of spin channels
+    reset_spin = (wf%i_spin < 1 .or. wf%i_spin > wf%n_spin)
+    if(wf%i_spin < 1) wf%i_spin = 1
+    if(wf%i_spin > wf%n_spin) wf%i_spin = wf%n_spin
+    if(reset_spin) write(*,'(A,I1)')'WARNING (read_wavecar): Spin channel reset to ', wf%i_spin
+    ispin = wf%i_spin
+ 
+    read(unit=input_file_unit,rec=2, iostat=iost) xnwk,xnband,ecut,(a1(j),j=1,3),(a2(j),j=1,3),(a3(j),j=1,3)
     nwk=nint(xnwk) ! Number of k-points
-    if(nwk==0)then
-        write(*,'(2A)')'ERROR (read_wavecar module): no KPTS could be read from file ', trim(adjustl(args%WF_file))
-        write(*,'(A)')"Ifort users: You could try adding/removing the flag '-assume byterecl' when compiling the code."
+    if(nwk==0 .or. iost/=0)then
+        write(*,'(3A)')'ERROR (read_wavecar): Unexpected file format (file "',trim(adjustl(file),'")'
+        if(nwk==0) write(*,'(A)')"Ifort users: You can try adding/removing the flag '-assume byterecl' when compiling the code."
         write(*,'(A)')'Stopping now.'
         stop
     endif
     nband=nint(xnband) ! Number of bands
-!   Volume of the cell
-    Vcell= dabs(dot_product(a1, cross(a2,a3)))
-!   Vectors of the reciprocal lattice.
+    wf%n_bands = nband
+    wf%Vcell= dabs(dot_product(a1, cross(a2,a3)))
+    ! Vectors of the direct lattice.
+    wf%A_matrix(1:) = a1; wf%A_matrix(2:) = a2; wf%A_matrix(3:) = a3
+    ! Vectors of the reciprocal lattice.
     b1 = twopi*cross(a2,a3)/Vcell; b1mag = norm(b1); b_matrix(1,:) = b1
     b2 = twopi*cross(a3,a1)/Vcell; b2mag = norm(b2); b_matrix(2,:) = b2
     b3 = twopi*cross(a1,a2)/Vcell; b3mag = norm(b3); b_matrix(3,:) = b3
+    wf%B_matrix = b_matrix
 
-    if(present(latt_vecs))then
-        latt_vecs(1,:) = a1
-        latt_vecs(2,:) = a2
-        latt_vecs(3,:) = a3
-    endif
-
-    if(present(ENCUT)) ENCUT = ecut
+    wf%encut = ecut
     if(present(total_nkpts)) total_nkpts = nwk
-    if(present(rec_latt_b_matrix)) rec_latt_b_matrix = b_matrix
 
-
-    i_selec_kpt = 1
-    if(present(i_selected_kpt)) i_selec_kpt = i_selected_kpt
-    if(present(n_plane_waves)   .or. &
-       present(kpt_frac_coords) .or. &
-       present(energies_bands)  .or. &
-       present(occupations)     .or. &
-       present(i_allg_in_file)  .or. &
-       present(coeff)          )then
-        if((i_selec_kpt > nwk).or.(i_selec_kpt < 1))then
-            write(*,'(2(A,I0),A)') 'ERROR: Cannot parse i_selected_kpt = ',i_selec_kpt,&
-                                   '. i_selected_kpt should be in between 1 and ', &
-                                    nwk,' (the number fo K-points in the wavefunctions file).'
-            write(*,'(A)') 'Stopping now.'
-            stop
-        endif
+    if((wf%i_kpt > nwk).or.(wf%i_kpt < 1))then
+        write(*,'(2(A,I0))')"WARNING (read_wavecar): Invalid choice of wf%i_kpt! &
+                             wf%i_kpt should lie between 1 and ", nwk,
+                             ". Reading info for k-point #1 instead of k-point #", &
+                             wf%i_kpt
+        wf%i_kpt = 1
     endif
- 
-    irec_start_first_spin=2
-    irec_start_chosen_spin = irec_start_first_spin + (ispin-1)*nwk*(1+nband) ! Positioning the register at the correct spin channel
-    irec = irec_start_chosen_spin + (i_selec_kpt-1)*(1+nband) + 1 ! Positioning the register at the correct k-point
 
-    allocate(cener(nband)) ! Band energies (as a complex number)
+    ! Positioning file register...
+    irec_start_first_spin=2
+    ! ... at the correct spin channel
+    irec_start_chosen_spin = irec_start_first_spin + (ispin-1)*nwk*(1+nband) 
+    ! ... at the correct k-point
+    irec = irec_start_chosen_spin + (wf%i_kpt-1)*(1+nband) + 1 
+
+    allocate(cener(nband)) ! Band energies (as complex numbers)
     allocate(occ(nband)) ! Occupations 
     read(unit=input_file_unit,rec=irec) xnplane,(frac_coords_selected_kpt(i),i=1,3),(cener(iband),occ(iband),iband=1,nband)
 
 close(unit=input_file_unit)
 
 nplane=nint(xnplane)
-if(present(n_plane_waves)) n_plane_waves = nplane
-if(present(kpt_frac_coords)) kpt_frac_coords = frac_coords_selected_kpt
-
-if(present(energies_bands))then
-    allocate(energies_bands(1:nband))
-    energies_bands(:) = real(cener(:), kind=dp)
-endif
+wf%n_pw = nplane
+wf%kpt_frac_coords = frac_coords_selected_kpt
+allocate(wf%band_energies(1:nband))
+allocate(wf%band_occupations(1:nband))
+wf%band_energies(:) = real(cener(:), kind=dp)
+wf%occupations(:) = occ(:)
 deallocate(cener)
-
-if(present(occupations))then
-    allocate(occupations(1:nband))
-    occupations(:) = occ(:)
-endif
 deallocate(occ)
 
+! Estimating the maximum integers (nb1,nb2,,nb3) used in the combination
+! G(nb1,nb2,,nb3) = sum(nbi*bi; i=1,2,3)
+! that defines a general vector G of the reciprocal lattice.
+! nbimax == max(nbi), for i =1,2,3. 
+phi12 = angle(b1, b2)
+phi13 = angle(b1, b3)
+phi23 = angle(b2, b3)
 
-if(present(i_allg_in_file) .or. present(coeff) .or. present(spinor_wf))then
-    !   Estimating the maximum integers (nb1,nb2,,nb3) used in the combination
-    !   G(nb1,nb2,,nb3) = sum(nbi*bi; i=1,2,3)
-    !   that defines a general vector G of the reciprocal lattice.
-    !   nbimax == max(nbi), for i =1,2,3. 
-    phi12 = angle(b1, b2)
-    phi13 = angle(b1, b3)
-    phi23 = angle(b2, b3)
+! phi123 is the angle between the vector b3 and the plane formed by the vectors b1 and b2
+! Thus, phi123 = Pi/2 - angle(b3, cross(b1, b2)) => sin(phi123) = cos[angle(b3, cross(b1, b2))] 
+sinphi123 = cos(angle(b3, cross(b1, b2)))
+!     b1mag*abs(sin(phi12) gives the proj. of b1 in the direction perpendicular to b2
+nb1maxA=(dsqrt(ecut*c)/(b1mag*abs(sin(phi12))))+1 
+nb2maxA=(dsqrt(ecut*c)/(b2mag*abs(sin(phi12))))+1
+nb3maxA=(dsqrt(ecut*c)/(b3mag*abs(sinphi123)))+1
+npmaxA=nint(4.*pi*nb1maxA*nb2maxA*nb3maxA/3.)
 
-    !   phi123 is the angle between the vector b3 and the plane formed by the vectors b1 and b2
-    !   Thus, phi123 = Pi/2 - angle(b3, cross(b1, b2)) => sin(phi123) = cos[angle(b3, cross(b1, b2))] 
-    sinphi123 = cos(angle(b3, cross(b1, b2)))
-    nb1maxA=(dsqrt(ecut*c)/(b1mag*abs(sin(phi12))))+1 ! b1mag*abs(sin(phi12) gives the proj. of b1 in the direction perpendicular to b2
-    nb2maxA=(dsqrt(ecut*c)/(b2mag*abs(sin(phi12))))+1
-    nb3maxA=(dsqrt(ecut*c)/(b3mag*abs(sinphi123)))+1
-    npmaxA=nint(4.*pi*nb1maxA*nb2maxA*nb3maxA/3.)
-
-    !   phi123 is now the angle between the vector b2 and the plane formed by the vectors b1 and b3
-    sinphi123 = cos(angle(b2, cross(b1,b3)))
-    nb1maxB=(dsqrt(ecut*c)/(b1mag*abs(sin(phi13))))+1
-    nb2maxB=(dsqrt(ecut*c)/(b2mag*abs(sinphi123)))+1
-    nb3maxB=(dsqrt(ecut*c)/(b3mag*abs(sin(phi13))))+1
-    npmaxB=nint(4.*pi*nb1maxB*nb2maxB*nb3maxB/3.)
+! phi123 is now the angle between the vector b2 and the plane formed by the vectors b1 and b3
+sinphi123 = cos(angle(b2, cross(b1,b3)))
+nb1maxB=(dsqrt(ecut*c)/(b1mag*abs(sin(phi13))))+1
+nb2maxB=(dsqrt(ecut*c)/(b2mag*abs(sinphi123)))+1
+nb3maxB=(dsqrt(ecut*c)/(b3mag*abs(sin(phi13))))+1
+npmaxB=nint(4.*pi*nb1maxB*nb2maxB*nb3maxB/3.)
      
-    !   phi123 is now the angle between the vector b1 and the plane formed by the vectors b2 and b3
-    sinphi123 = cos(angle(b1, cross(b2,b3))) 
-    nb1maxC=(dsqrt(ecut*c)/(b1mag*abs(sinphi123)))+1
-    nb2maxC=(dsqrt(ecut*c)/(b2mag*abs(sin(phi23))))+1
-    nb3maxC=(dsqrt(ecut*c)/(b3mag*abs(sin(phi23))))+1 
-    npmaxC=nint(4.*pi*nb1maxC*nb2maxC*nb3maxC/3.)
+! phi123 is now the angle between the vector b1 and the plane formed by the vectors b2 and b3
+sinphi123 = cos(angle(b1, cross(b2,b3))) 
+nb1maxC=(dsqrt(ecut*c)/(b1mag*abs(sinphi123)))+1
+nb2maxC=(dsqrt(ecut*c)/(b2mag*abs(sin(phi23))))+1
+nb3maxC=(dsqrt(ecut*c)/(b3mag*abs(sin(phi23))))+1 
+npmaxC=nint(4.*pi*nb1maxC*nb2maxC*nb3maxC/3.)
 
-    nb1max=max0(nb1maxA,nb1maxB,nb1maxC)
-    nb2max=max0(nb2maxA,nb2maxB,nb2maxC)
-    nb3max=max0(nb3maxA,nb3maxB,nb3maxC)
-    npmax=min0(npmaxA,npmaxB,npmaxC)
+nb1max=max0(nb1maxA,nb1maxB,nb1maxC)
+nb2max=max0(nb2maxA,nb2maxB,nb2maxC)
+nb3max=max0(nb3maxA,nb3maxB,nb3maxC)
+npmax=min0(npmaxA,npmaxB,npmaxC)
 
-
-    ! Getting the indices of the planewave coefficients
-    ! I count them before storing them because, if we're working with spinor
-    ! wavefunctions, the count will be twice as much as nplane
-    ncnt=0
-    do ig3=0,2*nb3max
-        ig3p=ig3
-        if (ig3.gt.nb3max) ig3p=ig3-2*nb3max-1  ! Trick to make ig3p range from 0 to nb3max and then from -nb3max to -1
-        do ig2=0,2*nb2max
-            ig2p=ig2
-            if (ig2.gt.nb2max) ig2p=ig2-2*nb2max-1 
-            do ig1=0,2*nb1max
-                ig1p=ig1
-                if (ig1.gt.nb1max) ig1p=ig1-2*nb1max-1 
-                do j=1,3
-                    sumkg(j)=(frac_coords_selected_kpt(1)+ig1p)*b1(j) + &
-                             (frac_coords_selected_kpt(2)+ig2p)*b2(j) + &
-                             (frac_coords_selected_kpt(3)+ig3p)*b3(j)
-                enddo
-                gtot=sqrt(sumkg(1)**2+sumkg(2)**2+sumkg(3)**2)
-                etot=gtot**2/c
-                if (etot.lt.ecut) then
-                    ncnt=ncnt+1
-                end if
+! I'll now count the # of pw coeffs. 
+! I do this before storing them and the accosiated RL vecs because, 
+! if we're working with spinor wavefunctions, the count will be twice as much as nplane
+ncnt=0
+do ig3=0,2*nb3max
+    ig3p=ig3
+    ! Trick to make ig3p range from 0 to nb3max and then from -nb3max to -1
+    if (ig3.gt.nb3max) ig3p=ig3-2*nb3max-1  
+    do ig2=0,2*nb2max
+        ig2p=ig2
+        if (ig2.gt.nb2max) ig2p=ig2-2*nb2max-1 
+        do ig1=0,2*nb1max
+            ig1p=ig1
+            if (ig1.gt.nb1max) ig1p=ig1-2*nb1max-1 
+            do j=1,3
+                sumkg(j)=(frac_coords_selected_kpt(1)+ig1p)*b1(j) + &
+                         (frac_coords_selected_kpt(2)+ig2p)*b2(j) + &
+                         (frac_coords_selected_kpt(3)+ig3p)*b3(j)
             enddo
+            gtot=sqrt(sumkg(1)**2+sumkg(2)**2+sumkg(3)**2)
+            etot=gtot**2/c
+            if (etot.lt.ecut) then
+                ncnt=ncnt+1
+            end if
         enddo
     enddo
+enddo
 
-    n_wf_comp = 1
-    if(ncnt /= nplane)then
-        if(nplane == 2*ncnt)then
-            nplane = ncnt
-            n_wf_comp = 2
-        else
-            write(*,'(A,I0,A)')'ERROR reading coefficients for wave vector K(',i_selec_kpt,'):' 
-            write(*,'(A,I0)')  '    * Number of plane-waves expected for this wave vector: ', ncnt
-            write(*,'(A,I0)')  '    * Number plane-waves found in the input file: ', nplane
-            write(*,'(A)')     'Cannot continue. Stopping now.'
-            stop
-        endif
+wf%n_spinor = 1
+if(ncnt /= nplane)then
+    if(nplane == 2*ncnt)then
+        nplane = ncnt
+        wf%n_spinor = 2
+    else
+        write(*,'(A,I0,A)')'ERROR reading coefficients for wave vector K(',wf%i_kpt,'):' 
+        write(*,'(A,I0)')  '    * Number of plane-waves expected for this wave vector: ', ncnt
+        write(*,'(A,I0)')  '    * Number plane-waves found in the input file: ', nplane
+        write(*,'(A)')     'Cannot continue. Stopping now.'
+        stop
     endif
-    if(present(spinor_wf)) spinor_wf = n_wf_comp==2
+endif
+wf%is_spinor = wf%n_spinor==2
 
-    if(present(i_allg_in_file))then
-    ! Allocating the matrix that will contain the coordinates (n1,n2,n3) of the vectors 
-    ! G(n1,n2,n3)  = n1*b1 + n2*b2 + n3*b3 of the rec. latt. for which 
-    ! E(K+G)<=ENCUT
-        deallocate (i_allg_in_file, stat=alloc_stat)
-        allocate (i_allg_in_file(3,ncnt))
-        iplane=0
-        do ig3=0,2*nb3max
-            ig3p=ig3
-            ! Trick to make ig3p range from 0 to nb3max and then from -nb3max to -1
-            if (ig3.gt.nb3max) ig3p=ig3-2*nb3max-1  
-            do ig2=0,2*nb2max
-                ig2p=ig2
-                if (ig2.gt.nb2max) ig2p=ig2-2*nb2max-1 
-                do ig1=0,2*nb1max
-                    ig1p=ig1
-                    if (ig1.gt.nb1max) ig1p=ig1-2*nb1max-1 
-                    do j=1,3
-                        sumkg(j)=(frac_coords_selected_kpt(1)+ig1p)*b1(j) + &
-                                 (frac_coords_selected_kpt(2)+ig2p)*b2(j) + &
-                                 (frac_coords_selected_kpt(3)+ig3p)*b3(j)
-                    enddo
-                    gtot=sqrt(sumkg(1)**2+sumkg(2)**2+sumkg(3)**2)
-                    etot=gtot**2/c
-                    if (etot.lt.ecut) then
-                        iplane = iplane + 1
-                        i_allg_in_file(1, iplane)=ig1p
-                        i_allg_in_file(2, iplane)=ig2p
-                        i_allg_in_file(3, iplane)=ig3p
-                    end if
-                enddo
+! Allocating the matrix that will contain the coordinates (n1,n2,n3) of the vectors 
+! G(n1,n2,n3)  = n1*b1 + n2*b2 + n3*b3 of the rec. latt. for which 
+! E(K+G)<=ENCUT
+deallocate(wf%G_cart, wf%G_frac, stat=alloc_stat)
+allocate(wf%G_cart(1:ncnt), wf%G_frac(1:ncnt))
+iplane=0
+do ig3=0,2*nb3max
+    ig3p=ig3
+    ! Trick to make ig3p range from 0 to nb3max and then from -nb3max to -1
+    if (ig3.gt.nb3max) ig3p=ig3-2*nb3max-1  
+    do ig2=0,2*nb2max
+        ig2p=ig2
+        if (ig2.gt.nb2max) ig2p=ig2-2*nb2max-1 
+        do ig1=0,2*nb1max
+            ig1p=ig1
+            if (ig1.gt.nb1max) ig1p=ig1-2*nb1max-1 
+            do j=1,3
+                sumkg(j)=(frac_coords_selected_kpt(1)+ig1p)*b1(j) + &
+                         (frac_coords_selected_kpt(2)+ig2p)*b2(j) + &
+                         (frac_coords_selected_kpt(3)+ig3p)*b3(j)
             enddo
+            gtot=sqrt(sumkg(1)**2+sumkg(2)**2+sumkg(3)**2)
+            etot=gtot**2/c
+            if (etot.lt.ecut) then
+                iplane = iplane + 1
+                G_cart(iplane)%coords(:) = ig1p*b1(:) + ig2p*b2(:) + ig3p*b3(:)
+                G_frac(iplane)%coords(1) = ig1p
+                G_frac(iplane)%coords(2) = ig2p
+                G_frac(iplane)%coords(3) = ig3p
+            end if
+        enddo
+    enddo
+enddo
+
+if(read_coefficients)then
+    allocate(pw_coeffs(1:wf%n_spinor, nplane, nband))
+    ! The variables "io_unit_for_thread", "irec_before_loop" and "temp_unit" have been added
+    ! to make it possible to use openmp to parallelize (over bands) 
+    ! the reading of the WAVECAR file.
+    n_threads = 1
+    !$ n_threads = omp_get_max_threads() 
+    allocate(io_unit_for_thread(1:n_threads))
+    io_unit_for_thread(1) = available_io_unit()
+    if(n_threads>1)then
+        do ithread=2, n_threads
+            io_unit_for_thread(ithread) = available_io_unit(io_unit_for_thread(ithread-1)+1,10*n_threads)
         enddo
     endif
 
-
-    if(present(coeff))then
-        allocate(coeff(1:n_wf_comp, nplane, nband))
-        ! The variables "available_io_units", "irec_before_loop" and "temp_unit" have been added
-        ! to make it possible to use openmp to parallelize (over bands) 
-        ! the reading of the WAVECAR file.
-        allocate(available_io_units(1:nband))
-        available_io_units(1) = available_io_unit()
-        if(nband>1)then
-            do iband=2,nband
-                available_io_units(iband) = available_io_unit(available_io_units(iband-1)+1,10*nband)
-            enddo
+    irec_before_loop = irec
+    !$omp parallel default(none) &
+    !$    private(temp_unit, iost, irec, stream_pos, inner_prod) &
+    !$    shared(io_unit_for_thread, irec_before_loop, nrecl, wf)
+    temp_unit = io_unit_for_thread(omp_get_thread_num() + 1)
+    open(unit=temp_unit,file=file,access='stream',iostat=iost,status='old')
+    !$omp do schedule(guided)
+    do iband=1, wf%n_bands
+        irec=irec_before_loop+iband
+        stream_pos = 1 + (irec - 1) * nrecl
+        read(unit=temp_unit, pos=stream_pos) (wf%pw_coeffs(i_wf_comp,:,iband), i_wf_comp=1, wf%n_spinor)
+        if(renormalize_wf)then
+            inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
+            wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
         endif
-
-        irec_before_loop = irec
-        !$omp parallel do default(none) schedule(guided) &
-        !$    private(iband, irec, temp_unit, iost, stream_pos, i_wf_comp, inner_prod) &
-        !$    shared(nband, irec_before_loop, available_io_units, args, coeff, nrecl, n_wf_comp)
-        do iband=1,nband
-            temp_unit = available_io_units(iband)
-            irec=irec_before_loop+iband
-            open(unit=temp_unit,file=args%WF_file,access='stream',iostat=iost,status='old')
-                stream_pos = 1 + (irec - 1) * nrecl
-                read(unit=temp_unit, pos=stream_pos) (coeff(i_wf_comp,:,iband), i_wf_comp=1,n_wf_comp)
-            close(temp_unit)
-            if(renormalize_wf)then
-                inner_prod = sum((/(dot_product(coeff(i,:,iband), coeff(i,:,iband)), i=1,n_wf_comp)/))
-                coeff(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * coeff(:,:,iband)
-            endif
-        enddo
-        deallocate(available_io_units)
-    endif
-
+    enddo
+    !$omp end do
+    close(temp_unit)
+    !$omp end parallel
+    deallocate(io_unit_for_thread)
 endif
 
-ftime = time()
-if(present(elapsed_time)) elapsed_time = ftime - stime
-if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
-if(present(iostat)) iostat = 0  ! The whole operation ended just fine.
-return
-
-end subroutine read_from_wavefunc_file
+end subroutine read_wavecar
 
 
-end module read_wavecar
+end module read_wavefunctions
