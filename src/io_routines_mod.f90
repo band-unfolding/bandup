@@ -30,7 +30,7 @@ use constants_and_types
 use cla_wrappers
 use strings
 use general_io
-use read_wavefunctions
+use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
 use math
@@ -40,7 +40,7 @@ PRIVATE
 PUBLIC :: print_welcome_messages,print_message_commens_test, &
           read_energy_info_for_band_search, print_message_success_determining_GUR, &
           print_geom_unfolding_relations, print_last_messages_before_unfolding, &
-          get_SCKPTS_contained_in_wavecar, read_pckpts_selected_by_user, &
+          get_list_of_SCKPTS, read_pckpts_selected_by_user, read_wavefunction, &
           print_symm_analysis_for_selected_pcbz_dirs, say_goodbye_and_save_results, & 
           print_final_times, write_band_struc, print_message_pckpt_cannot_be_parsed, &
           write_attempted_pc_assoc_with_input_unit_cell_and_SC
@@ -295,19 +295,23 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
-subroutine print_last_messages_before_unfolding(file_size_in_bytes,nkpts,B_matrix_SC,vbz,E_start,E_end,delta_e,e_fermi,spinor_wf)
+subroutine print_last_messages_before_unfolding(wf_file, list_of_SCKPTS, B_matrix_SC, vbz, &
+                                                E_start, E_end, delta_e, e_fermi, spinor_wf)
 implicit none
-integer(8), intent(in) :: file_size_in_bytes
-integer, intent(in) :: nkpts
+character(len=*), intent(in) :: wf_file
+type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
 real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
 real(kind=dp), intent(in) :: vbz,E_start,E_end,delta_e,e_fermi
 logical, intent(in) :: spinor_wf
-real(kind=dp) :: file_size_in_MB, file_size_in_GB, file_size, &
+real(kind=dp) :: file_size_in_MB, file_size_in_GB, file_size, VSBZ, &
                  approx_mem_per_kpt_in_bytes, mem_per_kpt_in_MB, mem_per_kpt_in_GB, mem_per_kpt
+integer :: nkpts
+integer(8) :: file_size_in_bytes
 character(len=2) :: file_size_units, mem_per_kpt_units
-real(kind=dp) :: VSBZ
 logical :: using_omp
 
+    nkpts = size(list_of_SCKPTS) 
+    call get_file_size_in_bytes(file_size_in_bytes, file=wf_file)
     file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
     file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
     file_size = file_size_in_GB
@@ -423,22 +427,21 @@ character(len=10) :: str_SCKPT_number
 end subroutine print_message_pckpt_folds
 
 
-subroutine get_SCKPTS_contained_in_wavecar(list_SC_kpts_in_wavecar, B_matrix_SC)
+subroutine get_SCKPTS_contained_in_wavecar(list_SC_kpts_in_wavecar, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_SC_kpts_in_wavecar
-real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
-integer :: i_SCKPT, alloc_stat, i, input_file_unit, nrecl, iost, nband, irec, nkpts
-real(kind=dp) :: xnrecl, xnspin, xnprec, xnwk, xnband, xnplane
+type(comm_line_args), intent(in) :: args
+type(crystal_3D), intent(in) :: crystal_SC
+integer(kind=selected_int_kind(18)) ::  nrecl
+integer :: i_SCKPT, alloc_stat, i, input_file_unit, iost, nband, irec, nkpts
+real(kind=dp) :: xnwk, xnband, xnplane
 real(kind=dp), dimension(1:3) :: SCKPT_coords
+real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
 
-    input_file_unit = available_io_unit()
-    nrecl=24 ! Trial record length
+    call get_wavecar_record_lenght(nrecl, args%WF_file, iost)
+    B_matrix_SC = crystal_SC%rec_latt_vecs
     ! Reading WAVECAR file
-    open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
-        read(unit=input_file_unit,rec=1) xnrecl, xnspin, xnprec
-    close(unit=input_file_unit)
-    nrecl=nint(xnrecl) ! Correct record length
-
+    input_file_unit = available_io_unit()
     open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
         read(unit=input_file_unit,rec=2) xnwk,xnband
         nband=nint(xnband) ! Number of bands
@@ -456,6 +459,16 @@ real(kind=dp), dimension(1:3) :: SCKPT_coords
     close(unit=input_file_unit)
 
 end subroutine get_SCKPTS_contained_in_wavecar
+
+subroutine get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
+implicit none
+type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
+type(comm_line_args), intent(in) :: args
+type(crystal_3D), intent(in) :: crystal_SC
+
+    call get_SCKPTS_contained_in_wavecar(list_of_SCKPTS, args, crystal_SC)
+
+end subroutine get_list_of_SCKPTS
 
 
 subroutine write_band_struc(out_file,pckpts_to_be_checked,energy_grid,delta_N,EF,zero_of_kpts_scale)
@@ -711,6 +724,51 @@ endif
 write(*,*)''
 
 end subroutine read_pckpts_selected_by_user
+
+
+subroutine read_wavefunction(wf, args, ikpt, read_coeffs, elapsed_time, add_elapsed_time_to, iostat)
+implicit none
+type(pw_wavefunction), intent(inout) :: wf
+type(comm_line_args), intent(in) :: args
+integer, intent(in) :: ikpt
+logical, intent(in), optional :: read_coeffs
+real(kind=dp), intent(out), optional :: elapsed_time
+real(kind=dp), intent(inout), optional :: add_elapsed_time_to
+integer, intent(out), optional :: iostat
+integer :: ios, i_kpt
+real(kind=dp) :: stime, ftime
+logical :: file_exists, spin_reset, read_coefficients
+
+    stime = time()
+    ios = 0
+    ! Check if file exists
+    inquire(file=args%WF_file, exist=file_exists)
+    if(.not. file_exists)then
+        write(*,'(3A)')"ERROR (read_wavefunction): File ", trim(adjustl(args%WF_file)), " doesn't exist."
+        ios = -1
+    else
+        i_kpt = ikpt
+        ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
+        if(i_kpt < 1) i_kpt = 1
+        wf%i_spin = args%spin_channel
+        spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
+        if(spin_reset)then
+            if(wf%i_spin < 1) wf%i_spin = 1
+            if(wf%i_spin > 2) wf%i_spin = 2
+            write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
+        endif
+        read_coefficients = .TRUE. ! Reading the coeffs by default
+        if(present(read_coeffs)) read_coefficients = read_coeffs
+        call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
+    endif
+
+    ftime = time()
+    if(present(elapsed_time)) elapsed_time = ftime - stime
+    if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
+    if(present(iostat)) iostat = ios
+    return
+
+end subroutine read_wavefunction
 
 
 subroutine print_symm_analysis_for_selected_pcbz_dirs(all_dirs_used_for_EBS_along_pcbz_dir) 

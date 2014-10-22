@@ -24,7 +24,7 @@
 !! has been granted by WaveTrans' Copyright holders. Thanks!
 
 !/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! module read_wavefunctions
+! module read_vasp_wavecar
 ! ===================
 !  Contains a function "read_wavefunction", which returns information about any
 !  selected k-point, skipping the others. This is very important for the
@@ -89,7 +89,7 @@
 !!$*   investigated thus far)
 !!$******* End of comments in the header of the WaveTrans code **************************************************       
 
-module read_wavefunctions
+module read_vasp_wavecar
 use constants_and_types
 use cla_wrappers
 use math
@@ -97,7 +97,7 @@ use general_io, only: available_io_unit
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: read_wavefunction, get_total_n_SC_kpts, vasp_2m_over_hbar_sqrd 
+PUBLIC :: read_wavecar, get_wavecar_record_lenght, vasp_2m_over_hbar_sqrd
 !!$* Comments adapted from WaveTrans: The value of vasp_2m_over_hbar_sqrd has been adjusted in final decimal places to agree with VASP value
 !!$*                                  The routine "read_wavecar" checks for discrepancy of any results between this and VASP values
 real(kind=dp), parameter :: vasp_2m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2
@@ -123,7 +123,7 @@ real(kind=dp) :: xnrecl
 end subroutine get_wavecar_record_lenght
 
 
-subroutine get_total_n_SC_kpts(nkpts, file)
+subroutine get_total_n_SC_kpts_wavecar(nkpts, file)
 implicit none
 integer, intent(out) :: nkpts
 character(len=*), intent(in) :: file
@@ -141,7 +141,7 @@ real(kind=dp) :: xnwk
         if(iost==0) nkpts = nint(xnwk)
     endif
 
-end subroutine get_total_n_SC_kpts
+end subroutine get_total_n_SC_kpts_wavecar
 
 
 subroutine read_wavecar(wf, file, ikpt, read_coeffs, iostat)
@@ -424,48 +424,4 @@ if(present(iostat)) iostat = 0
 end subroutine read_wavecar
 
 
-subroutine read_wavefunction(wf, file, ikpt, read_coeffs, elapsed_time, add_elapsed_time_to, iostat)
-implicit none
-type(pw_wavefunction), intent(inout) :: wf
-character(len=*), intent(in) :: file
-integer, intent(in) :: ikpt
-logical, intent(in), optional :: read_coeffs
-real(kind=dp), intent(out), optional :: elapsed_time
-real(kind=dp), intent(inout), optional :: add_elapsed_time_to
-integer, intent(out), optional :: iostat
-integer :: ios, i_kpt
-real(kind=dp) :: stime, ftime
-logical :: file_exists, spin_reset, read_coefficients
-
-    stime = time()
-    ios = 0
-    ! Check if file exists
-    inquire(file=file, exist=file_exists)
-    if(.not. file_exists)then
-        write(*,'(3A)')"ERROR (read_wavefunction): File ", trim(adjustl(file)), " doesn't exist."
-        ios = -1
-    else
-        i_kpt = ikpt
-        ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
-        if(i_kpt < 1) i_kpt = 1
-        spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
-        if(spin_reset)then
-            if(wf%i_spin < 1) wf%i_spin = 1
-            if(wf%i_spin > 2) wf%i_spin = 2
-            write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
-        endif
-        read_coefficients = .TRUE. ! Reading the coeffs by default
-        if(present(read_coeffs)) read_coefficients = read_coeffs
-        call read_wavecar(wf, file=file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
-    endif
-
-    ftime = time()
-    if(present(elapsed_time)) elapsed_time = ftime - stime
-    if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
-    if(present(iostat)) iostat = ios
-    return
-
-end subroutine read_wavefunction
-
-
-end module read_wavefunctions
+end module read_vasp_wavecar

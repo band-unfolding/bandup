@@ -37,7 +37,7 @@ PUBLIC :: pi, twopi, min_dk, default_tol_for_vec_equality, max_tol_for_vec_equal
           default_tol_for_int_commens_test, default_symprec, two_m_over_hbar_sqrd, &
           identity_3D
 ! Logical
-PUBLIC :: calc_spec_func_explicitly, stop_when_a_pckpt_cannot_be_parsed, &
+PUBLIC :: calc_spec_func_explicitly, stop_if_pckpt_cannot_be_parsed, &
           stop_if_GUR_fails, get_all_kpts_needed_for_EBS_averaging, &
           print_GUR_pre_unfolding_utility, renormalize_wf 
 
@@ -61,7 +61,7 @@ real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi, &
                             two_m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
 real(kind=dp), dimension(1:3,1:3), parameter :: identity_3D = real((/(/1,0,0/),(/0,1,0/),(/0,0,1/)/), kind=dp)
 logical, parameter :: calc_spec_func_explicitly = .FALSE., &
-                      stop_when_a_pckpt_cannot_be_parsed = .TRUE., &
+                      stop_if_pckpt_cannot_be_parsed = .TRUE., &
                       stop_if_GUR_fails = .TRUE., &
                       get_all_kpts_needed_for_EBS_averaging = .TRUE., &
                       print_GUR_pre_unfolding_utility = .FALSE., &
@@ -95,14 +95,12 @@ type :: vec3d_int
 end type vec3d_int
 
 type :: pw_wavefunction
-    integer :: i_kpt, i_spin, &
-               n_pw, n_spin, n_bands, n_spinor
-    ! G(ipw,1:3) := fractional coords of RL vec associated with pw_coeff(ipw)
-    integer, dimension(:,:), allocatable :: G 
+    integer :: i_spin, n_pw, n_spin, n_bands, n_spinor
     real(kind=dp) :: encut, Vcell
     real(kind=dp), dimension(1:3) :: kpt_frac_coords, kpt_cart_coords
     real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix ! Direct and reciprocal lattice vectors
     real(kind=dp), dimension(:), allocatable :: band_energies, band_occupations
+    ! G(ipw)%coord(1:3) := coords of RL vec associated with pw_coeff(ipw)
     type(vec3d), dimension(:), allocatable :: G_cart
     type(vec3d_int), dimension(:), allocatable :: G_frac
     complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: pw_coeffs

@@ -236,7 +236,7 @@ type(crystal_3D), allocatable :: aux_crystal
     ! Lattice
     crystal%latt_vecs = latt_vecs
     crystal%vol = abs(triple_product(latt_vecs(1,:), latt_vecs(2,:), latt_vecs(3,:)))
-    call get_rec_latt(latt_vecs,crystal%rec_latt_vecs,crystal%rec_latt_vol)
+    call get_rec_latt(latt_vecs, crystal%rec_latt_vecs, crystal%rec_latt_vol)
     ! Basis
     allocate(crystal%coords_basis_atoms(1:size(atom_pos,dim=1), &
                                         1:size(atom_pos,dim=2)))
