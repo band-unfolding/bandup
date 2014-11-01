@@ -92,8 +92,7 @@ do i_SCKPT=1, size(list_of_SCKPTS)
                     call update_GUR_indices(GUR, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt)
                     ! Reading the wavefunction file
                     if(.not. allocated(wf%pw_coeffs))then
-                        write(*,"(A,I0,3A)")'Reading plane-wave coefficients for SC-Kpoint K(',i_SCKPT, &
-                                            ') from file "', trim(adjustl(args%WF_file)), '"...'
+                        write(*,"(A,I0,A)")'Reading plane-wave coefficients for SC-Kpoint K(',i_SCKPT,')...'
                         call read_wavefunction(wf, args, i_SCKPT, elapsed_time=elapsed, & 
                                                add_elapsed_time_to=times%read_wf)
                         write(*,'(A,f0.1,A)')'    * Done in ',elapsed,'s.'

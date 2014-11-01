@@ -32,12 +32,13 @@ use spglib_f08
 implicit none
 PRIVATE
 PUBLIC :: star, time, n_digits_integer, cross, norm, angle, real_seq, delta, &
-          integral_delta_x_minus_x0, symmetry_operation, get_rec_latt, &
+          integral_delta_x_minus_x0, symmetry_operation, get_rec_latt, triple_product, &
           coords_cart_vec_in_new_basis, vec_in_latt, reduce_point_to_bz, same_vector, &
           get_symm, get_prim_cell, get_irr_SC_kpts, get_star, pt_eqv_by_point_group_symop, &
           check_if_pc_and_SC_are_commensurate, get_pcbz_dirs_2b_used_for_EBS, kpts_line, &
           allocate_UnfoldedQuantities, allocate_UnfoldedQuantitiesForOutput, create_crystal, &
-          append,  versor, trace_AB, initialize, analise_symm_pc_SC, trace, formatted_time
+          append,  versor, trace_AB, initialize, analise_symm_pc_SC, trace, formatted_time, &
+          to_ev, to_angstrom
 
 
 interface append
@@ -1693,6 +1694,49 @@ do idir=1,ndirs
 enddo
 
 end subroutine get_pcbz_dirs_2b_used_for_EBS
+
+
+function to_angstrom(value, units) result(rtn)
+implicit none
+real(kind=dp) :: rtn
+real(kind=dp), intent(in) :: value
+character(len=*), intent(in) :: units
+real(kind=dp) :: conv_factor
+character(len=1) :: first_letter_units
+
+    first_letter_units = trim(adjustl(units))
+    select case(first_letter_units)
+        case default 
+            conv_factor = 1.0_dp
+        case('b', 'B')
+            conv_factor = bohr
+    end select
+    rtn = conv_factor * value
+
+end function to_angstrom
+
+
+function to_ev(value, units) result(rtn)
+implicit none
+real(kind=dp) :: rtn
+real(kind=dp), intent(in) :: value
+character(len=*), intent(in) :: units
+real(kind=dp) :: conv_factor
+real(kind=dp), parameter :: Ry =  13.60569172, Hartree = 27.2113834
+character(len=1) :: first_letter_units
+
+    first_letter_units = trim(adjustl(units))
+    select case(first_letter_units)
+        case default 
+            conv_factor = 1.0_dp
+        case('r', 'R')
+            conv_factor = Ry
+        case('h', 'H')
+            conv_factor = Hartree
+    end select
+    rtn = conv_factor * value
+
+end function to_ev
 
 
 end module math

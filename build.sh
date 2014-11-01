@@ -7,6 +7,7 @@ rm -f ${bin_folder}/BandUP.x
 rm -f ${bin_folder}/bandup
 
 cd ${working_dir}/src/external
+    ./BandUP_configure_espresso.sh
     ./BandUP_configure_spglib.sh
     ./BandUP_configure_cla.sh
 cd ${working_dir}/utils/pre_unfolding/get_SCKPTS_pre_BandUP

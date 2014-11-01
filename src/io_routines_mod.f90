@@ -30,6 +30,8 @@ use constants_and_types
 use cla_wrappers
 use strings
 use general_io
+use qexml_module
+use read_qe_wavefunctions
 use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
@@ -460,13 +462,64 @@ real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
 
 end subroutine get_SCKPTS_contained_in_wavecar
 
+
+subroutine get_SCKPTS_QE(list_of_SCKPTS, args)
+implicit none
+type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
+type(comm_line_args), intent(in) :: args
+integer :: input_file_unit, ios, ik, nkpts, j, alloc_stat
+character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
+                      length_units, length_units_kpts
+real(kind=dp), dimension(:,:), allocatable :: cart_coords_all_kpts
+real(kind=dp) :: alat
+
+    input_file_unit = available_io_unit()
+    outdir = trim(adjustl(args%qe_outdir))
+    prefix = trim(adjustl(args%qe_prefix)) 
+    xml_data_file_folder = trim(outdir) // '/' // trim(prefix) // '.save/'
+    xml_data_file = trim(xml_data_file_folder) // "data-file.xml"
+
+    ! Initializing the qexml library and opening the xml data-file
+    call qexml_init(input_file_unit, dir=xml_data_file_folder) 
+    call qexml_openfile(xml_data_file, "read", ierr=ios)
+    if(ios/=0) write(*,'(A)')"ERROR (get_SCKPTS_QE): Problems opening XML data-file!"
+  
+    call qexml_read_bz(num_k_points=nkpts, ierr=ios)
+    deallocate(list_of_SCKPTS, cart_coords_all_kpts, stat=alloc_stat)
+    allocate(list_of_SCKPTS(1:nkpts))
+    allocate(cart_coords_all_kpts(1:3,1:nkpts))
+
+    ! Reading lattice scaling factor
+    call qexml_read_cell(alat=alat, a_units=length_units, ierr=ios)
+    if(ios/=0) write(*,'(A)')"ERROR (get_SCKPTS_QE): Could not read lattice parameter!"
+    alat = to_angstrom(alat, length_units)
+
+    call qexml_read_bz(xk=cart_coords_all_kpts, k_units=length_units_kpts, ierr=ios)
+    do ik=1, nkpts
+        do j=1,3
+            list_of_SCKPTS(ik)%coord(j) = (twopi/alat) * cart_coords_all_kpts(j,ik)
+        enddo
+    enddo
+
+    ! Done. Closing file now.
+    call qexml_closefile("read", ierr=ios)
+    if(ios/=0) write(*,'(A)')"WARNING (get_SCKPTS_QE): Error closing xml data-file."
+
+endsubroutine get_SCKPTS_QE
+
+
 subroutine get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
 type(comm_line_args), intent(in) :: args
 type(crystal_3D), intent(in) :: crystal_SC
-
-    call get_SCKPTS_contained_in_wavecar(list_of_SCKPTS, args, crystal_SC)
+ 
+    select case(trim(adjustl(args%pw_code)))
+        case ('qe')
+            call get_SCKPTS_QE(list_of_SCKPTS, args)
+        case default
+            call get_SCKPTS_contained_in_wavecar(list_of_SCKPTS, args, crystal_SC)
+    end select
 
 end subroutine get_list_of_SCKPTS
 
@@ -742,25 +795,36 @@ logical :: file_exists, spin_reset, read_coefficients
     stime = time()
     ios = 0
     ! Check if file exists
-    inquire(file=args%WF_file, exist=file_exists)
-    if(.not. file_exists)then
-        write(*,'(3A)')"ERROR (read_wavefunction): File ", trim(adjustl(args%WF_file)), " doesn't exist."
-        ios = -1
-    else
-        i_kpt = ikpt
-        ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
-        if(i_kpt < 1) i_kpt = 1
-        wf%i_spin = args%spin_channel
-        spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
-        if(spin_reset)then
-            if(wf%i_spin < 1) wf%i_spin = 1
-            if(wf%i_spin > 2) wf%i_spin = 2
-            write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
-        endif
-        read_coefficients = .TRUE. ! Reading the coeffs by default
-        if(present(read_coeffs)) read_coefficients = read_coeffs
-        call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
+    select case(trim(adjustl(args%pw_code)))
+        case('qe')
+            continue ! Still to implement this test
+        case default ! Using VASP as default
+            inquire(file=args%WF_file, exist=file_exists)
+            if(.not. file_exists)then
+                write(*,'(3A)')"ERROR (read_wavefunction): File ", trim(adjustl(args%WF_file)), " doesn't exist."
+                ios = -1
+                return
+            endif
+    end select
+
+    i_kpt = ikpt
+    ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
+    if(i_kpt < 1) i_kpt = 1
+    wf%i_spin = args%spin_channel
+    spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
+    if(spin_reset)then
+        if(wf%i_spin < 1) wf%i_spin = 1
+        if(wf%i_spin > 2) wf%i_spin = 2
+        write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
     endif
+    read_coefficients = .TRUE. ! Reading the coeffs by default
+    if(present(read_coeffs)) read_coefficients = read_coeffs
+    select case(trim(adjustl(args%pw_code)))
+        case('qe')
+            call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
+        case default ! Using VASP as default
+            call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
+    end select
 
     ftime = time()
     if(present(elapsed_time)) elapsed_time = ftime - stime

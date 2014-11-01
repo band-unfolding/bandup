@@ -23,7 +23,7 @@
 !> Paulo V C Medeiros, Linköping University
 !
 ! DESCRIPTION:
-!> Provides all constants and derived types used in BandUP.
+!> Provides most constants and derived types used in BandUP.
 !===============================================================================
 
 module constants_and_types
@@ -35,7 +35,7 @@ PUBLIC :: sp, dp, kind_cplx_coeffs
 ! Real
 PUBLIC :: pi, twopi, min_dk, default_tol_for_vec_equality, max_tol_for_vec_equality, &
           default_tol_for_int_commens_test, default_symprec, two_m_over_hbar_sqrd, &
-          identity_3D
+          identity_3D, Hartree, Ry, bohr
 ! Logical
 PUBLIC :: calc_spec_func_explicitly, stop_if_pckpt_cannot_be_parsed, &
           stop_if_GUR_fails, get_all_kpts_needed_for_EBS_averaging, &
@@ -57,8 +57,10 @@ real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi, &
                             max_tol_for_vec_equality=1E-3_dp, &
                             min_dk=2.0_dp*default_tol_for_vec_equality, &
                             default_tol_for_int_commens_test=1E-5_dp, & 
-                            default_symprec=1E-6_dp, &
-                            two_m_over_hbar_sqrd = 0.262465831 ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
+                            default_symprec=1E-5_dp, &
+                            two_m_over_hbar_sqrd = 0.262465831, & ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
+                            Ry =  13.60569172, Hartree = 27.2113834, & ! Energy convertion to eV
+                            bohr = 0.52917721092 ! Length conv. to Angstrom
 real(kind=dp), dimension(1:3,1:3), parameter :: identity_3D = real((/(/1,0,0/),(/0,1,0/),(/0,0,1/)/), kind=dp)
 logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       stop_if_pckpt_cannot_be_parsed = .TRUE., &
@@ -72,7 +74,8 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
 type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &
-                          output_file_symm_averaged_EBS, output_file_only_user_selec_direcs 
+                          output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
+                          pw_code, qe_outdir, qe_prefix 
     integer :: spin_channel
     real(kind=dp), dimension(1:3) :: saxis, normal_to_proj_plane, &
                                      origin_for_spin_proj_cartesian, origin_for_spin_proj_rec
@@ -95,8 +98,9 @@ type :: vec3d_int
 end type vec3d_int
 
 type :: pw_wavefunction
-    integer :: i_spin, n_pw, n_spin, n_bands, n_spinor
-    real(kind=dp) :: encut, Vcell
+    integer :: i_spin, n_pw, n_spin, n_bands, n_spinor, &
+               n_bands_up, n_bands_down
+    real(kind=dp) :: encut, Vcell, e_fermi, e_fermi_up, e_fermi_down
     real(kind=dp), dimension(1:3) :: kpt_frac_coords, kpt_cart_coords
     real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix ! Direct and reciprocal lattice vectors
     real(kind=dp), dimension(:), allocatable :: band_energies, band_occupations
@@ -104,7 +108,7 @@ type :: pw_wavefunction
     type(vec3d), dimension(:), allocatable :: G_cart
     type(vec3d_int), dimension(:), allocatable :: G_frac
     complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: pw_coeffs
-    logical :: is_spinor
+    logical :: is_spinor, two_efs
 end type pw_wavefunction
 
 type :: symmetry_operation
