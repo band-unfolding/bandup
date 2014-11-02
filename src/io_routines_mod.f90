@@ -820,10 +820,10 @@ logical :: file_exists, spin_reset, read_coefficients
     read_coefficients = .TRUE. ! Reading the coeffs by default
     if(present(read_coeffs)) read_coefficients = read_coeffs
     select case(trim(adjustl(args%pw_code)))
-        case('qe')
-            call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
         case default ! Using VASP as default
             call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
+        case('qe')
+            call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
     end select
 
     ftime = time()

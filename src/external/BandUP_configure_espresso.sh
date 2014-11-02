@@ -1,8 +1,8 @@
 #! /bin/sh
 
-rm -rf espresso-5.1
-tar -xvzf espresso-5.1.tgz
-cd espresso-5.1
+rm -rf espresso-5.1_modules_for_BandUP
+tar -xvzf espresso-5.1_modules_for_BandUP.tgz
+cd espresso-5.1_modules_for_BandUP
 
 export FC=ifort
 export CC=icc

@@ -26,7 +26,7 @@
 !===============================================================================
 
 module read_qe_wavefunctions
-use qexml_module
+use qexml_module ! Provided by the espresso package
 use cla_wrappers
 use general_io
 use constants_and_types
@@ -48,18 +48,17 @@ logical, optional, intent(in) :: read_coeffs
 integer, optional, intent(out) :: iostat
 ! Local variables
 integer, parameter :: qe_dp = kind(1.0_dp)
-integer, dimension(:,:), allocatable :: G_frac, G_frac_full_grid
-complex(kind=qe_dp), allocatable, dimension(:,:) :: pw_coeffs
-integer :: nkpts, n_pw, n_bands, n_bands_up, n_bands_down, n_spin, n_spinor
-integer :: input_file_unit, ios, alloc_stat
-integer :: ik, i, j, ipw, iband
-integer, dimension(:), allocatable :: index_G
-logical :: is_spinor, two_efs, read_coefficients
+integer, dimension(:,:), allocatable :: G_frac
+integer :: nkpts, n_pw, n_bands, n_bands_up, n_bands_down, n_spin, n_spinor, &
+           input_file_unit, ios, alloc_stat, i, j, ipw, iband
 real(kind=dp) :: e_fermi, ef_up, ef_dw, alat, encut
 real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix
 real(kind=dp), dimension(:,:), allocatable :: cart_coords_all_kpts, eigenvales, occupations
-character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file
-character(len=256) :: length_units_kpts, length_units, e_units, encut_units
+complex(kind=kind_cplx_coeffs) :: inner_prod
+complex(kind=qe_dp), allocatable, dimension(:,:) :: pw_coeffs
+logical :: is_spinor, two_efs, read_coefficients
+character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
+                      length_units_kpts, length_units, e_units, encut_units
 
     if(present(iostat)) iostat = -1
     read_coefficients = .TRUE.
@@ -71,18 +70,29 @@ character(len=256) :: length_units_kpts, length_units, e_units, encut_units
     xml_data_file_folder = trim(outdir) // '/' // trim(prefix) // '.save/'
     xml_data_file = trim(xml_data_file_folder) // "data-file.xml"
 
-    ! Initializing the qexml library and opening the xml data-file
     call qexml_init(input_file_unit, dir=xml_data_file_folder) 
     call qexml_openfile(xml_data_file, "read", ierr=ios)
-    if(ios/=0) write(*,'(3A)')'ERROR (read_qe_evc_file): Problems opening the XML data-file "',trim(adjustl(xml_data_file)),'"!'
+    if(ios/=0)then
+        write(*,'(3A)')'ERROR (read_qe_evc_file): Problems opening the XML data-file "', &
+                        trim(adjustl(xml_data_file)),'"!'
+        return
+    endif
   
-    ! Getting some generic info
     call qexml_read_bz(num_k_points=nkpts, ierr=ios)
-    ! Reading lattice data
+    if(ios/=0)then
+        write(*,'(A)')'ERROR (read_qe_evc_file): Could not determine the number of kpts!'
+        return
+    endif
+
     call qexml_read_cell(alat=alat, a_units=length_units, &
                          a1=A_matrix(1,:), a2=A_matrix(2,:), a3=A_matrix(3,:), &
                          ierr=ios)
-    if(ios/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not read lattice info!"
+    if(ios/=0)then
+        write(*,'(A)')"ERROR (read_qe_evc_file): Could not read lattice info!"
+        return
+    endif
+
+    ! Converting length units. BandUP works with Angstroms.
     alat = to_angstrom(alat, length_units)
     do j=1,3
         do i=1,3
@@ -91,9 +101,15 @@ character(len=256) :: length_units_kpts, length_units, e_units, encut_units
     enddo
     length_units = 'Angstrom'
     call get_rec_latt(latt=A_matrix, rec_latt=B_matrix)
-
-    allocate(cart_coords_all_kpts(1:3, 1:nkpts))
+   
+    ! Getting list of Kpts in cartesian coordinates
+    deallocate(cart_coords_all_kpts, stat=alloc_stat)
+    allocate(cart_coords_all_kpts(1:3, 1:nkpts), stat=alloc_stat)
     call qexml_read_bz(xk=cart_coords_all_kpts, k_units=length_units_kpts, ierr=ios)
+    if(ios/=0)then
+        write(*,'(A)')'ERROR (read_qe_evc_file): Could not read the list of kpts!'
+        return
+    endif
     cart_coords_all_kpts(:,:) = (twopi/alat) * cart_coords_all_kpts(:,:)
 
     call qexml_read_bands_info(nbnd=n_bands, nbnd_up=n_bands_up, nbnd_down=n_bands_down, &
@@ -101,14 +117,27 @@ character(len=256) :: length_units_kpts, length_units, e_units, encut_units
                                ef=e_fermi, two_fermi_energies=two_efs, &
                                ef_up=ef_up, ef_dw=ef_dw, &
                                energy_units=e_units, ierr=ios)
+    if(ios/=0)then
+        write(*,'(A)')'ERROR (read_qe_evc_file): Could not read info about bands!'
+        return
+    endif
 
-    allocate(eigenvales(1:n_bands, 1:nkpts), occupations(1:n_bands, 1:nkpts))
+    deallocate(eigenvales, stat=alloc_stat)
+    deallocate(occupations, stat=alloc_stat)
+    allocate(eigenvales(1:n_bands, 1:nkpts), occupations(1:n_bands, 1:nkpts), stat=alloc_stat)
     call qexml_read_bands_pw(num_k_points=nkpts, nkstot=nkpts, lsda=(n_spin==2), nbnd=n_bands, &
                              lkpoint_dir=.TRUE., filename='default', &
                              et=eigenvales, wg=occupations , ierr=ios)
+    if(ios/=0)then
+        write(*,'(A)')'ERROR (read_qe_evc_file): Could not read eigenvalues and occupations!'
+        return
+    endif
 
     call qexml_read_planewaves(ecutwfc=encut, cutoff_units=encut_units, ierr=ios)
-    if(ios/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not read general info regarding wavefunctions!"
+    if(ios/=0)then
+        write(*,'(A)')"ERROR (read_qe_evc_file): Could not read general info regarding wavefunctions!"
+        return
+    endif
 
     n_spinor = 1
     if(is_spinor) n_spinor = 2
@@ -116,31 +145,54 @@ character(len=256) :: length_units_kpts, length_units, e_units, encut_units
     if(read_coefficients)then
         ! Getting number of pw for current kpt
         call qexml_read_gk(ik=ikpt, npwk=n_pw, ierr=ios)
-        if(ios/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not determine the number of plane-waves for the current Kpt."
+        if(ios/=0)then
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not determine the number of plane-waves for the current Kpt."
+            return
+        endif
 
         ! Allocating arrays
+        deallocate(G_frac, stat=alloc_stat)
         allocate(G_frac(1:3,1:n_pw), stat=alloc_stat)
-        if(alloc_stat/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate G-vectors for the current Kpt."
+        if(alloc_stat/=0)then
+            ios = alloc_stat
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate G-vectors for the current Kpt."
+            return
+        endif
+
+        deallocate(pw_coeffs, stat=alloc_stat)
         allocate(pw_coeffs(1:n_spinor*n_pw, 1:n_bands), stat=alloc_stat)
-        if(alloc_stat/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate plane-wave coefficients for the current Kpt."
+        if(alloc_stat/=0)then
+            ios = alloc_stat
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate plane-wave coefficients for the current Kpt."
+            return
+        endif
 
         ! Reading the G vectors for the current kpt
         call qexml_read_gk(ik=ikpt, igk=G_frac, ierr=ios)
-        if(ios/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not read G-vectors for the current Kpt."
+        if(ios/=0)then
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not read G-vectors for the current Kpt."
+            return
+        endif
 
         ! Reading pw coeffs
         call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, ispin=wf%i_spin, wf=pw_coeffs, ierr=ios)
         if(ios/=0) call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, wf=pw_coeffs, ierr=ios)
-        if(ios/=0) write(*,'(A)')"ERROR (read_qe_evc_file): Could not read plane-wave coefficients for the current Kpt."
+        if(ios/=0)then
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not read plane-wave coefficients for the current Kpt."
+            return
+        endif
     endif
 
     ! Done. Closing file now.
     call qexml_closefile("read", ierr=ios)
-    if(ios/=0) write(*,'(A)')"WARNING (read_qe_evc_file): Error closing xml data-file."
+    if(ios/=0)then
+        write(*,'(A)')"WARNING (read_qe_evc_file): Error closing xml data-file."
+    endif
 
 
-    ! Transferring data to wf
+    ! Transferring data to the wf object
     wf%is_spinor = is_spinor
+    wf%n_spinor = n_spinor
     wf%n_spin = n_spin
     wf%n_bands = n_bands
     wf%n_bands_up = n_bands_up
@@ -194,7 +246,15 @@ character(len=256) :: length_units_kpts, length_units, e_units, encut_units
             wf%pw_coeffs(1,:,:) = pw_coeffs(:,:)
         endif
         deallocate(pw_coeffs, stat=alloc_stat)
+        if(renormalize_wf)then
+            do iband=1, n_bands
+                inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
+                wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
+            enddo
+        endif
     endif
+
+    if(present(iostat)) iostat = 0
 
 end subroutine read_qe_evc_file
 
