@@ -76,7 +76,7 @@ call print_geom_unfolding_relations(GUR, list_of_SCKPTS, crystal_pc, crystal_SC)
 
 call read_energy_info_for_band_search(args%input_file_energies,e_fermi,E_start,E_end,delta_e)
 call real_seq(first_term=E_start,last_term=E_end,increment=delta_e, return_list=energy_grid)
-call print_last_messages_before_unfolding(args%WF_file, list_of_SCKPTS, crystal_SC%rec_latt_vecs, &
+call print_last_messages_before_unfolding(args, list_of_SCKPTS, crystal_SC%rec_latt_vecs, &
                                           vbz, E_start, E_end, delta_e, e_fermi, wf%is_spinor)
 call allocate_UnfoldedQuantities(delta_N, pckpts_to_be_checked)
 

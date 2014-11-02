@@ -13,7 +13,7 @@
 # Folders that will be created by compiling
 src/external/claf90/
 src/external/spglib-1.5.2/
-src/external/espresso-5.1/
+src/external/espresso-5.1_modules_for_BandUP/
 BandUP_bin/
 
 # Ignore vim temporary files

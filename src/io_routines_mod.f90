@@ -297,10 +297,10 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
-subroutine print_last_messages_before_unfolding(wf_file, list_of_SCKPTS, B_matrix_SC, vbz, &
+subroutine print_last_messages_before_unfolding(args, list_of_SCKPTS, B_matrix_SC, vbz, &
                                                 E_start, E_end, delta_e, e_fermi, spinor_wf)
 implicit none
-character(len=*), intent(in) :: wf_file
+type(comm_line_args), intent(in) :: args
 type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
 real(kind=dp), dimension(1:3,1:3), intent(in) :: B_matrix_SC
 real(kind=dp), intent(in) :: vbz,E_start,E_end,delta_e,e_fermi
@@ -312,30 +312,42 @@ integer(8) :: file_size_in_bytes
 character(len=2) :: file_size_units, mem_per_kpt_units
 logical :: using_omp
 
-    nkpts = size(list_of_SCKPTS) 
-    call get_file_size_in_bytes(file_size_in_bytes, file=wf_file)
-    file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
-    file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
-    file_size = file_size_in_GB
-    file_size_units = 'GB'
-    if(file_size_in_GB < 1.0_dp)then
-        file_size = file_size_in_MB
-        file_size_units = 'MB'
-    endif
+    nkpts = size(list_of_SCKPTS)
+    select case(upper_case(trim(args%pw_code)))
+        case ('VASP') 
+            call get_file_size_in_bytes(file_size_in_bytes, file=args%WF_file)
+            file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
+            file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
+            file_size = file_size_in_GB
+            file_size_units = 'GB'
+            if(file_size_in_GB < 1.0_dp)then
+                file_size = file_size_in_MB
+                file_size_units = 'MB'
+            endif
 
-    approx_mem_per_kpt_in_bytes = real(file_size_in_bytes,kind=dp)/real(nkpts,kind=dp)
-    mem_per_kpt_in_MB = approx_mem_per_kpt_in_bytes/(2.0**20)
-    mem_per_kpt_in_GB = approx_mem_per_kpt_in_bytes/(2.0**30)
-    mem_per_kpt = mem_per_kpt_in_GB
-    mem_per_kpt_units = 'GB'
-    if(mem_per_kpt_in_GB < 1.0_dp)then
-        mem_per_kpt = mem_per_kpt_in_MB
-        mem_per_kpt_units = 'MB'
-    endif
-    write(*,*)
-    write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units,' big. Only the necessary data will be read.'
-    write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units,' at a time.'
-    write(*,*)
+            approx_mem_per_kpt_in_bytes = real(file_size_in_bytes,kind=dp)/real(nkpts,kind=dp)
+            mem_per_kpt_in_MB = approx_mem_per_kpt_in_bytes/(2.0**20)
+            mem_per_kpt_in_GB = approx_mem_per_kpt_in_bytes/(2.0**30)
+            mem_per_kpt = mem_per_kpt_in_GB
+            mem_per_kpt_units = 'GB'
+            if(mem_per_kpt_in_GB < 1.0_dp)then
+                mem_per_kpt = mem_per_kpt_in_MB
+                mem_per_kpt_units = 'MB'
+            endif
+            write(*,*)
+            write(*,'(A)')'Parsing VASP wavefunctions.'
+            write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units, &
+                                    ' big. Only the necessary data will be read.'
+            write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units,' at a time.'
+            write(*,*)
+
+        case ('QE')
+            write(*,*)
+            write(*,'(A)')'Parsing Quantum ESPRESSO (pwscf) wavefunctions.'
+            write(*,'(5A)')'Using prefix = "', trim(args%qe_prefix), &
+                          '" and outdir = "', trim(args%qe_outdir),'".'
+            write(*,*)
+    end select
 
     VSBZ = dabs(dot_product(B_matrix_SC(1,:),cross(B_matrix_SC(2,:),B_matrix_SC(3,:))))
     if(VSBZ < vbz)then

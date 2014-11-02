@@ -50,7 +50,7 @@ integer, optional, intent(out) :: iostat
 integer, parameter :: qe_dp = kind(1.0_dp)
 integer, dimension(:,:), allocatable :: G_frac
 integer :: nkpts, n_pw, n_bands, n_bands_up, n_bands_down, n_spin, n_spinor, &
-           input_file_unit, ios, alloc_stat, i, j, ipw, iband
+           input_file_unit, ios, alloc_stat, i, j, ipw, iband, i_spinor
 real(kind=dp) :: e_fermi, ef_up, ef_dw, alat, encut
 real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix
 real(kind=dp), dimension(:,:), allocatable :: cart_coords_all_kpts, eigenvales, occupations
@@ -160,10 +160,10 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
         endif
 
         deallocate(pw_coeffs, stat=alloc_stat)
-        allocate(pw_coeffs(1:n_spinor*n_pw, 1:n_bands), stat=alloc_stat)
+        allocate(pw_coeffs(1:n_pw, 1:n_bands), stat=alloc_stat)
         if(alloc_stat/=0)then
             ios = alloc_stat
-            write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate plane-wave coefficients for the current Kpt."
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate plane-wave coefficients for the current KPT."
             return
         endif
 
@@ -175,11 +175,33 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
         endif
 
         ! Reading pw coeffs
-        call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, ispin=wf%i_spin, wf=pw_coeffs, ierr=ios)
-        if(ios/=0) call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, wf=pw_coeffs, ierr=ios)
+        deallocate(wf%pw_coeffs, stat=alloc_stat)
+        allocate(wf%pw_coeffs(1:n_spinor, 1:n_pw, 1:n_bands), stat=alloc_stat)
+        if(is_spinor)then
+            do i_spinor=1,n_spinor
+                call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, ispin=i_spinor, &
+                                    wf=pw_coeffs, ierr=ios)
+                wf%pw_coeffs(i_spinor,:,:) = pw_coeffs(:,:)
+                if(ios/=0) exit
+            enddo
+        else 
+            call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, ispin=wf%i_spin, &
+                                wf=pw_coeffs, ierr=ios)
+            if(ios/=0) call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, wf=pw_coeffs, ierr=ios)
+            wf%pw_coeffs(1,:,:) = pw_coeffs(:,:)
+        endif
+        deallocate(pw_coeffs, stat=alloc_stat)
         if(ios/=0)then
-            write(*,'(A)')"ERROR (read_qe_evc_file): Could not read plane-wave coefficients for the current Kpt."
+            write(*,'(A)')"ERROR (read_qe_evc_file): Could not read the plane-wave coefficients for the current KPT."
             return
+        else
+            if(renormalize_wf)then
+                do iband=1, n_bands
+                    inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), &
+                                                    wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
+                    wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
+                enddo
+            endif
         endif
     endif
 
@@ -235,23 +257,6 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
             enddo
         enddo
         deallocate(G_frac, stat=alloc_stat)
-
-        ! Transferring pw coeffs
-        deallocate(wf%pw_coeffs, stat=alloc_stat)
-        allocate(wf%pw_coeffs(1:n_spinor, 1:n_pw, 1:n_bands), stat=alloc_stat)
-        if(wf%is_spinor)then
-            wf%pw_coeffs(1,:,:) = pw_coeffs(1:n_pw/2,:)
-            wf%pw_coeffs(2,:,:) = pw_coeffs(n_pw/2+1:,:)
-        else
-            wf%pw_coeffs(1,:,:) = pw_coeffs(:,:)
-        endif
-        deallocate(pw_coeffs, stat=alloc_stat)
-        if(renormalize_wf)then
-            do iband=1, n_bands
-                inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
-                wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
-            enddo
-        endif
     endif
 
     if(present(iostat)) iostat = 0
