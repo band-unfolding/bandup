@@ -31,7 +31,7 @@ implicit none
 PRIVATE
 ! Public parameters
 ! Integer
-PUBLIC :: sp, dp, kind_cplx_coeffs
+PUBLIC :: sp, dp, kind_cplx_coeffs, qe_dp
 ! Real
 PUBLIC :: pi, twopi, min_dk, default_tol_for_vec_equality, max_tol_for_vec_equality, &
           default_tol_for_int_commens_test, default_symprec, two_m_over_hbar_sqrd, &
@@ -51,7 +51,8 @@ PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_po
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
 integer, parameter :: sp = selected_real_kind(6, 37), &    ! Single precision
                       dp = selected_real_kind(15, 307), &  ! Double precision
-                      kind_cplx_coeffs = sp ! Change to dp if you want to use double-precision
+                      kind_cplx_coeffs = sp, & ! Change to dp if you want to use double-precision
+                      qe_dp = kind(1.0_dp) ! QE's double precision
 real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi, &
                             default_tol_for_vec_equality=1E-5_dp, &
                             max_tol_for_vec_equality=1E-3_dp, &

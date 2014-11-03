@@ -402,17 +402,14 @@ if(read_coefficients)then
     !$omp parallel default(none) &
     !$    private(temp_unit, iost, irec, stream_pos, inner_prod) &
     !$    shared(io_unit_for_thread, file, irec_before_loop, nrecl, wf)
-    temp_unit = io_unit_for_thread(omp_get_thread_num() + 1)
+    temp_unit = io_unit_for_thread(1)
+    !$ temp_unit = io_unit_for_thread(omp_get_thread_num() + 1)
     open(unit=temp_unit,file=file,access='stream',iostat=iost,status='old')
     !$omp do schedule(guided)
     do iband=1, wf%n_bands
         irec=irec_before_loop+iband
         stream_pos = 1 + (irec - 1) * nrecl
         read(unit=temp_unit, pos=stream_pos) (wf%pw_coeffs(i_wf_comp,:,iband), i_wf_comp=1, wf%n_spinor)
-        if(renormalize_wf)then
-            inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
-            wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
-        endif
     enddo
     !$omp end do
     close(temp_unit)

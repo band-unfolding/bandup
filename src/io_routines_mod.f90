@@ -800,8 +800,8 @@ logical, intent(in), optional :: read_coeffs
 real(kind=dp), intent(out), optional :: elapsed_time
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer, intent(out), optional :: iostat
-integer :: ios, i_kpt
-real(kind=dp) :: stime, ftime
+integer :: ios, i_kpt, iband, i
+real(kind=dp) :: stime, ftime, inner_prod
 logical :: file_exists, spin_reset, read_coefficients
 
     stime = time()
@@ -837,6 +837,16 @@ logical :: file_exists, spin_reset, read_coefficients
         case('qe')
             call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
     end select
+    if(renormalize_wf)then
+        !$omp parallel do default(none) schedule(guided) &
+        !$ private(iband, inner_prod, i) &
+        !$ shared(wf)
+        do iband=1, wf%n_bands
+            inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), &
+                                            wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
+            wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
+        enddo
+    endif
 
     ftime = time()
     if(present(elapsed_time)) elapsed_time = ftime - stime

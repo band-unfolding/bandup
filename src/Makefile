@@ -36,7 +36,7 @@ QE_clib=$(espresso_folder)/clib
 LIBS = $(spglib_folder)/src/.libs/libsymspg.a
 LIBS += $(QE_modules)/libqemod.a $(QE_flib)/ptools.a $(QE_flib)/flib.a $(QE_clib)/clib.a $(QE_iotk)/libiotk.a
 # Additional module search paths
-FCFLAGS += -I$(espresso_folder)/Modules
+FCFLAGS += -I$(espresso_folder)/Modules -I$(espresso_folder)/iotk/src
 
 # Folders containing needed sources
 vpath %.f90 $(cla_folder)

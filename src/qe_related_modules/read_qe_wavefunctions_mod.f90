@@ -27,6 +27,7 @@
 
 module read_qe_wavefunctions
 use qexml_module ! Provided by the espresso package
+use iotk_module
 use cla_wrappers
 use general_io
 use constants_and_types
@@ -36,6 +37,63 @@ PRIVATE
 PUBLIC :: read_qe_evc_file
 
 CONTAINS
+
+
+subroutine get_pw_coeffs_from_evc_file(ikpt, folder, args, wf, ios, spinor_comp)
+implicit none
+integer, intent(in) :: ikpt
+character(len=*), intent(in) :: folder
+integer, intent(in), optional :: spinor_comp
+type(comm_line_args), intent(in) :: args
+type(pw_wavefunction), intent(inout) :: wf
+integer, intent(out) :: ios
+! Internal variables
+integer :: temp_unit, n_threads, ithread, iband, i_spin, shared_ios, alloc_stat
+complex(kind=qe_dp), dimension(:), allocatable :: pw_coeffs
+character(len=256) :: outdir, prefix, evc_file 
+
+    ios = -1
+
+    ! Getting the correct file name
+    evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt, i_spin))
+    temp_unit = available_io_unit()
+    call iotk_open_read(temp_unit, file=trim(evc_file), ierr=ios)
+    if(ios/=0) evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt))
+    call iotk_open_read(temp_unit, file=trim(evc_file), ierr=ios)
+    if(ios/=0)then
+        write(*,'(3A)')'ERROR: Cannot open file "',trim(evc_file),'".'
+        return
+    endif
+
+    ! Deciding on spin/spinor
+    i_spin = wf%i_spin
+    if(wf%is_spinor)then
+        if(present(spinor_comp))then
+            i_spin = spinor_comp
+        else
+            write(*,'(A)')'ERROR: Spinor wavefunction detected, but no spinor component index specified.'
+            ios = -1
+            return
+        endif
+    endif
+
+    ! Reading coeffs
+    deallocate(pw_coeffs, stat=alloc_stat)
+    allocate(pw_coeffs(1:wf%n_pw))
+    do iband=1, wf%n_bands
+        call iotk_scan_dat(temp_unit, 'evc'//trim(iotk_index(iband)), pw_coeffs(:), ierr=ios)
+        if(ios/=0)return
+        if(wf%is_spinor)then
+            wf%pw_coeffs(i_spin,:,iband) = pw_coeffs(:)
+        else
+            wf%pw_coeffs(1,:,iband) = pw_coeffs(:)
+        endif
+    enddo
+    deallocate(pw_coeffs, stat=alloc_stat)
+    call iotk_close_read(temp_unit, ierr=ios)
+
+end subroutine get_pw_coeffs_from_evc_file
+
 
 subroutine read_qe_evc_file(wf, args, ikpt, read_coeffs, iostat)
 implicit none
@@ -47,10 +105,9 @@ integer, intent(in) :: ikpt
 logical, optional, intent(in) :: read_coeffs
 integer, optional, intent(out) :: iostat
 ! Local variables
-integer, parameter :: qe_dp = kind(1.0_dp)
 integer, dimension(:,:), allocatable :: G_frac
 integer :: nkpts, n_pw, n_bands, n_bands_up, n_bands_down, n_spin, n_spinor, &
-           input_file_unit, ios, alloc_stat, i, j, ipw, iband, i_spinor
+           input_file_unit, ios, shared_ios, alloc_stat, i, j, ipw, iband, i_spinor
 real(kind=dp) :: e_fermi, ef_up, ef_dw, alat, encut
 real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix
 real(kind=dp), dimension(:,:), allocatable :: cart_coords_all_kpts, eigenvales, occupations
@@ -104,7 +161,7 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
    
     ! Getting list of Kpts in cartesian coordinates
     deallocate(cart_coords_all_kpts, stat=alloc_stat)
-    allocate(cart_coords_all_kpts(1:3, 1:nkpts), stat=alloc_stat)
+    allocate(cart_coords_all_kpts(1:3, 1:nkpts))
     call qexml_read_bz(xk=cart_coords_all_kpts, k_units=length_units_kpts, ierr=ios)
     if(ios/=0)then
         write(*,'(A)')'ERROR (read_qe_evc_file): Could not read the list of kpts!'
@@ -124,7 +181,7 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
 
     deallocate(eigenvales, stat=alloc_stat)
     deallocate(occupations, stat=alloc_stat)
-    allocate(eigenvales(1:n_bands, 1:nkpts), occupations(1:n_bands, 1:nkpts), stat=alloc_stat)
+    allocate(eigenvales(1:n_bands, 1:nkpts), occupations(1:n_bands, 1:nkpts))
     call qexml_read_bands_pw(num_k_points=nkpts, nkstot=nkpts, lsda=(n_spin==2), nbnd=n_bands, &
                              lkpoint_dir=.TRUE., filename='default', &
                              et=eigenvales, wg=occupations , ierr=ios)
@@ -149,25 +206,11 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
             write(*,'(A)')"ERROR (read_qe_evc_file): Could not determine the number of plane-waves for the current Kpt."
             return
         endif
-
-        ! Allocating arrays
-        deallocate(G_frac, stat=alloc_stat)
-        allocate(G_frac(1:3,1:n_pw), stat=alloc_stat)
-        if(alloc_stat/=0)then
-            ios = alloc_stat
-            write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate G-vectors for the current Kpt."
-            return
-        endif
-
-        deallocate(pw_coeffs, stat=alloc_stat)
-        allocate(pw_coeffs(1:n_pw, 1:n_bands), stat=alloc_stat)
-        if(alloc_stat/=0)then
-            ios = alloc_stat
-            write(*,'(A)')"ERROR (read_qe_evc_file): Could not allocate plane-wave coefficients for the current KPT."
-            return
-        endif
+        wf%n_pw = n_pw
 
         ! Reading the G vectors for the current kpt
+        deallocate(G_frac, stat=alloc_stat)
+        allocate(G_frac(1:3,1:n_pw))
         call qexml_read_gk(ik=ikpt, igk=G_frac, ierr=ios)
         if(ios/=0)then
             write(*,'(A)')"ERROR (read_qe_evc_file): Could not read G-vectors for the current Kpt."
@@ -176,33 +219,15 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
 
         ! Reading pw coeffs
         deallocate(wf%pw_coeffs, stat=alloc_stat)
-        allocate(wf%pw_coeffs(1:n_spinor, 1:n_pw, 1:n_bands), stat=alloc_stat)
-        if(is_spinor)then
-            do i_spinor=1,n_spinor
-                call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, ispin=i_spinor, &
-                                    wf=pw_coeffs, ierr=ios)
-                wf%pw_coeffs(i_spinor,:,:) = pw_coeffs(:,:)
-                if(ios/=0) exit
-            enddo
-        else 
-            call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, ispin=wf%i_spin, &
-                                wf=pw_coeffs, ierr=ios)
-            if(ios/=0) call qexml_read_wfc(ibnds=1, ibnde=n_bands, ik=ikpt, wf=pw_coeffs, ierr=ios)
-            wf%pw_coeffs(1,:,:) = pw_coeffs(:,:)
-        endif
-        deallocate(pw_coeffs, stat=alloc_stat)
-        if(ios/=0)then
-            write(*,'(A)')"ERROR (read_qe_evc_file): Could not read the plane-wave coefficients for the current KPT."
-            return
-        else
-            if(renormalize_wf)then
-                do iband=1, n_bands
-                    inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), &
-                                                    wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
-                    wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
-                enddo
+        allocate(wf%pw_coeffs(1:n_spinor, 1:n_pw, 1:n_bands))
+        do i_spinor=1, n_spinor
+            call get_pw_coeffs_from_evc_file(ikpt, xml_data_file_folder, &
+                                             args, wf, ios, spinor_comp=i_spinor)
+            if(ios/=0)then
+                write(*,'(A)')"ERROR (read_qe_evc_file): Could not read the plane-wave coefficients for the current KPT."
+                return
             endif
-        endif
+        enddo
     endif
 
     ! Done. Closing file now.
@@ -219,7 +244,6 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
     wf%n_bands = n_bands
     wf%n_bands_up = n_bands_up
     wf%n_bands_down = n_bands_down
-    wf%n_pw = n_pw
 
     wf%encut = to_ev(encut, encut_units)
     wf%e_fermi = to_ev(e_fermi, e_units)
@@ -232,7 +256,7 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
     endif
 
     deallocate(wf%band_occupations, wf%band_energies, stat=alloc_stat)
-    allocate(wf%band_occupations(1:n_bands), wf%band_energies(1:n_bands), stat=alloc_stat)
+    allocate(wf%band_occupations(1:n_bands), wf%band_energies(1:n_bands))
     wf%band_occupations(:) = occupations(:,ikpt)
     do j=1, size(eigenvales, dim=1)
         wf%band_energies(j) = to_ev(eigenvales(j,ikpt), e_units)
