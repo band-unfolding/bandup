@@ -35,7 +35,7 @@
 
 !!$************************* List of major changes from the WaveTrans code ****************************************
 !!$*
-!!$*       1: Turned the code into a module (read_wavecar), which can be used in the  program.
+!!$*       1: Turned the code into a module (read_vasp_wavecar), which can be used in the  program.
 !!$*          1.a: The routine "read_wavecar" returns information about any selected k-point, skipping the others.
 !!$*               In order to do that, I have changed a bit the way the positioning of the 
 !!$*               register is handled (which is also needed for openmp, see item 2)
@@ -50,10 +50,7 @@
 !!$*          1.f: Replaced subroutine vcross(vtemp, v1, v2) by function cross(v1, v2)
 !!$*          1.g: Added fuction norm(v) to compute the norm of a vector instead of doing it explicitly every time
 !!$*          1.h: All the angles (phi12, ..., phi123) are now calculated using the function "angle"
-!!$*          1.i: Added an option to renormalize the WF to unity w.r.t. the usual inner product
-!!$*               This allows BandUP to get accurate spectral weights as the norm of the partial functions,
-!!$*               and ensures that the calculated unfolding delta_Ns are always (non-negative) integers
-!!$*               when using a perfect supercell, as it should be [see Phys. Rev. B 89, 041407(R) (2014)].
+!!$*          1.i: All the info is passed to an wavefunction object (see file constants_and_types_mod.f90)
 !!$*
 !!$*       2: openmp is now used to parallelize (over bands) the reading of the WAVECAR file
 !!$*          2.a: Introduced the function "available_io_unit"
@@ -70,6 +67,7 @@
 !!$*          4.c: Replaced uni=6 by unit=* in the write statements
 !!$*          4.d: Pi is now declared as a parameter, and a parameter "twopi" has now been defined as well.
 !!$*          4.e: The names of some variables have been changed (just because of my personal style of writing)
+!!$*          4.f: Changes in the stdout
 !!$*
 !!$******* Below, comments in the header of the WaveTrans code (adapted) ****************************************       
 !!$*       

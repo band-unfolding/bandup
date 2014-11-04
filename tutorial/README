@@ -2,13 +2,18 @@
 How this works:
 ===================================================================================
 
+    * Enter the directory corresponding to the plane-wave (pw) code you are using
     * Go through the folders and execute the scripts. Take a look at the scripts and
       input files in each step to see what is going on.
     * The unfolded EBSs will "pop-up" if your computer meets the system requirements.
-    * The workflow is basically the same in all of the examples, and most likely will 
-      also be the same for your own systems too.
+    * The workflow is basically the same in all of the examples and for whatever 
+      okane-wave code you use. Moreover: the workflow will most likely also be the 
+      same for your own systems too.
     * The input files for the DFT calculations should work fine in most computers,
       but please double-check them just to be on the safe side.
+    * The number and types of examples in the tutorial might be different for the 
+      different pw codes supported. The workflow is always the same though, so fell 
+      free to adapt the examples if you want to.
     * Feel free to contact us if you have problems.
 
 ===================================================================================

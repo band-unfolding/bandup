@@ -1,0 +1,35 @@
+&control
+    title = 'Bulk Silicon',
+    prefix = 'bulk_Si_exmpl2_BandUP',
+    calculation = 'scf',
+    restart_mode = 'from_scratch',
+    disk_io = 'low'
+    wf_collect = .TRUE.,
+/
+&system
+    smearing = 'marzari-vanderbilt',
+    occupations = 'tetrahedra',
+    ibrav = 1,
+    A = 5.43,
+    nat = 8,
+    ntyp = 1,
+    ecutwfc = 35,
+    ecutrho = 350,
+    nbnd = 48
+/
+&electrons
+  conv_thr = 1.0d-6
+/
+ATOMIC_SPECIES
+    Si 28.059 Si.pbe-rrkj.UPF
+ATOMIC_POSITIONS alat
+    Si   0.000000000   0.000000000   0.000000000
+    Si   0.000000000   0.500000000   0.500000000
+    Si   0.500000000   0.500000000   0.000000000
+    Si   0.500000000   0.000000000   0.500000000
+    Si   0.750000000   0.250000000   0.750000000
+    Si   0.250000000   0.250000000   0.250000000
+    Si   0.250000000   0.750000000   0.750000000
+    Si   0.750000000   0.750000000   0.250000000
+K_POINTS AUTOMATIC
+    8 8 8 0 0 0

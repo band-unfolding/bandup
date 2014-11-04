@@ -10,12 +10,11 @@
 # ======================================================================
 # The compiler
 FC = ifort
-
-# Needed flags
+# Required flags: "-assume byterecl" is required for the compilation of the read_wavecar_mod module
 FCFLAGS = -assume byterecl 
-
-# flags for debugging or for maximum performance, comment (or edit) as necessary
-FCFLAGS += -openmp
+# Shared memory parallelization
+FCFLAGS += -openmp -parallel
+# Flags for maximum performance, portability, etc. Comment (or modify) as necessary.
 FCFLAGS += -O2 -no-ipo # ipo was causing a few problems.
 # Enable/disable warnings and remarks
 FCFLAGS += -diag-disable remark
@@ -37,7 +36,7 @@ QE_clib=$(espresso_folder)/clib
 LIBS = $(spglib_folder)/src/.libs/libsymspg.a
 LIBS += $(QE_modules)/libqemod.a $(QE_flib)/ptools.a $(QE_flib)/flib.a $(QE_clib)/clib.a $(QE_iotk)/libiotk.a
 # Additional module search paths
-FCFLAGS += -I$(espresso_folder)/Modules
+FCFLAGS += -I$(espresso_folder)/Modules -I$(espresso_folder)/iotk/src
 
 # Folders containing needed sources
 vpath %.f90 $(cla_folder)
@@ -94,4 +93,3 @@ clean:
 
 veryclean: clean
 	rm -f *~ $(EXE)
-

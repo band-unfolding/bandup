@@ -310,7 +310,7 @@ real(kind=dp) :: file_size_in_MB, file_size_in_GB, file_size, VSBZ, &
 integer :: nkpts
 integer(8) :: file_size_in_bytes
 character(len=2) :: file_size_units, mem_per_kpt_units
-logical :: using_omp
+logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
     nkpts = size(list_of_SCKPTS)
     select case(upper_case(trim(args%pw_code)))
@@ -339,15 +339,14 @@ logical :: using_omp
             write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units, &
                                     ' big. Only the necessary data will be read.'
             write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units,' at a time.'
-            write(*,*)
 
         case ('QE')
             write(*,*)
             write(*,'(A)')'Parsing Quantum ESPRESSO (pwscf) wavefunctions.'
             write(*,'(5A)')'Using prefix = "', trim(args%qe_prefix), &
                           '" and outdir = "', trim(args%qe_outdir),'".'
-            write(*,*)
     end select
+    write(*,*)
 
     VSBZ = dabs(dot_product(B_matrix_SC(1,:),cross(B_matrix_SC(2,:),B_matrix_SC(3,:))))
     if(VSBZ < vbz)then
@@ -360,16 +359,27 @@ logical :: using_omp
     write(*,'(3(A,f0.5),A)')'Working within the energy interval ',E_start-e_fermi,' < E-EF < ',E_end-e_fermi,' in increments of ',delta_e,' eV'
     write(*,'(A,f0.5,A)')'The Fermi energy EF = ',e_fermi,' will be set to the zero of the energy scale in the output file.'
 
+    select case (trim(adjustl(upper_case(args%pw_code))))
+        case default
+            warn_lack_omp = .FALSE.
+            print_using_omp_msg = .FALSE.
+        case('VASP') 
+            warn_lack_omp = .TRUE.
+            print_using_omp_msg = .TRUE.
+    end select
+
     using_omp = .FALSE.
     write(*,*)
-    write(*,*)
     !$ using_omp = .TRUE.
-    !$ write(*,'(A,A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will be running using ', &
+    if(print_using_omp_msg)then
+    !$  write(*,'(2A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will be running using ', &
     !$                      'a maximum of ',omp_get_max_threads(),' thread(s).'
-    !$ write(*,'(A)')"You can choose the maximum number of threads by setting the environment variable 'OMP_NUM_THREADS'"
-    if(.not. using_omp)then
+    !$  write(*,'(A)')"You can choose the maximum number of threads by setting the environment variable 'OMP_NUM_THREADS'"
+        continue
+    endif
+    if(.not. using_omp .and. warn_lack_omp)then
         write(*,'(A)')"OpenMP shared-memory parallelization has not been enabled (it is optional, don't worry).", &
-                      "To enable it, uncomment the line with the flag '-openmp' on the Makefile at BandUP/srci and run build.sh again.", & 
+                      "To enable it, uncomment the line with the flag '-openmp' on the Makefile at BandUP/src and run build.sh again.", & 
                       "It won't change the results, but it might save you some time."
     endif
 

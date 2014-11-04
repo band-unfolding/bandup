@@ -1,0 +1,7 @@
+Check the .sh file for the parts you need to change to make it work in your environment.
+Run the .sh file.
+
+What to do with the gerenated "KPOINTS_supercell.out" file:
+    * Copy the number of SC-Kpts, as well as their coordinates, and
+      paste them into Quantum espresso's ".in" file in the step #3.
+        * Remember to use "K_POINTS crystal" in that ".in" file!

@@ -22,12 +22,13 @@
 !> Paulo V C Medeiros, Linköping University
 !
 ! DESCRIPTION: 
-!> Provides a routine to read Quantum Espresso's wavefunctions and g-vectors.
+!> Provides routines to read info from Quantum Espresso's wavefunctions (evc files)
+!! into BandUP's wavefunction object.
 !===============================================================================
 
 module read_qe_wavefunctions
 use qexml_module ! Provided by the espresso package
-use iotk_module
+use iotk_module  ! Comes along with the espresso package
 use cla_wrappers
 use general_io
 use constants_and_types
@@ -39,58 +40,59 @@ PUBLIC :: read_qe_evc_file
 CONTAINS
 
 
-subroutine get_pw_coeffs_from_evc_file(ikpt, folder, args, wf, ios, spinor_comp)
+subroutine get_pw_coeffs_from_evc_file(ikpt, folder, wf, ios, spinor_comp)
 implicit none
 integer, intent(in) :: ikpt
 character(len=*), intent(in) :: folder
 integer, intent(in), optional :: spinor_comp
-type(comm_line_args), intent(in) :: args
 type(pw_wavefunction), intent(inout) :: wf
 integer, intent(out) :: ios
 ! Internal variables
-integer :: temp_unit, n_threads, ithread, iband, i_spin, shared_ios, alloc_stat
-complex(kind=qe_dp), dimension(:), allocatable :: pw_coeffs
-character(len=256) :: outdir, prefix, evc_file 
+integer :: io_unit, iband, i_spinor
+character(len=256) :: evc_file 
 
     ios = -1
 
+    ! Deciding on the spinor comp. to be read
+    i_spinor = 1
+    if(wf%is_spinor)then
+        if(.not. present(spinor_comp))then
+            write(*,'(A)')'ERROR (get_pw_coeffs_from_evc_file): Spinor wavefunction detected, &
+                           but no spinor component index specified.'
+            return
+        endif
+        i_spinor = spinor_comp
+    endif
+
     ! Getting the correct file name
-    evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt, i_spin))
-    temp_unit = available_io_unit()
-    call iotk_open_read(temp_unit, file=trim(evc_file), ierr=ios)
-    if(ios/=0) evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt))
-    call iotk_open_read(temp_unit, file=trim(evc_file), ierr=ios)
+    evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt))
+    if(wf%n_spin==2) evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt, wf%i_spin))
+    if(wf%is_spinor) evc_file = trim(qexml_wfc_filename(folder, 'evc', ikpt, i_spinor))
+
+    io_unit = available_io_unit()
+    call iotk_open_read(io_unit, file=trim(evc_file), ierr=ios)
     if(ios/=0)then
-        write(*,'(3A)')'ERROR: Cannot open file "',trim(evc_file),'".'
+        write(*,'(3A)')'ERROR (get_pw_coeffs_from_evc_file): Cannot open file "',trim(evc_file),'".'
         return
     endif
 
-    ! Deciding on spin/spinor
-    i_spin = wf%i_spin
-    if(wf%is_spinor)then
-        if(present(spinor_comp))then
-            i_spin = spinor_comp
-        else
-            write(*,'(A)')'ERROR: Spinor wavefunction detected, but no spinor component index specified.'
-            ios = -1
+    ! Reading coeffs
+    do iband=1, wf%n_bands
+        call iotk_scan_dat(io_unit, 'evc'//trim(iotk_index(iband)), &
+                           wf%pw_coeffs(i_spinor,:,iband), ierr=ios)
+        if(ios/=0)then
+            write(*,'(3A)')'ERROR (get_pw_coeffs_from_evc_file): Problems reading &
+                            plane-wave coefficients.'
             return
         endif
+    enddo
+
+    call iotk_close_read(io_unit, ierr=ios)
+    if(ios/=0)then
+        write(*,'(3A)')'WARNING (get_pw_coeffs_from_evc_file): Error closing file "',trim(evc_file),'".'
+        ios=0
     endif
 
-    ! Reading coeffs
-    deallocate(pw_coeffs, stat=alloc_stat)
-    allocate(pw_coeffs(1:wf%n_pw))
-    do iband=1, wf%n_bands
-        call iotk_scan_dat(temp_unit, 'evc'//trim(iotk_index(iband)), pw_coeffs(:), ierr=ios)
-        if(ios/=0)return
-        if(wf%is_spinor)then
-            wf%pw_coeffs(i_spin,:,iband) = pw_coeffs(:)
-        else
-            wf%pw_coeffs(1,:,iband) = pw_coeffs(:)
-        endif
-    enddo
-    deallocate(pw_coeffs, stat=alloc_stat)
-    call iotk_close_read(temp_unit, ierr=ios)
 
 end subroutine get_pw_coeffs_from_evc_file
 
@@ -107,12 +109,10 @@ integer, optional, intent(out) :: iostat
 ! Local variables
 integer, dimension(:,:), allocatable :: G_frac
 integer :: nkpts, n_pw, n_bands, n_bands_up, n_bands_down, n_spin, n_spinor, &
-           input_file_unit, ios, shared_ios, alloc_stat, i, j, ipw, iband, i_spinor
+           input_file_unit, ios, alloc_stat, i, j, ipw, i_spinor
 real(kind=dp) :: e_fermi, ef_up, ef_dw, alat, encut
 real(kind=dp), dimension(1:3,1:3) :: A_matrix, B_matrix
 real(kind=dp), dimension(:,:), allocatable :: cart_coords_all_kpts, eigenvales, occupations
-complex(kind=kind_cplx_coeffs) :: inner_prod
-complex(kind=qe_dp), allocatable, dimension(:,:) :: pw_coeffs
 logical :: is_spinor, two_efs, read_coefficients
 character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
                       length_units_kpts, length_units, e_units, encut_units
@@ -124,8 +124,8 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
     input_file_unit = available_io_unit()
     outdir = trim(adjustl(args%qe_outdir))
     prefix = trim(adjustl(args%qe_prefix))
-    xml_data_file_folder = trim(outdir) // '/' // trim(prefix) // '.save/'
-    xml_data_file = trim(xml_data_file_folder) // "data-file.xml"
+    xml_data_file_folder = trim(outdir) // '/' // trim(prefix) // '.save'
+    xml_data_file = trim(xml_data_file_folder) // "/data-file.xml"
 
     call qexml_init(input_file_unit, dir=xml_data_file_folder) 
     call qexml_openfile(xml_data_file, "read", ierr=ios)
@@ -222,7 +222,7 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
         allocate(wf%pw_coeffs(1:n_spinor, 1:n_pw, 1:n_bands))
         do i_spinor=1, n_spinor
             call get_pw_coeffs_from_evc_file(ikpt, xml_data_file_folder, &
-                                             args, wf, ios, spinor_comp=i_spinor)
+                                             wf, ios, spinor_comp=i_spinor)
             if(ios/=0)then
                 write(*,'(A)')"ERROR (read_qe_evc_file): Could not read the plane-wave coefficients for the current KPT."
                 return
@@ -269,6 +269,9 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
     wf%kpt_frac_coords = coords_cart_vec_in_new_basis(wf%kpt_cart_coords, new_basis=B_matrix)
 
     if(read_coefficients)then
+        ! To avoid allocating too much memory, 
+        ! the plane=wave coeffs are read directly into the wf
+
         ! Transferring G-vecs
         deallocate(wf%G_frac, wf%G_cart, stat=alloc_stat)
         allocate(wf%G_frac(1:n_pw), wf%G_cart(1:n_pw))
