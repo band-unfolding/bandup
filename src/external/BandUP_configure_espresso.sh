@@ -6,6 +6,6 @@ cd espresso-5.1_modules_for_BandUP
 
 export FC=ifort
 export CC=icc
-./configure FC=$FC CC=$CC
+./configure FC=$FC CC=$CC --disable-parallel --enable-openmp
 
 make bandup
