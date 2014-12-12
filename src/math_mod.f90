@@ -31,7 +31,7 @@ use spglib_f08
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: star, time, n_digits_integer, cross, norm, angle, real_seq, delta, &
+PUBLIC :: star, time, n_digits_integer, cross, norm, angle, real_seq, integer_seq, delta, &
           integral_delta_x_minus_x0, symmetry_operation, get_rec_latt, triple_product, &
           coords_cart_vec_in_new_basis, vec_in_latt, reduce_point_to_bz, same_vector, &
           get_symm, get_prim_cell, get_irr_SC_kpts, get_star, pt_eqv_by_point_group_symop, &
@@ -432,6 +432,23 @@ integer :: i, n_terms
     enddo
 
 end subroutine real_seq
+
+subroutine integer_seq(first_term, last_term, increment, return_list)
+implicit none
+integer, dimension(:), allocatable, intent(out) :: return_list
+integer, intent(in) :: first_term, last_term
+integer, intent(in), optional :: increment
+integer :: inc, i, n_terms
+
+    inc = 1
+    if(present(increment)) inc = increment
+    n_terms = nint((last_term - first_term)/inc + 1.0_dp)
+    allocate(return_list(1:n_terms))
+    do i = 1, n_terms
+         return_list(i) = first_term + (i - 1)*inc
+    enddo
+
+end subroutine integer_seq
 
 function kpts_line(kstart,kend,nk) result(line)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
