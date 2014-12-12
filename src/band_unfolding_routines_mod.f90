@@ -78,7 +78,8 @@ logical :: are_commens
 end subroutine verify_commens
 
 
-subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS, pckpts_to_be_checked, input_crystal_SC, verbose)
+subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
+                                        input_crystal_SC, verbose)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
@@ -104,7 +105,8 @@ type(crystal_3D) :: crystal_SC
     endif
 
     if(print_stuff)then
-        write(*,"(A)")"Verifying geometric unfolding relations between pcbz and SCBZ wave-vectors... "
+        write(*,"(A)")"Verifying geometric unfolding relations &
+                       between pcbz and SCBZ wave-vectors..."
     endif
 
     B_matrix_SC = crystal_SC%rec_latt_vecs
@@ -129,7 +131,8 @@ type(crystal_3D) :: crystal_SC
         crystal_SC%symops(1)%rotation_fractional_coords = identity_3D
         crystal_SC%symops(1)%rotation_cartesian_coords = identity_3D
     else
-        call get_symm(crystal=crystal_SC, use_pc_to_get_symm=.FALSE., symprec=default_symprec) ! fails if use_pc_to_get_symm=.TRUE.
+        ! This fails if use_pc_to_get_symm=.TRUE.
+        call get_symm(crystal=crystal_SC, use_pc_to_get_symm=.FALSE., symprec=default_symprec) 
     endif
     call get_star(star_of_pt=SKPTS_eqv_to_SKPT, points=list_of_SCKPTS, crystal=crystal_SC, &
                   tol_for_vec_equality=default_tol_for_vec_equality, &
@@ -141,11 +144,13 @@ type(crystal_3D) :: crystal_SC
     n_selec_pcbz_dirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
     allocate(n_dirs_for_EBS_along_pcbz_dir(1:n_selec_pcbz_dirs))
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
-        n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir) = size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
+        n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir) = &
+            size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
     enddo
     allocate(n_pckpts_dirs(1:n_selec_pcbz_dirs))
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
-        n_pckpts_dirs(i_selec_pcbz_dir) = size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:)) 
+        n_pckpts_dirs(i_selec_pcbz_dir) = &
+            size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:)) 
     enddo
     GUR%n_folding_pckpts = 0
     GUR%n_pckpts = 0
@@ -158,25 +163,36 @@ type(crystal_3D) :: crystal_SC
         allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(1:n_selec_pcbz_dirs))
         GUR%SCKPT_used_for_unfolding(i_SCKPT) = .FALSE.
         do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
-            deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir, stat=alloc_stat)
-            allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1:n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)))
+            deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir, &
+                       stat=alloc_stat)
+            allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(1:n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)))
             do i_needed_dirs=1,n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)
-                deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt, stat=alloc_stat)
-                allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(1:n_pckpts_dirs(i_selec_pcbz_dir)))
+                deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                               needed_dir(i_needed_dirs)%pckpt, stat=alloc_stat)
+                allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                             needed_dir(i_needed_dirs)%pckpt(1:n_pckpts_dirs(i_selec_pcbz_dir)))
                 do ipc_kpt=1,n_pckpts_dirs(i_selec_pcbz_dir)
                     GUR%n_pckpts = GUR%n_pckpts + 1
-                    pc_kpt(:) = pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:)
-                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:) = pc_kpt(:) 
-                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Scoords(:) = pc_kpt(:) 
-                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds = .FALSE.
-                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sfolding_vec(:) = 0.0_dp 
+                    pc_kpt(:) = pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                                     needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                                     coords(:)
+                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%&
+                        pckpt(ipc_kpt)%coords(:) = pc_kpt(:) 
+                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%&
+                        pckpt(ipc_kpt)%Scoords(:) = pc_kpt(:) 
+                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%&
+                        pckpt(ipc_kpt)%folds = .FALSE.
+                    GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%&
+                        pckpt(ipc_kpt)%Sfolding_vec(:) = 0.0_dp 
                 enddo
             enddo
         enddo
     enddo
     GUR%n_pckpts = (GUR%n_pckpts)/nkpts
     deallocate(pc_kpt_already_folded,stat=alloc_stat)
-    allocate(pc_kpt_already_folded(1:n_selec_pcbz_dirs,1:maxval(n_dirs_for_EBS_along_pcbz_dir(:)),1:maxval(n_pckpts_dirs(:))))
+    allocate(pc_kpt_already_folded(1:n_selec_pcbz_dirs,1:maxval(n_dirs_for_EBS_along_pcbz_dir(:)),&
+                                   1:maxval(n_pckpts_dirs(:))))
     pc_kpt_already_folded = .FALSE.
     !! Obtaining geometric unfolding relations
     do i_SCKPT=1,nkpts
@@ -184,42 +200,70 @@ type(crystal_3D) :: crystal_SC
             do i_needed_dirs=1,n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)
                 do ipc_kpt=1, n_pckpts_dirs(i_selec_pcbz_dir)
                     if(pc_kpt_already_folded(i_selec_pcbz_dir,i_needed_dirs,ipc_kpt))then
-                        cycle ! It has already folded before. Since a pckpt can only fold into one SCKPT, let's move on to the next pckpt.
+                        ! It has already folded before. Since a pckpt can only fold into one SCKPT,
+                        ! let's move on to the next pckpt.
+                        cycle 
                     endif
-                    pc_kpt(:) = pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:)
+                    pc_kpt(:) = pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                                     needed_dir(i_needed_dirs)% &
+                                                     pckpt(ipc_kpt)%coords(:)
                     current_SCKPT = list_of_SCKPTS(i_SCKPT)%coord(:)
                     do ieqv_SCKPT=1,SKPTS_eqv_to_SKPT(i_SCKPT) % neqv
-                        SCKPT_eqv_to_current_SCKPT(:) = SKPTS_eqv_to_SKPT(i_SCKPT) % eqv_pt(ieqv_SCKPT) % coord(:)
+                        SCKPT_eqv_to_current_SCKPT(:) = SKPTS_eqv_to_SKPT(i_SCKPT) % &
+                                                            eqv_pt(ieqv_SCKPT) % coord(:)
                         trial_folding_G(:) = pc_kpt(:) - SCKPT_eqv_to_current_SCKPT(:)
-                        if(vec_in_latt(vec=trial_folding_G, latt=B_matrix_SC,tolerance=default_tol_for_vec_equality))then
+                        if(vec_in_latt(vec=trial_folding_G, latt=B_matrix_SC, &
+                                       tolerance=default_tol_for_vec_equality))then
                             GUR%SCKPT_used_for_unfolding(i_SCKPT) = .TRUE.
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds = .TRUE.
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                               folds = .TRUE.
                             GUR%n_folding_pckpts = GUR%n_folding_pckpts + 1
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords_actual_unfolding_K = &
-                                SCKPT_eqv_to_current_SCKPT(:)
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                               coords_actual_unfolding_K = &
+                                                   SCKPT_eqv_to_current_SCKPT(:)
                             isym = SKPTS_eqv_to_SKPT(i_SCKPT) % eqv_pt(ieqv_SCKPT) % symop
-                            pc_kpt =  pt_eqv_by_point_group_symop(point=pc_kpt,symops=crystal_SC%symops,isym=isym, fractional_coords=.FALSE.,invert_symop=.TRUE.)
-                            origin_for_spin_proj =  pt_eqv_by_point_group_symop(point=args%origin_for_spin_proj_cartesian, &
-                                                                                symops=crystal_SC%symops,isym=isym, &
-                                                                                fractional_coords=.FALSE.,invert_symop=.TRUE.)
+                            pc_kpt =  pt_eqv_by_point_group_symop(point=pc_kpt, &
+                                                                  symops=crystal_SC%symops, &
+                                                                  isym=isym, &
+                                                                  fractional_coords=.FALSE., &
+                                                                  invert_symop=.TRUE.)
+                            origin_for_spin_proj = &
+                                pt_eqv_by_point_group_symop(point=args%origin_for_spin_proj_cartesian, &
+                                                            symops=crystal_SC%symops,isym=isym, &
+                                                            fractional_coords=.FALSE., &
+                                                            invert_symop=.TRUE.)
                             ! Message from Paulo:
-                            ! The prefix "S" means "symmetrized". This is a little trick I came up with
-                            ! that allows me to use the coefficients of a SC wavefunction psi(K',n) to
-                            ! calculate the spectral weights associated with a SC wavefunction psi(K,n),
-                            ! where K' = SK and S is a symmetry operation of the crystal's point group.
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Scoords(:) = pc_kpt(:)
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sorigin_for_spin_proj(:) = origin_for_spin_proj(:)
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sfolding_vec(:) = &
-                                pc_kpt(:) - current_SCKPT(:)
+                            ! The prefix "S" means "symmetrized". This is a little trick I came up
+                            ! with, that allows me to use the coefficients of a SC wavefunction
+                            ! psi(K',n) to calculate the spectral weights associated with a SC wf
+                            ! psi(K,n), where K' = SK and S is a symmetry operation of the 
+                            ! crystal's point group.
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                               Scoords(:) = pc_kpt(:)
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                               Sorigin_for_spin_proj(:) = origin_for_spin_proj(:)
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                               Sfolding_vec(:) = pc_kpt(:) - current_SCKPT(:)
                             pc_kpt_already_folded(i_selec_pcbz_dir,i_needed_dirs,ipc_kpt) = .TRUE.
                             exit ! It has already folded. No need to keep looking for this pckpt.
                         else 
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds = .FALSE.
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
+                                               folds = .FALSE.
                         endif
-                    enddo ! Loop over all the SCKPTS eqv. to the one on the WF file by symm. ops. of the SC
-                enddo ! Loop over the pckpts along the dirs. of the pcbz that are eqv. to the selec. ones by 
-                      ! symm. ops. of the pcbz and NOT by symm. ops. of the SCBZ
-            enddo ! Loop over all dirs. of the pcbz that are eqv. to the selec. ones by symm. ops. of the pcbz and NOT by symm. ops. of the SCBZ
+                    ! Loop over all the SCKPTS eqv. to the one on the WF file by SC symmops
+                    enddo 
+                ! Loop over the pckpts along the dirs. of the pcbz that are eqv. to the selec. ones
+                ! by symm. ops. of the pcbz and NOT by symm. ops. of the SCBZ
+                enddo 
+            ! Loop over all dirs. of the pcbz that are eqv. to the selec. ones by symm. ops. of the
+            ! pcbz and NOT by symm. ops. of the SCBZ
+            enddo 
         enddo ! Loop over the selected pcbz directions
     enddo ! Loop over the SCKPTS found on the wavefunction file
 
@@ -231,13 +275,16 @@ type(crystal_3D) :: crystal_SC
 end subroutine get_geom_unfolding_relations
 
 
-subroutine define_pckpts_to_be_checked(pckpts_to_be_checked,all_dirs_used_for_EBS_along_pcbz_dir,nkpts_selected_dirs)
+subroutine define_pckpts_to_be_checked(pckpts_to_be_checked, &
+                                       all_dirs_used_for_EBS_along_pcbz_dir, &
+                                       nkpts_selected_dirs)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 type(selected_pcbz_directions), intent(out) :: pckpts_to_be_checked
 type(irr_bz_directions), dimension(:), intent(in) :: all_dirs_used_for_EBS_along_pcbz_dir
 integer, dimension(:), intent(in) :: nkpts_selected_dirs
-integer :: n_selec_pcbz_dirs,i_selec_pcbz_dir,nk,ikpt,i_needed_dirs,n_dirs_for_EBS_along_pcbz_dir,alloc_stat
+integer :: n_selec_pcbz_dirs, i_selec_pcbz_dir, nk, ikpt, i_needed_dirs, &
+           n_dirs_for_EBS_along_pcbz_dir, alloc_stat
 real(kind=dp), dimension(1:3) :: kstart,kend
 type(vec3d), dimension(:), allocatable :: kline
 
@@ -245,20 +292,28 @@ type(vec3d), dimension(:), allocatable :: kline
     deallocate(pckpts_to_be_checked%selec_pcbz_dir,stat=alloc_stat)
     allocate(pckpts_to_be_checked%selec_pcbz_dir(1:n_selec_pcbz_dirs))
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
-        n_dirs_for_EBS_along_pcbz_dir = size(all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(:))
-        deallocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir,stat=alloc_stat)
-        allocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1:n_dirs_for_EBS_along_pcbz_dir))
+        n_dirs_for_EBS_along_pcbz_dir = &
+            size(all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(:))
+        deallocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir, &
+                   stat=alloc_stat)
+        allocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                      needed_dir(1:n_dirs_for_EBS_along_pcbz_dir))
         nk = nkpts_selected_dirs(i_selec_pcbz_dir)
         do i_needed_dirs=1,n_dirs_for_EBS_along_pcbz_dir
-            deallocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt,stat=alloc_stat)
-            allocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(1:nk),stat=alloc_stat)
-            kstart = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%kstart  
-            kend = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%kend
+            deallocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                            needed_dir(i_needed_dirs)%pckpt, stat=alloc_stat)
+            allocate(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                          needed_dir(i_needed_dirs)%pckpt(1:nk),stat=alloc_stat)
+            kstart = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)% &
+                         irr_dir(i_needed_dirs)%kstart  
+            kend = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)% &
+                                                                          kend
             deallocate(kline,stat=alloc_stat)
             allocate(kline(1:nk))
             kline = kpts_line(kstart,kend,nk)
             do ikpt=1,nk
-                pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ikpt)%coords(:) = kline(ikpt)%coord(:)
+                pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)% &
+                                     pckpt(ikpt)%coords(:) = kline(ikpt)%coord(:)
             enddo
         enddo
     enddo
@@ -304,26 +359,30 @@ real(kind=dp) :: tol, tol_for_vec_equality
             trial_pc_g = wf%G_cart(ig)%coord(:) - folding_G(:)
             if(vec_in_latt(vec=trial_pc_g, latt=crystal_pc%rec_latt_vecs, tolerance=tol))then
                  !$omp critical
-                 call append(item=ig,list=selected_coeff_indices) ! pc_g + folding_G has to belong to the 
+                 call append(item=ig,list=selected_coeff_indices)
                  !$omp end critical
              endif
         enddo
     enddo
-    if(abs(tol - tol_for_vec_equality) > epsilon(1.0_dp) .and. allocated(selected_coeff_indices))then
+    if(abs(tol - tol_for_vec_equality) > epsilon(1.0_dp) .and. &
+       allocated(selected_coeff_indices))then
         write(*,'(A)') &
-        '    WARNING (select_coeffs_to_calc_spectral_weights): Problems selecting the coeffs to calculate the spec. weights for the current pc-kpt.'
+        '    WARNING (select_coeffs_to_calc_spectral_weights): Problems selecting the coeffs &
+            to calculate the spec. weights for the current pc-kpt.'
         write(*,'(2(A,f0.6),A)') &
-        '            The tolerace for testing vector equality had to be increased from ',tol_for_vec_equality,' to ',tol,'.'
+        '            The tolerace for testing vector equality had to be increased from ', &
+                     tol_for_vec_equality,' to ',tol,'.'
         write(*,'(A)')'            The results might not be entirely correct.'
     endif
 
 end subroutine select_coeffs_to_calc_spectral_weights
 
 
-function spectral_weight_for_coeff(coeff, selected_coeff_indices, add_elapsed_time_to) result(spectral_weight)
+function spectral_weight_for_coeff(coeff, selected_coeff_indices, add_elapsed_time_to) &
+result(spectral_weight)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
-complex(kind=kind_cplx_coeffs), dimension(:,:), intent(in) :: coeff !Coefficients, coeff(ikpt, iband)
+complex(kind=kind_cplx_coeffs), dimension(:,:), intent(in) :: coeff ! coeff(ikpt, iband)
 real(kind=dp), dimension(1:size(coeff,dim=2)) :: spectral_weight
 integer, dimension(:), intent(in) :: selected_coeff_indices
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
@@ -353,7 +412,8 @@ real(kind=dp) :: stime, ftime
 end function spectral_weight_for_coeff
 
 
-subroutine calc_spectral_function(SF_at_pckpt,energies,SC_calc_ener,spectral_weight,std_dev,add_elapsed_time_to)
+subroutine calc_spectral_function(SF_at_pckpt,energies,SC_calc_ener,spectral_weight,std_dev, &
+                                  add_elapsed_time_to)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 real(kind=dp), dimension(:), allocatable, intent(out) :: SF_at_pckpt
@@ -473,11 +533,13 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 end subroutine get_delta_Ns_for_EBS
 
 
-subroutine get_delta_Ns_for_output(delta_N_only_selected_dirs,delta_N_symm_avrgd_for_EBS, &
-                                   delta_N,all_dirs_used_for_EBS_along_pcbz_dir,pckpts_to_be_checked)
+subroutine get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
+                                   delta_N, all_dirs_used_for_EBS_along_pcbz_dir, &
+                                   pckpts_to_be_checked)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
-type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
+type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N_only_selected_dirs, &
+                                                  delta_N_symm_avrgd_for_EBS
 type(UnfoldedQuantities), intent(in) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(irr_bz_directions), dimension(:), intent(in) :: all_dirs_used_for_EBS_along_pcbz_dir
@@ -493,15 +555,20 @@ logical :: output_spin_info
     call allocate_UnfoldedQuantitiesForOutput(delta_N_only_selected_dirs, pckpts_to_be_checked)
     call allocate_UnfoldedQuantitiesForOutput(delta_N_symm_avrgd_for_EBS, pckpts_to_be_checked)
     do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
-        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
+        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = &
+            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
         do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
             avrgd_dNs(:) = 0.0_dp
-            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(1:nener))
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                                pckpt(ipc_kpt)%dN(1:nener))
             do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
-                weight = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
-                avrgd_dNs = avrgd_dNs + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(:)
+                weight = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)% &
+                         irr_dir(i_needed_dirs)%weight
+                avrgd_dNs = avrgd_dNs + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                                       needed_dir(i_needed_dirs)% &
+                                                       pckpt(ipc_kpt)%dN(:)
             enddo
-            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs(:)
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs
        enddo     
     enddo
 
@@ -511,24 +578,39 @@ logical :: output_spin_info
     allocate(avrgd_parallel_proj(1:nener))
     allocate(avrgd_sigma(1:nener,1:3))
     do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
-        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
+        delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = &
+            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
         do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:))
             avrgd_spin_proj(:) = 0.0_dp
             avrgd_parallel_proj(:) = 0.0_dp
             avrgd_sigma(:,:) = 0.0_dp
-            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_perp(1:nener))
-            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_para(1:nener))
-            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%sigma(1:nener,1:3))
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                                pckpt(ipc_kpt)%spin_proj_perp(1:nener))
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                                pckpt(ipc_kpt)%spin_proj_para(1:nener))
+            allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                                pckpt(ipc_kpt)%sigma(1:nener,1:3))
             do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
-                weight = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(i_needed_dirs)%weight
-                avrgd_spin_proj = avrgd_spin_proj + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(:)
+                weight = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)% &
+                         irr_dir(i_needed_dirs)%weight
+                avrgd_spin_proj = avrgd_spin_proj + weight * &
+                                  delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                  needed_dir(i_needed_dirs)% &
+                                  pckpt(ipc_kpt)%spin_proj_perp(:)
                 avrgd_parallel_proj = avrgd_parallel_proj + weight * &
-                                      delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(:)
-                avrgd_sigma = avrgd_sigma + weight*delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(:,:)
+                                      delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                      needed_dir(i_needed_dirs)% &
+                                      pckpt(ipc_kpt)%spin_proj_para(:)
+                avrgd_sigma = avrgd_sigma + weight * &
+                              delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                              needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(:,:)
             enddo
-            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_perp(:) = avrgd_spin_proj(:)
-            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%spin_proj_para(:) = avrgd_parallel_proj(:)
-            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%sigma(:,:) = avrgd_sigma(:,:)
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                       pckpt(ipc_kpt)%spin_proj_perp(:) = avrgd_spin_proj(:)
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                       pckpt(ipc_kpt)%spin_proj_para(:) = avrgd_parallel_proj(:)
+            delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
+                                       pckpt(ipc_kpt)%sigma(:,:) = avrgd_sigma(:,:)
        enddo     
     enddo
   
@@ -536,7 +618,8 @@ logical :: output_spin_info
 end subroutine get_delta_Ns_for_output
 
 
-subroutine calc_rho(rho, delta_N, pc_ener, delta_e, wf, selected_coeff_indices, std_dev, add_elapsed_time_to)
+subroutine calc_rho(rho, delta_N, pc_ener, delta_e, wf, &
+                    selected_coeff_indices, std_dev, add_elapsed_time_to)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 !! Please make sure that delta_N /= 0 before calling this subroutine
 implicit none
@@ -546,9 +629,10 @@ type(pw_wavefunction), intent(in) :: wf
 integer, dimension(:), intent(in) :: selected_coeff_indices
 real(kind=dp), intent(in), optional :: std_dev
 real(kind=dp) :: min_prefactor, lamb_ee1, lamb_ee2, prefactor, sigma, stime, ftime
-integer :: m1, m2, n_SC_bands, pw_index, alloc_stat, n_coeffs, n_coeffs_pf, & ! m1 and m2 are SC band indices
+integer :: m1, m2, n_SC_bands, pw_index, alloc_stat, n_coeffs, n_coeffs_pf, & ! m1, m2: SC band ind
            n_spinor, i_spinor, pf_pw_index, n_picked_bands
-complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: pf_coeffs_m1, pf_coeffs_m2 ! pf = partial function
+! pf = partial function
+complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: pf_coeffs_m1, pf_coeffs_m2 
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
 
@@ -576,13 +660,15 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
         !$    schedule(guided) default(none) &
         !$    shared(n_SC_bands, pc_ener, wf, delta_e, sigma, min_prefactor, delta_N, &
         !$           n_coeffs_pf, n_spinor, selected_coeff_indices, rho) &
-        !$    private(m1, m2, lamb_ee1, lamb_ee2, prefactor, pf_coeffs_m1, pf_coeffs_m2, alloc_stat, &
-        !$            i_spinor, pf_pw_index)
+        !$    private(m1, m2, lamb_ee1, lamb_ee2, prefactor, pf_coeffs_m1, pf_coeffs_m2, &
+        !$            alloc_stat, i_spinor, pf_pw_index)
         do m1=1, n_SC_bands - 1
-            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), delta_e=delta_e, std_dev=sigma)
+            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), &
+                              delta_e=delta_e, std_dev=sigma)
             if(lamb_ee1 < min_prefactor) cycle
             do m2=m1, n_SC_bands
-                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m2), delta_e=delta_e, std_dev=sigma)
+                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m2), &
+                                  delta_e=delta_e, std_dev=sigma)
                 prefactor = (lamb_ee1 * lamb_ee2) / delta_N
                 if(prefactor < min_prefactor) cycle
             
@@ -591,8 +677,10 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
                     pf_pw_index = 0
                     do pw_index = 1, n_coeffs_pf
                         pf_pw_index = pf_pw_index + 1
-                        pf_coeffs_m1(pf_pw_index) = wf%pw_coeffs(i_spinor, selected_coeff_indices(pw_index), m1)
-                        pf_coeffs_m2(pf_pw_index) = wf%pw_coeffs(i_spinor, selected_coeff_indices(pw_index), m2)
+                        pf_coeffs_m1(pf_pw_index) = &
+                            wf%pw_coeffs(i_spinor, selected_coeff_indices(pw_index), m1)
+                        pf_coeffs_m2(pf_pw_index) = &
+                            wf%pw_coeffs(i_spinor, selected_coeff_indices(pw_index), m2)
                     enddo
                     rho(m1,m2) = rho(m1,m2) + dot_product(pf_coeffs_m1, pf_coeffs_m2)
                 enddo
@@ -604,11 +692,13 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     else
         n_picked_bands = 0
         do m1=1, n_SC_bands
-            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), delta_e=delta_e, std_dev=sigma)
+            lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), &
+                              delta_e=delta_e, std_dev=sigma)
             if(lamb_ee1 < min_prefactor) cycle
             n_picked_bands = n_picked_bands + 1
             do m2=1, n_SC_bands
-                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m2), delta_e=delta_e, std_dev=sigma)
+                lamb_ee2 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m2), &
+                                  delta_e=delta_e, std_dev=sigma)
                 prefactor = (lamb_ee1 * lamb_ee2) / delta_N
                 if(prefactor < min_prefactor) cycle
                 rho(m1,m2) = 1.0_dp
@@ -629,16 +719,19 @@ subroutine get_SC_pauli_matrix_elmnts(SC_pauli_matrix_elmnts, pauli_mtx_elmts_al
                                       wf, selected_pc_ener, delta_e, add_elapsed_time_to)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
-complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable, intent(inout) :: SC_pauli_matrix_elmnts
+complex(kind=kind_cplx_coeffs), dimension(:,:,:), &
+    allocatable, intent(inout) :: SC_pauli_matrix_elmnts
 logical, dimension(:,:), allocatable, intent(inout) :: pauli_mtx_elmts_already_calc
 type(pw_wavefunction), intent(in) :: wf
 real(kind=dp), intent(in) :: selected_pc_ener, delta_e
 complex(kind=kind_cplx_coeffs) :: inner_prod_Km2Alpha_Km1Beta, inner_prod_Km2Beta_Km1Alpha, &
                                   inner_prod_Km2Alpha_Km1Alpha, inner_prod_Km2Beta_Km1Beta
 complex(kind=kind_cplx_coeffs), parameter :: J = (0.0_kind_cplx_coeffs, 1.0_kind_cplx_coeffs), &
-                                             cplx_zero = (0.0_kind_cplx_coeffs, 0.0_kind_cplx_coeffs)
+                                             cplx_zero = (0.0_kind_cplx_coeffs, &
+                                                          0.0_kind_cplx_coeffs)
 integer :: n_SC_bands, alloc_stat, m1, m2, m3, m4
-integer, dimension(:), allocatable :: picked_SC_bands ! list of SC bands to enter the calc of the matrix elements
+! list of SC bands to enter the calc of the matrix elements
+integer, dimension(:), allocatable :: picked_SC_bands 
 real(kind=dp) :: lambd, stime, ftime
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
@@ -672,14 +765,21 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
                 m1 = picked_SC_bands(m3)
                 m2 = picked_SC_bands(m4)
                 if(pauli_mtx_elmts_already_calc(m2,m1)) cycle
-                inner_prod_Km2Alpha_Km1Beta = dot_product(wf%pw_coeffs(1,:,m2), wf%pw_coeffs(2,:,m1))
-                inner_prod_Km2Beta_Km1Alpha = dot_product(wf%pw_coeffs(2,:,m2), wf%pw_coeffs(1,:,m1))
-                inner_prod_Km2Alpha_Km1Alpha = dot_product(wf%pw_coeffs(1,:,m2), wf%pw_coeffs(1,:,m1))
-                inner_prod_Km2Beta_Km1Beta = dot_product(wf%pw_coeffs(2,:,m2), wf%pw_coeffs(2,:,m1))
+                inner_prod_Km2Alpha_Km1Beta = dot_product(wf%pw_coeffs(1,:,m2), &
+                                                          wf%pw_coeffs(2,:,m1))
+                inner_prod_Km2Beta_Km1Alpha = dot_product(wf%pw_coeffs(2,:,m2), &
+                                                          wf%pw_coeffs(1,:,m1))
+                inner_prod_Km2Alpha_Km1Alpha = dot_product(wf%pw_coeffs(1,:,m2), &
+                                                           wf%pw_coeffs(1,:,m1))
+                inner_prod_Km2Beta_Km1Beta = dot_product(wf%pw_coeffs(2,:,m2), &
+                                                         wf%pw_coeffs(2,:,m1))
 
-                SC_pauli_matrix_elmnts(1,m2,m1) = inner_prod_Km2Alpha_Km1Beta + inner_prod_Km2Beta_Km1Alpha
-                SC_pauli_matrix_elmnts(2,m2,m1) = J * (inner_prod_Km2Beta_Km1Alpha - inner_prod_Km2Alpha_Km1Beta) 
-                SC_pauli_matrix_elmnts(3,m2,m1) = inner_prod_Km2Alpha_Km1Alpha - inner_prod_Km2Beta_Km1Beta
+                SC_pauli_matrix_elmnts(1,m2,m1) = inner_prod_Km2Alpha_Km1Beta + &
+                                                  inner_prod_Km2Beta_Km1Alpha
+                SC_pauli_matrix_elmnts(2,m2,m1) = J * (inner_prod_Km2Beta_Km1Alpha - &
+                                                       inner_prod_Km2Alpha_Km1Beta) 
+                SC_pauli_matrix_elmnts(3,m2,m1) = inner_prod_Km2Alpha_Km1Alpha - &
+                                                  inner_prod_Km2Beta_Km1Beta
                 pauli_mtx_elmts_already_calc(m2,m1) = .TRUE.
 
                 SC_pauli_matrix_elmnts(:,m1,m2) = conjg(SC_pauli_matrix_elmnts(:,m2,m1))
@@ -698,7 +798,8 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 end subroutine get_SC_pauli_matrix_elmnts
 
 
-subroutine calc_spin_projections(spin_proj_perp, spin_proj_para, pauli_vector, cart_coords_kpt, origin)
+subroutine calc_spin_projections(spin_proj_perp, spin_proj_para, &
+                                 pauli_vector, cart_coords_kpt, origin)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 !! This is a BETA feature, and should be used with caution
 implicit none
@@ -728,8 +829,8 @@ type(pw_wavefunction), intent(in) :: wf
 integer, dimension(:), intent(in) :: selected_coeff_indices
 real(kind=dp), dimension(:), intent(in) :: energy_grid
 
-integer :: n_WF_components, n_bands_SC_calculation, i_spinor, iener, nener, iener2, alloc_stat, i, &
-           i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, i_SCKPT
+integer :: n_WF_components, n_bands_SC_calculation, i_spinor, iener, nener, iener2, &
+           alloc_stat, i, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, i_SCKPT
 real(kind=dp), dimension(:), allocatable :: spectral_weight
 real(kind=dp) :: selected_pc_ener, delta_e, dN, unf_spin_proj_perp, unf_spin_proj_para
 real(kind=dp), dimension(1:3) :: symmetrized_unf_pc_kpt, unf_pauli_vec, projection_origin
@@ -755,32 +856,40 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         spectral_weight = 0.0_dp
         do i_spinor=1,n_WF_components
            ! Calculating spectral_weights
-            spectral_weight = spectral_weight + spectral_weight_for_coeff(wf%pw_coeffs(i_spinor,:,:), &
-                                                                          selected_coeff_indices, &
-                                                                          add_elapsed_time_to=times%calc_spec_weights)
+            spectral_weight = spectral_weight + &
+                              spectral_weight_for_coeff(wf%pw_coeffs(i_spinor,:,:), &
+                                                        selected_coeff_indices, &
+                                                        add_elapsed_time_to=times%calc_spec_weights)
         enddo
     else
-        write(*,'(A)')'    **** WARNING: You are using the option "-dont_unfold". You are NOT performing unfolding!! ****'
+        write(*,'(A)')'    **** WARNING: You are using the option "-dont_unfold". &
+                                         You are NOT performing unfolding!! ****'
         spectral_weight = 1.0_dp
     endif
     
     ! Calculating the delta_Ns
-    call get_delta_Ns_for_EBS(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN, &
+    call get_delta_Ns_for_EBS(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                      needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN, &
                               energy_grid, wf%band_energies, spectral_weight, &
                               add_elapsed_time_to=times%calc_dN)
 
     if(calc_spec_func_explicitly)then
         ! Calculating the spectral_function (optional)
-        call calc_spectral_function(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%SF, &
+        call calc_spectral_function(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                            needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%SF, &
                                     energy_grid, wf%band_energies, spectral_weight, &
                                     add_elapsed_time_to=times%calc_SF)
     endif
 
     if(n_WF_components==2)then
-        nener = size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN)
-        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(1:nener))
-        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(1:nener))
-        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(1:nener,1:3))
+        nener = size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                             needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN)
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(1:nener))
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(1:nener))
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(1:nener,1:3))
         delta_e = energy_grid(2) - energy_grid(1) ! uniform energy grid
 
         !$omp parallel do &
@@ -789,11 +898,15 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         !$           pc_energies_to_calc_eigenvalues) &
         !$    private(iener, dN)
         do iener=1, nener
-            dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
+            dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
             if(dN < 1E-3_dp)then ! Can hardly be considered a band; no point calculating rho
-                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(iener) = 0.0_dp 
-                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(iener) = 0.0_dp 
-                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(iener,:) = 0.0_dp
+                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(iener) = 0.0_dp 
+                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(iener) = 0.0_dp 
+                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(iener,:) = 0.0_dp
             else
                 !$omp critical
                 call append(list=pc_energies_to_calc_eigenvalues, item=iener)
@@ -805,7 +918,8 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         do iener2=1, size(pc_energies_to_calc_eigenvalues)
             iener = pc_energies_to_calc_eigenvalues(iener2)
             selected_pc_ener = energy_grid(iener)
-            dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
+            dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
             call calc_rho(rho, dN, energy_grid(iener), delta_e, wf, selected_coeff_indices, &
                           add_elapsed_time_to=times%calc_rho)
 
@@ -815,13 +929,21 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
             do i=1,3
                 unf_pauli_vec(i) = real(trace_AB(A=rho, B=SC_pauli_matrix_elmnts(i,:,:)), kind=dp)
             enddo
-            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(iener,:) = unf_pauli_vec(:)
+            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                    needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(iener,:) = unf_pauli_vec(:)
 
-            projection_origin = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Sorigin_for_spin_proj(:)
+            projection_origin = GUR%SCKPT(i_SCKPT)% &
+                                    selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                    needed_dir(i_needed_dirs)% &
+                                    pckpt(ipc_kpt)%Sorigin_for_spin_proj(:)
             call calc_spin_projections(unf_spin_proj_perp, unf_spin_proj_para, unf_pauli_vec, &
                                        symmetrized_unf_pc_kpt, origin=projection_origin)
-            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(iener) = unf_spin_proj_perp 
-            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(iener) = unf_spin_proj_para
+            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                    needed_dir(i_needed_dirs)% &
+                    pckpt(ipc_kpt)%spin_proj_perp(iener) = unf_spin_proj_perp 
+            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                    needed_dir(i_needed_dirs)% &
+                    pckpt(ipc_kpt)%spin_proj_para(iener) = unf_spin_proj_para
             deallocate(rho, stat=alloc_stat) !! rho is allocated in the calc_rho routine
         enddo
         deallocate(pauli_mtx_elmts_already_calc, SC_pauli_matrix_elmnts, stat=alloc_stat)
