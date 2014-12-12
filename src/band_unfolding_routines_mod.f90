@@ -196,6 +196,10 @@ type(crystal_3D) :: crystal_SC
     pc_kpt_already_folded = .FALSE.
     !! Obtaining geometric unfolding relations
     do i_SCKPT=1,nkpts
+        ! Ignoring the 1st "args%n_sckpts_to_skip" SCKPTS
+        ! This might be used, e.g., together with hybrid functional calcs using VASP.
+        ! Since everything is initialized to "not folding", this is safe.
+        if(i_SCKPT <= args%n_sckpts_to_skip) cycle 
         do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
             do i_needed_dirs=1,n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)
                 do ipc_kpt=1, n_pckpts_dirs(i_selec_pcbz_dir)

@@ -104,6 +104,12 @@ integer :: spin_channel, env_var_stat
                       cla_char, 'unfolded_EBS_symmetry-averaged.dat')
     call cla_register('-spin_channel', 'Either 1 or 2 (if the wavefunction has a 2nd spin channel).', &
                       cla_int, '1')
+    call cla_register('-n_sckpts_to_skip','Tells BandUP to skip the first "n_sckpts_to_skip" KPTS'&
+                                          //new_line('A')//'     found in the wavefunction file.'&
+                                          //new_line('A')// &
+                                          '     This can be used, e.g., to do unfolding with hybrid &
+                                                functional'//new_line('A')//'     calcs. using VASP.', &
+                      cla_int, '0')
     call cla_register('-continue_if_not_commensurate', &
                       'Continue if the SC and pc are not commensurate.', cla_flag, 'F')
     call cla_register('-skip_propose_pc_for_given_pc', 'Do not attempt to propose a pc &
@@ -155,6 +161,7 @@ integer :: spin_channel, env_var_stat
     call cla_get('-out_file_symm', args%output_file_symm_averaged_EBS)
     call cla_get('-out_file_nosymm', args%output_file_only_user_selec_direcs)
     call cla_get('-out_sckpts_file', args%out_file_SC_kpts)
+    call cla_get('-n_sckpts_to_skip', args%n_sckpts_to_skip)
 
     call cla_get('-spin_channel', spin_channel)
     spin_channel = abs(spin_channel)

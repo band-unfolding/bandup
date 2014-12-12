@@ -535,7 +535,7 @@ implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
 type(comm_line_args), intent(in) :: args
 type(crystal_3D), intent(in) :: crystal_SC
- 
+
     select case(trim(adjustl(args%pw_code)))
         case ('qe')
             call get_SCKPTS_QE(list_of_SCKPTS, args)
@@ -801,20 +801,28 @@ write(*,*)''
 end subroutine read_pckpts_selected_by_user
 
 
-subroutine read_wavefunction(wf, args, ikpt, read_coeffs, elapsed_time, add_elapsed_time_to, iostat)
+subroutine read_wavefunction(wf, args, ikpt, read_coeffs, &
+                             elapsed_time, add_elapsed_time_to, &
+                             iostat, verbose)
 implicit none
 type(pw_wavefunction), intent(inout) :: wf
 type(comm_line_args), intent(in) :: args
 integer, intent(in) :: ikpt
-logical, intent(in), optional :: read_coeffs
+logical, intent(in), optional :: read_coeffs, verbose
 real(kind=dp), intent(out), optional :: elapsed_time
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer, intent(out), optional :: iostat
 integer :: ios, i_kpt, iband, i
 real(kind=dp) :: stime, ftime, inner_prod
-logical :: file_exists, spin_reset, read_coefficients
+logical :: file_exists, spin_reset, read_coefficients, print_stuff
 
     stime = time()
+
+    print_stuff = .FALSE.
+    if(present(verbose)) print_stuff = verbose
+    read_coefficients = .TRUE. ! Reading the coeffs by default
+    if(present(read_coeffs)) read_coefficients = read_coeffs
+
     ios = 0
     ! Check if file exists
     select case(trim(adjustl(args%pw_code)))
@@ -832,6 +840,11 @@ logical :: file_exists, spin_reset, read_coefficients
     i_kpt = ikpt
     ! If the user doesn't specify a valid kpt number, then ikpt=1 will be read
     if(i_kpt < 1) i_kpt = 1
+
+    if(read_coefficients .and. print_stuff)then
+        write(*,"(A,I0,A)")'Reading plane-wave coefficients for SC-Kpoint K(',i_kpt,')...'
+    endif
+
     wf%i_spin = args%spin_channel
     spin_reset = (wf%i_spin < 1 .or. wf%i_spin > 2)
     if(spin_reset)then
@@ -839,8 +852,7 @@ logical :: file_exists, spin_reset, read_coefficients
         if(wf%i_spin > 2) wf%i_spin = 2
         write(*,'(A,I1)')'WARNING (read_wavefunction): Spin channel reset to ', wf%i_spin
     endif
-    read_coefficients = .TRUE. ! Reading the coeffs by default
-    if(present(read_coeffs)) read_coefficients = read_coeffs
+
     select case(trim(adjustl(args%pw_code)))
         case default ! Using VASP as default
             call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
@@ -862,6 +874,11 @@ logical :: file_exists, spin_reset, read_coefficients
     if(present(elapsed_time)) elapsed_time = ftime - stime
     if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
     if(present(iostat)) iostat = ios
+
+    if(read_coefficients .and. print_stuff)then
+        write(*,'(A,f0.1,A)')'    * Done in ', (ftime - stime),'s.'
+    endif
+
     return
 
 end subroutine read_wavefunction

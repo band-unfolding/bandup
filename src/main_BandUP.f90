@@ -52,21 +52,26 @@ call read_wavefunction(wf, args, ikpt=1, read_coeffs=.FALSE.)
 
 if(.not. crystal_SC_read_from_file) call create_crystal(crystal_SC, latt_vecs=wf%A_matrix)
 call get_prim_cell(crystal_SC, symprec=default_symprec)
-call get_crystal_from_file(crystal_pc,input_file=args%input_file_prim_cell, stop_if_file_not_found=.TRUE.)
+call get_crystal_from_file(crystal_pc, input_file=args%input_file_prim_cell, &
+                           stop_if_file_not_found=.TRUE.)
 call get_prim_cell(crystal_pc, symprec=default_symprec)
-call get_rec_latt(latt=crystal_pc%latt_vecs(:,:),rec_latt=crystal_pc%rec_latt_vecs,rec_latt_vol=vbz)
+call get_rec_latt(latt=crystal_pc%latt_vecs(:,:), rec_latt=crystal_pc%rec_latt_vecs, &
+                  rec_latt_vol=vbz)
 call write_attempted_pc_assoc_with_input_unit_cell_and_SC(crystal_pc, crystal_SC)
 call verify_commens(crystal_pc, crystal_SC, args)
 call analise_symm_pc_SC(crystal_pc, crystal_SC)
 
-call read_pckpts_selected_by_user(k_starts=k_starts, k_ends=k_ends, ndirs=n_selec_pcbz_dirs, n_kpts_dirs=n_pckpts_dirs, &
-                                  input_file=args%input_file_pc_kpts,b_matrix_pc=crystal_pc%rec_latt_vecs(:,:), &
+call read_pckpts_selected_by_user(k_starts=k_starts, k_ends=k_ends, &
+                                  ndirs=n_selec_pcbz_dirs, n_kpts_dirs=n_pckpts_dirs, &
+                                  input_file=args%input_file_pc_kpts, &
+                                  b_matrix_pc=crystal_pc%rec_latt_vecs(:,:), &
                                   zero_of_kpts_scale=zero_of_kpts_scale)
 
 call get_pcbz_dirs_2b_used_for_EBS(all_dirs_used_for_EBS_along_pcbz_dir, crystal_pc, crystal_SC, &
                                    k_starts, k_ends, args)
 call print_symm_analysis_for_selected_pcbz_dirs(all_dirs_used_for_EBS_along_pcbz_dir)
-call define_pckpts_to_be_checked(pckpts_to_be_checked, all_dirs_used_for_EBS_along_pcbz_dir, n_pckpts_dirs(:))
+call define_pckpts_to_be_checked(pckpts_to_be_checked, all_dirs_used_for_EBS_along_pcbz_dir, &
+                                 n_pckpts_dirs(:))
 
 call get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
 call get_geom_unfolding_relations(GUR, list_of_SCKPTS, pckpts_to_be_checked, crystal_SC)
@@ -87,19 +92,21 @@ do i_SCKPT=1, size(list_of_SCKPTS)
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
         do i_needed_dirs=1, size(all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)%irr_dir(:))
             do ipc_kpt=1, n_pckpts_dirs(i_selec_pcbz_dir)
-                pckpt_folds = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds
+                pckpt_folds = GUR%SCKPT(i_SCKPT)% &
+                                  selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                  needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds
                 if(pckpt_folds)then
                     call update_GUR_indices(GUR, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt)
                     ! Reading the wavefunction file
                     if(.not. allocated(wf%pw_coeffs))then
-                        write(*,"(A,I0,A)")'Reading plane-wave coefficients for SC-Kpoint K(',i_SCKPT,')...'
                         call read_wavefunction(wf, args, i_SCKPT, elapsed_time=elapsed, & 
-                                               add_elapsed_time_to=times%read_wf)
-                        write(*,'(A,f0.1,A)')'    * Done in ',elapsed,'s.'
+                                               add_elapsed_time_to=times%read_wf, verbose=.TRUE.)
                     endif
-                    call select_coeffs_to_calc_spectral_weights(selected_coeff_indices, wf, crystal_pc, GUR)
+                    call select_coeffs_to_calc_spectral_weights(selected_coeff_indices, &
+                                                                wf, crystal_pc, GUR)
                     if(allocated(selected_coeff_indices))then
-                        call perform_unfolding(delta_N, times, GUR, wf, selected_coeff_indices, energy_grid)
+                        call perform_unfolding(delta_N, times, GUR, wf, &
+                                               selected_coeff_indices, energy_grid)
                         n_folding_pckpts_parsed = n_folding_pckpts_parsed + 1
                     else
                         call print_message_pckpt_cannot_be_parsed(stop_if_pckpt_cannot_be_parsed)
@@ -112,15 +119,16 @@ do i_SCKPT=1, size(list_of_SCKPTS)
 enddo
 
 !! Preparing output
-!! >> delta_N_only_selected_dirs:  Unfolded EBS strictly along the directions requested by the user.
-!!                                 Can be good, for instance, to investigate anisotropy effects.
+!! >> delta_N_only_selected_dirs:  Unfolded EBS strictly along the directions requested by the user
+!!                                 Might be good, for instance, to investigate anisotropy effects.
 !! >> delta_N_symm_avrgd_for_EBS: Symmetry-averaged unfolded EBS. 
-!!                                This is the type of EBS you'll see in my paper [Phys. Rev. B 89, 041407(R) (2014)].
+!!                                This is the type of EBS you'll see in my paper 
+!!                                [Phys. Rev. B 89, 041407(R) (2014)].
 call get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, delta_N, &
                              all_dirs_used_for_EBS_along_pcbz_dir, pckpts_to_be_checked)
 call say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
                                   pckpts_to_be_checked,energy_grid, e_fermi, zero_of_kpts_scale, &
                                   GUR%n_pckpts, GUR%n_folding_pckpts, n_folding_pckpts_parsed)
 call print_final_times(times)
-!!********************************************************************************************************************************
+!!*************************************************************************************************
 end program BandUP_main
