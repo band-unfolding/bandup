@@ -1,4 +1,4 @@
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -14,14 +14,6 @@
 !!
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
-
-!/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! module band_unfolding
-! ===================
-! This module contains the routines that are directly related to the unfolding
-! of the bands.
-!/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
 !===============================================================================
 ! MODULE: band_unfolding 
@@ -625,6 +617,7 @@ end subroutine get_delta_Ns_for_output
 subroutine calc_rho(rho, delta_N, pc_ener, delta_e, wf, &
                     selected_coeff_indices, std_dev, add_elapsed_time_to)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
+!! rho is the 'unfolding-density operator', defined in Phys. Rev. B. 91, 041116(R) (2015)
 !! Please make sure that delta_N /= 0 before calling this subroutine
 implicit none
 complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable, intent(out) :: rho

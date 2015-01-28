@@ -1,4 +1,4 @@
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -36,16 +36,22 @@ PUBLIC :: available_io_unit, file_extension, filename_without_extension, get_fil
           file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="2.5.0 (BETA), 2014-12-12"
-character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - Band Unfolding code for Plane-wave based calculations, &
-                                                        V"//trim(adjustl(package_version)), &
-                                     file_header_BandUP_short="# File created by BandUP, V"//trim(adjustl(package_version)), &
-                                     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_for_your_reference_unit_cell.POSCAR", &
-                                     file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_input_SC.POSCAR"
+character(len=30), parameter :: package_version="2.5.0, 2015-01-28"
+character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - &
+                                                         Band Unfolding code for &
+                                                         Plane-wave based calculations, &
+                                                         V"//trim(adjustl(package_version)), &
+                                     file_header_BandUP_short="# File created by BandUP, &
+                                                               V"//trim(adjustl(package_version)),&
+                                     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
+                                                                       for_your_reference_unit_&
+                                                                       cell.POSCAR", &
+                                     file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_&
+                                                                       smaller_SC_based_on_your_&
+                                                                       input_SC.POSCAR"
 
 !! Functions and subroutines
 CONTAINS 
-
 
 function available_io_unit(min_unit,max_unit) result(unit_num)
 ! Returns a number unit_num which can be safely used in statements like

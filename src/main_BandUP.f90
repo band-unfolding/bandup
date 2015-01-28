@@ -1,4 +1,4 @@
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!

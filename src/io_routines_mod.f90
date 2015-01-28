@@ -1,4 +1,4 @@
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -54,20 +54,23 @@ CONTAINS
 subroutine print_welcome_messages(package_version)
 implicit none
 character(len=*), intent(in), optional :: package_version
-write(*,'(A,/,A)')   '=====================================================================================', &
-                     '             BandUP: Band Unfolding code for Plane-wave based calculations           '
+write(*,'(A,/,A)') &
+    '=====================================================================================', &
+    '             BandUP: Band Unfolding code for Plane-wave based calculations           '
 if(present(package_version))then
-    write(*,'(A)')   "                            V. "//trim(adjustl(package_version))
+    write(*,'(A)') &
+    "                            V. "//trim(adjustl(package_version))
 endif
-write(*,'(8(A,/),A)')'=====================================================================================', &
-                     'Copyright (C) 2013, 2014 Paulo V. C. Medeiros                                        ', &
-                     '                         paume@ifm.liu.se                                            ', &
-                     '                         Computational Physics Division                              ', &
-                     '                         Department of Physics, Chemistry and Biology - IFM          ', &
-                     '                         Linköping University                                        ', &
-                     '                         Sweden                                                      ', & 
-                     'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          ', &
-                     '====================================================================================='
+write(*,'(8(A,/),A)') &
+    '=====================================================================================', &
+    'Copyright (C) 2013-2015 Paulo V. C. Medeiros                                         ', &
+    '                        paume@ifm.liu.se                                             ', &
+    '                        Computational Physics Division                               ', &
+    '                        Department of Physics, Chemistry and Biology - IFM           ', &
+    '                        Linköping University                                         ', &
+    '                        Sweden                                                       ', & 
+    'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          ', &
+    '====================================================================================='
 write(*,*)
 
 end subroutine print_welcome_messages
@@ -83,27 +86,33 @@ character(len=str_len), dimension(1:3) :: float_format
 integer :: i, j, n_decimals, max_n_digits_before_dec_point, n_digits
 
 if(stop_if_not_commens)then
-    message_header = '                                     ERROR!!                                         '
-    message_footer = ' Stopping now.'
+    message_header = &
+        '                                     ERROR!!                                         '
+    message_footer = &
+        ' Stopping now.'
 else
-    message_header = '                               >>> WARNING!! <<<                                     '
-    message_footer = ' >>> The results might not be what you expect. Continue only if you are really sure. '
-    message_footer2= "     My advice: Always use commensurate SC and PC, and never continue if they're not."
+    message_header = &
+        '                               >>> WARNING!! <<<                                     '
+    message_footer = &
+        ' >>> The results might not be what you expect. Continue only if you are really sure. '
+    message_footer2 = &
+        "     My advice: Always use commensurate SC and PC, and never continue if they're not."
 endif
 
 write(*,*)''
 if(.not. commensurate)then
     write(*,*)''
-    write(*,'(10(A,/))')'=====================================================================================', &
-                                                          message_header                                       , &
-                        '=====================================================================================', &
-                        '  The SC and the reference PC that you have chosen are not commensurate!             ', &
-                        '  The choice of the reference PC vectors is very important and can change a lot the  ', &
-                        '  results of the unfolding. It is particularly important to always verify that the SC', & 
-                        '  and the reference PC are commensurate. If this condition is not fulfilled, then the', &
-                        '  calculated spectral weigths will most likely be very small, which might therefore  ', & 
-                        '  cause the values of the unfolded delta_Ns to be also quite small.                  ', &
-                        '====================================================================================='
+    write(*,'(10(A,/))') &
+        '=====================================================================================', &
+                                          message_header                                       , &
+        '=====================================================================================', &
+        '  The SC and the reference PC that you have chosen are not commensurate!             ', &
+        '  The choice of the reference PC vectors is very important and can change a lot the  ', &
+        '  results of the unfolding. It is particularly important to always verify that the SC', & 
+        '  and the reference PC are commensurate. If this condition is not fulfilled, then the', &
+        '  calculated spectral weigths will most likely be very small, which might therefore  ', & 
+        '  cause the values of the unfolded delta_Ns to be also quite small.                  ', &
+        '====================================================================================='
     write(*,*)''
 endif
 
@@ -127,18 +136,21 @@ format_string = '(2(A,/),3(A,' // adjustl(trim(float_format(1))) // &
                          ',A,' // adjustl(trim(float_format(2))) // &
                          ',A,' // adjustl(trim(float_format(3))) // &
                          ',A,/))'
-write(*,format_string)' The following relation holds between the lattice vectors of the chosen SC and reference unit cell:', &
-                      '                                                                                     ', &
-                      '      A[1] = (',M(1,1),')*a[1] + (',M(1,2),')*a[2] + (',M(1,3),')*a[3]               ', & 
-                      '      A[2] = (',M(2,1),')*a[1] + (',M(2,2),')*a[2] + (',M(2,3),')*a[3]               ', & 
-                      '      A[3] = (',M(3,1),')*a[1] + (',M(3,2),')*a[2] + (',M(3,3),')*a[3]               '
+write(*,format_string) &
+    ' Relation found between the latt vecs of the chosen SC and reference unit cell:', &
+    '                                                                               ', &
+    '      A[1] = (',M(1,1),')*a[1] + (',M(1,2),')*a[2] + (',M(1,3),')*a[3]         ', & 
+    '      A[2] = (',M(2,1),')*a[1] + (',M(2,2),')*a[2] + (',M(2,3),')*a[3]         ', & 
+    '      A[3] = (',M(3,1),')*a[1] + (',M(3,2),')*a[2] + (',M(3,3),')*a[3]         '
 if(commensurate)then
-    write(*,'(A)')    '      * The SC and the reference unit cell are commensurate. Good!'
+    write(*,'(A)') &
+    '      * The SC and the reference unit cell are commensurate. Good!'
 else
     write(*,*)''
     write(*,'(A)')message_footer
     write(*,'(A)')message_footer2
-    write(*,'(A)')'====================================================================================='
+    write(*,'(A)') &
+    '====================================================================================='
 endif
 write(*,*)''
 
@@ -195,30 +207,40 @@ real(kind=dp), dimension(1:3,1:3) :: b_matrix_pc,B_matrix_SC
     nkpts = size(list_SC_kpts_in_wavecar)
     allocate(n_pckpts_dirs(1:size(GUR%SCKPT(1)%selec_pcbz_dir(:))))
     do i_selc_pcbz_dir=1,size(GUR%SCKPT(1)%selec_pcbz_dir(:))
-        n_pckpts_dirs(i_selc_pcbz_dir) = size(GUR%SCKPT(1)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(1)%pckpt(:))
+        n_pckpts_dirs(i_selc_pcbz_dir) = size(GUR%SCKPT(1)%selec_pcbz_dir(i_selc_pcbz_dir)% &
+                                                  needed_dir(1)%pckpt(:))
     enddo
 
     write(*,"(A)")"Summary of the points checked on the SCBZ and the pcbz:"
     write(*,'(A,I0)')'    * Total # of SC-KPTS found: ',nkpts
     if((GUR%n_pckpts - sum(n_pckpts_dirs)) > 0)then
         write(*,'(A,I0)')'    * Total # of pc-kpts requested: ', sum(n_pckpts_dirs)
-        write(*,'(A,I0)')'    * Total # of complementary pc-kpts determined by the symmetry analysis: ', GUR%n_pckpts - sum(n_pckpts_dirs)
+        write(*,'(A,I0)')'    * Total # of complementary pc-kpts determined by the &
+                                symmetry analysis: ', GUR%n_pckpts - sum(n_pckpts_dirs)
     endif
     write(*,'(A,I0)')'    * Total # of pc-kpts to be checked: ',GUR%n_pckpts
     write(*,*)
     write(*,"(A)")"Summary of the geometric folding relations:"
-    write(*,'(2(A,I0),A)')'    * A total of ',GUR%n_folding_pckpts,' pc-kpts (out of the ',GUR%n_pckpts,' checked) satisfy the folding condition:'
+    write(*,'(2(A,I0),A)')'    * A total of ',GUR%n_folding_pckpts,' pc-kpts (out of the ', &
+                                 GUR%n_pckpts,' checked) satisfy the folding condition:'
     do i_SCKPT=1,nkpts
         do i_selc_pcbz_dir=1,size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(:))
-            do i_needed_dirs=1,size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(:))
-                do ipc_kpt=1, size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(:))
-                    if(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds)then
+            do i_needed_dirs=1,size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)% &
+                                        needed_dir(:))
+                do ipc_kpt=1, size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)% &
+                                       needed_dir(i_needed_dirs)%pckpt(:))
+                    if(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)% &
+                           needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%folds)then
                         current_SCKPT = list_SC_kpts_in_wavecar(i_SCKPT)%coord(:)
                         actual_folding_SCKPT = &
-                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords_actual_unfolding_K
-                        pc_kpt(:) = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:)
+                            GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)% &
+                                needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords_actual_unfolding_K
+                        pc_kpt(:) = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selc_pcbz_dir)% &
+                                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:)
                         folding_G(:) = pc_kpt(:) - actual_folding_SCKPT(:)
-                        call print_message_pckpt_folds(pc_kpt,current_SCKPT,i_SCKPT,actual_folding_SCKPT,folding_G,b_matrix_pc,B_matrix_SC)
+                        call print_message_pckpt_folds(pc_kpt,current_SCKPT,i_SCKPT, &
+                                                       actual_folding_SCKPT,folding_G, &
+                                                       b_matrix_pc,B_matrix_SC)
                     endif
                 enddo 
             enddo
@@ -264,9 +286,11 @@ logical :: verbose
         delta_e = dabs(dE_factor*(E_end - E_start))
         if(verbose)then
             if(upper_case(str_delta_e(1:1)) /= 'A')then
-                write(*,'(A,E9.2,A)')'WARNING: Could not read the size of the energy intervals. Using the default dE = ',dE_factor,'*(Emax - Emin).'
+                write(*,'(A,E9.2,A)')'WARNING: Could not read the size of the energy intervals. &
+                                               Using the default dE = ',dE_factor,'*(Emax - Emin).'
             else
-                write(*,'(A,E9.2,A)')'Automatically setting the size of the energy intervals to dE = ',dE_factor,'*(Emax - Emin).' 
+                write(*,'(A,E9.2,A)')'Automatically setting the size of the energy intervals to &
+                                      dE = ',dE_factor,'*(Emax - Emin).' 
             endif
         endif
     endif
@@ -338,7 +362,8 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
             write(*,'(A)')'Parsing VASP wavefunctions.'
             write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units, &
                                     ' big. Only the necessary data will be read.'
-            write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units,' at a time.'
+            write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units, &
+                                    ' at a time.'
 
         case ('QE')
             write(*,*)
@@ -350,14 +375,18 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
     VSBZ = dabs(dot_product(B_matrix_SC(1,:),cross(B_matrix_SC(2,:),B_matrix_SC(3,:))))
     if(VSBZ < vbz)then
-        write(*,'(A,f0.2,A)') 'The used supercell is ', vbz/VSBZ, ' times bigger than the primitive cell.'
+        write(*,'(A,f0.2,A)') 'The used supercell is ', vbz/VSBZ, ' times bigger than &
+                               the primitive cell.'
     else
-        write(*,'(A)')       'WARNING: The informed primitive cell is not smaller than the supercell found in the WAVECAR file.'
+        write(*,'(A)')       'WARNING: The informed primitive cell is not smaller than &
+                                       the supercell found in the WAVECAR file.'
         write(*,'(A,f0.8,A)')'         vpc = ',VSBZ/vbz,' VSC'
     endif
 
-    write(*,'(3(A,f0.5),A)')'Working within the energy interval ',E_start-e_fermi,' < E-EF < ',E_end-e_fermi,' in increments of ',delta_e,' eV'
-    write(*,'(A,f0.5,A)')'The Fermi energy EF = ',e_fermi,' will be set to the zero of the energy scale in the output file.'
+    write(*,'(3(A,f0.5),A)')'Working within the energy interval ',E_start-e_fermi, &
+                            ' < E-EF < ',E_end-e_fermi,' in increments of ',delta_e,' eV'
+    write(*,'(A,f0.5,A)')'The Fermi energy EF = ',e_fermi, &
+                         ' will be set to the zero of the energy scale in the output file.'
 
     select case (trim(adjustl(upper_case(args%pw_code))))
         case default
@@ -372,22 +401,25 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     write(*,*)
     !$ using_omp = .TRUE.
     if(print_using_omp_msg)then
-    !$  write(*,'(2A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will be running using ', &
-    !$                      'a maximum of ',omp_get_max_threads(),' thread(s).'
-    !$  write(*,'(A)')"You can choose the maximum number of threads by setting the environment variable 'OMP_NUM_THREADS'"
+    !$  write(*,'(2A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will ', &
+    !$                      'be running using a maximum of ',omp_get_max_threads(),' thread(s).'
+    !$  write(*,'(A)')"You can choose the maximum number of threads by setting the &
+    !$                 environment variable 'OMP_NUM_THREADS'"
         continue
     endif
     if(.not. using_omp .and. warn_lack_omp)then
-        write(*,'(A)')"OpenMP shared-memory parallelization has not been enabled (it is optional, don't worry).", &
-                      "To enable it, uncomment the line with the flag '-openmp' on the Makefile at BandUP/src and run build.sh again.", & 
+        write(*,'(A)')"OpenMP shared-memory parallelization has not been enabled &
+                       (it is optional, don't worry).", &
+                      "To enable it, uncomment the line with the flag '-openmp' on the Makefile &
+                       at BandUP/src and run build.sh again.", & 
                       "It won't change the results, but it might save you some time."
     endif
 
     write(*,*)
     !! The following message should always be written to the standad output (also in any modified version of BandUP)
     write(*,'(A)')       '=========================================================================================================================='
-    write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any modified/adapted version/part of it, please don't forget to mention this in your paper!",& 
-                         '        You should also read and cite', &
+    write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any modified/adapted version/part of it, you should explicitly acknowledge the use of the",& 
+                         '        code in your publications. You should also read and cite', &
                          '                                                                                                   ', &
                          '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
                          '                                                                                               ', &
@@ -397,21 +429,22 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
         write(*,'(5(A,/),A)')'        Additionally, since you are working with spinor eigenstates (spin-orbit coupling, noncollinear magnetism), ', &
                              '        you should as well read and cite', &
                              '                                                                                                   ', &
-                             '  >>>   Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, submitted (2014)', &
+                             '  >>>   Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, Phys. Rev. B 91, 041116(R) (2015)', &
                              '                                                                                               ', &
-                             '        Preprint available at <http://arxiv.org/abs/1409.5343>.'
+                             '        (http://dx.doi.org/10.1103/PhysRevB.91.041116) and the appropriate references therein.'
     endif
     write(*,'(A)')       '=========================================================================================================================='
 
     !! End of message
     write(*,*)
-    write(*,'(A)')'Band unfolding starts now.'
+    write(*,'(A)')'Unfolding starts now.'
     write(*,*)
 
 end subroutine print_last_messages_before_unfolding
 
 
-subroutine print_message_pckpt_folds(pc_kpt,SCKPT,i_SCKPT,actual_folding_SCKPT,folding_G,b_matrix_pc,B_matrix_SC)
+subroutine print_message_pckpt_folds(pc_kpt,SCKPT,i_SCKPT,actual_folding_SCKPT, &
+                                     folding_G,b_matrix_pc,B_matrix_SC)
 implicit none
 integer, intent(in) :: i_SCKPT
 real(kind=dp), dimension(1:3), intent(in) :: pc_kpt,SCKPT,actual_folding_SCKPT,folding_G
@@ -427,25 +460,31 @@ character(len=10) :: str_SCKPT_number
     if(.not. using_symm_to_get_coeffs)then
         write(str_SCKPT_number,"(A,I0,A)")'(',i_SCKPT,')'
     endif
-    coords(:) = coords_cart_vec_in_new_basis(cart_vec=actual_folding_SCKPT(:),new_basis=B_matrix_SC)
+    coords(:) = coords_cart_vec_in_new_basis(cart_vec=actual_folding_SCKPT(:), &
+                                             new_basis=B_matrix_SC)
     write(*,'(A,3(f9.5,A))')'    SCBZ wave-vector K'//trim(adjustl(str_SCKPT_number))//' = ',  &
                                   coords(1),'*B1 + ',coords(2),'*B2 +',coords(3),'*B3'
         
     pckpt_coords(:) = coords_cart_vec_in_new_basis(cart_vec=pc_kpt(:),new_basis=b_matrix_pc)
     write(*,'(A,3(f9.5,A))')'    unfolds onto pcbz wave-vector k = ',  &
-                                  pckpt_coords(1),'*b1 + ',pckpt_coords(2),'*b2 + ',pckpt_coords(3),'*b3 = ' 
+                                  pckpt_coords(1),'*b1 + ',pckpt_coords(2),'*b2 + ', &
+                                  pckpt_coords(3),'*b3 = ' 
     pckpt_coords(:) =  coords_cart_vec_in_new_basis(cart_vec=pc_kpt(:),new_basis=B_matrix_SC)
     write(*,'(A,3(f9.5,A))')'                                    = ',  &
-                                  pckpt_coords(1),'*B1 + ',pckpt_coords(2),'*B2+ ',pckpt_coords(3),'*B3'
+                                  pckpt_coords(1),'*B1 + ',pckpt_coords(2),'*B2+ ', &
+                                  pckpt_coords(3),'*B3'
 
     coords(:) = coords_cart_vec_in_new_basis(cart_vec=folding_G,new_basis=B_matrix_SC)
     write(*,'(A,A,3(I0,A))')'    with the unfolding vector ',  &
-                                  'G = ',nint(coords(1)),'*B1 + ',nint(coords(2)),'*B2 + ',nint(coords(3)),'*B3.'
+                                  'G = ',nint(coords(1)),'*B1 + ',nint(coords(2)),'*B2 + ', &
+                                         nint(coords(3)),'*B3.'
     if(using_symm_to_get_coeffs)then
         coords(:) = coords_cart_vec_in_new_basis(cart_vec=SCKPT(:),new_basis=B_matrix_SC)
-        write(*,'(A,/,A,I0,A,3(f9.5,A),/,A,I0,A)')'        *This SCBZ wave-vector belongs to the star of the SCBZ wave-vector',  &
-                                                  '                 K(',i_SCKPT,') = ', coords(1),'*B1 + ',coords(2),'*B2 +',coords(3),'*B3.', &
-                                                  '         The plane-wave coefficients for K(',i_SCKPT,') will be used.'
+        write(*,'(A,/,A,I0,A,3(f9.5,A),/,A,I0,A)') &
+            '        *This SCBZ wave-vector belongs to the star of the SCBZ wave-vector',  &
+            '                 K(',i_SCKPT,') = ', coords(1),'*B1 + ',coords(2),'*B2 +', &
+                                                  coords(3),'*B3.', &
+            '         The plane-wave coefficients for K(',i_SCKPT,') will be used.'
     endif
 
 end subroutine print_message_pckpt_folds
@@ -466,7 +505,8 @@ real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
     B_matrix_SC = crystal_SC%rec_latt_vecs
     ! Reading WAVECAR file
     input_file_unit = available_io_unit()
-    open(unit=input_file_unit,file=args%WF_file,access='direct',recl=nrecl,iostat=iost,status='old')
+    open(unit=input_file_unit,file=args%WF_file,access='direct', &
+         recl=nrecl,iostat=iost,status='old')
         read(unit=input_file_unit,rec=2) xnwk,xnband
         nband=nint(xnband) ! Number of bands
         nkpts = nint(xnwk)
@@ -546,7 +586,8 @@ type(crystal_3D), intent(in) :: crystal_SC
 end subroutine get_list_of_SCKPTS
 
 
-subroutine write_band_struc(out_file,pckpts_to_be_checked,energy_grid,delta_N,EF,zero_of_kpts_scale)
+subroutine write_band_struc(out_file,pckpts_to_be_checked,energy_grid, &
+                            delta_N,EF,zero_of_kpts_scale)
 implicit none
 character(len=*), intent(in) :: out_file
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
@@ -576,10 +617,14 @@ logical :: write_spin_info
     open(unit=12,file=out_file)
         write(12,'(A)')trim(adjustl(file_header_BandUP))
         if(write_spin_info)then
-            write(12, '(A)')'# Please mind that the support to two-component spinor-like wavefunctions is still under test.' 
+            write(12, '(A)')'# Please mind that the support to two-component spinor-like &
+                               wavefunctions is still under test.' 
             write(12, '(A)')'# Remember this when checking the spin-related unfolded quantities.'
-            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The quantization axis assumed was saxis = [', args%saxis, ']'
-            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The projection axis used for "#Spin _|_ k" is also _|_ to [',args%normal_to_proj_plane,'].'
+            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The quantization axis assumed was &
+                                                          saxis = [', args%saxis, ']'
+            write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The projection axis used for &
+                                                          "#Spin _|_ k" is also _|_ to &
+                                                          [',args%normal_to_proj_plane,'].'
             write(12,'(3(A,X), 2X, 5(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N", &
                                             "#sigma_x   ", "#sigma_y   ", "#sigma_z   ", &
                                             "#Spin _|_ k", "#Spin // k "
@@ -587,18 +632,21 @@ logical :: write_spin_info
             write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
         endif
         do idir=1,ndirs
-            first_pckpt_dir(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(1)%coords(:)
+            first_pckpt_dir(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)% &
+                                                      needed_dir(1)%pckpt(1)%coords(:)
             nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(:))
             do ikpt=1,nkpts
-                pckpt(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(ikpt)%coords(:)
+                pckpt(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)% &
+                                                needed_dir(1)%pckpt(ikpt)%coords(:)
                 do iener=1,nener
                     coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
                     if(write_spin_info)then
-                        write(12,'(2(f8.4,2X),6(ES10.3, 2X))')coord_k, energy_grid(iener) - e_fermi, &
-                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener), &
-                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%sigma(iener,:), &
-                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(iener), &
-                                                              delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_para(iener)
+                        write(12,'(2(f8.4,2X),6(ES10.3, 2X))') &
+                            coord_k, energy_grid(iener) - e_fermi, &
+                            delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener), &
+                            delta_N%pcbz_dir(idir)%pckpt(ikpt)%sigma(iener,:), &
+                            delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_perp(iener), &
+                            delta_N%pcbz_dir(idir)%pckpt(ikpt)%spin_proj_para(iener)
                     else
                         write(12,'(2(f8.4,2X),ES10.3)')coord_k, energy_grid(iener) - e_fermi, &
                                                        delta_N%pcbz_dir(idir)%pckpt(ikpt)%dN(iener)
@@ -629,10 +677,10 @@ integer :: ios,idir,i
 character(len=1) :: coords_type_1st_letter
 real(kind=dp), dimension(:,:), allocatable :: read_k_start, read_k_end
 real(kind=dp) :: a0, origin_of_kpts_line
-character(len=str_len) :: coords_type_line, coords_type_flag, char_n_kpts_dirs, char_line_mode, aux_char, &
-                          char_kstart, char_kend
-logical :: opt_for_auto_pkpt_search, print_stuff, a0_informed_in_new_format, a0_informed_in_old_format, & 
-           give_tip_a0_for_reciprocal, warn_old_format_cartesian
+character(len=str_len) :: coords_type_line, coords_type_flag, char_n_kpts_dirs, &
+                          char_line_mode, aux_char, char_kstart, char_kend
+logical :: opt_for_auto_pkpt_search, print_stuff, a0_informed_in_new_format, &
+           a0_informed_in_old_format, give_tip_a0_for_reciprocal, warn_old_format_cartesian
 
 print_stuff = .TRUE.
 if(present(verbose)) print_stuff = verbose
@@ -648,7 +696,8 @@ open(unit=03,file=input_file)
     do while (ios==0)
         read(03,"(A)",iostat=ios)char_kstart
         if(ios == 0 .and. trim(adjustl(char_kstart)) /= '') read(03,"(A)",iostat=ios)char_kend
-        if(ios == 0 .and. trim(adjustl(char_kstart)) /= ''  .and. trim(adjustl(char_kend)) /= '')then        
+        if(ios == 0 .and. trim(adjustl(char_kstart)) /= ''  .and. &
+           trim(adjustl(char_kend)) /= '')then        
             read(03,"(A)",iostat=ios)aux_char
             if((ios == 0 .and. trim(adjustl(aux_char)) == '') .or. ios < 0)then
                 ndirs = ndirs + 1
@@ -668,9 +717,11 @@ close(03)
 allocate(read_k_start(1:ndirs, 1:3), read_k_end(1:ndirs, 1:3))
 open(unit=03,file=input_file)
     read(03,*) aux_char
-    ! Old style of passing the scaling factor "a0", needed when the k-points are given in cartesian coordinates
-    ! a0 is normally not present in the k-points file, but I chose to require it if the k-points are given in 
-    ! cartesian coordinates. By doing so, one doesn't need a separate file to specify a0. 
+    ! Old style of passing the scaling factor "a0", needed when the k-points are 
+    ! given in cartesian coordinates
+    ! a0 is normally not present in the k-points file, but I chose to require it if 
+    ! the k-points are given in cartesian coordinates. 
+    ! By doing so, one doesn't need a separate file to specify a0. 
     read(aux_char,*,iostat=ios) a0
     a0_informed_in_old_format = (ios==0)
     read(03,'(A)')char_n_kpts_dirs
@@ -687,7 +738,8 @@ open(unit=03,file=input_file)
         if(ios == 0) read(03,*,iostat=ios)(read_k_end(idir,i), i=1,3)
         if(ios/=0)then
             write(*,'(A)')'ERROR reading input pc-kpts file.'
-            write(*,'(A)')'      * Please check if there are numbers missing or if there are extra non-number characters.'
+            write(*,'(A)')'      * Please check if there are numbers missing or if &
+                           there are extra non-number characters.'
             write(*,'(A)')'Stopping now.'
             stop
         endif
@@ -716,9 +768,13 @@ do idir=1,ndirs
     if(upper_case(coords_type_1st_letter) == 'C')then
         warn_old_format_cartesian = a0_informed_in_old_format
         if(.not. a0_informed_in_old_format .and. .not. a0_informed_in_new_format)then
-            write(*,'(A)')'ERROR: You have selected cartesian coordinates in your input k-points file, but you have not passed a scaling parameter "a0".'
-            write(*,'(A)')'       The actuall coordiates of the k-points are given by: ki[actual] = two_pi*ki[passed in file]/a0.'
-            write(*,'(A)')'       Please write the value of a0 after your tag "' // trim(adjustl(coords_type_flag))  // '", and run the code again.'
+            write(*,'(A)')'ERROR: You have selected cartesian coordinates in your &
+                                  input k-points file, but you have not passed a &
+                                  scaling parameter "a0".'
+            write(*,'(A)')'       The actuall coordiates of the k-points are given by: &
+                                  ki[actual] = two_pi*ki[passed in file]/a0.'
+            write(*,'(A)')'       Please write the value of a0 after your tag "' // &
+                                  trim(adjustl(coords_type_flag))  // '", and run the code again.'
             write(*,'(A)')'Stopping now.'
             stop
         endif
@@ -727,10 +783,13 @@ do idir=1,ndirs
     else
         if((upper_case(coords_type_1st_letter) /= 'R').and.(idir==1).and.print_stuff)then
             write(*,*)''
-            write(*,'(A)')'WARNING: Assuming that the pc-kpts have been informed in fractional (reciprocal) coordinates.'
+            write(*,'(A)')'WARNING: Assuming that the pc-kpts have been informed in &
+                                    fractional (reciprocal) coordinates.'
             write(*,*)''
         endif
-        if(a0_informed_in_old_format .or. a0_informed_in_new_format) give_tip_a0_for_reciprocal = .TRUE.
+        if(a0_informed_in_old_format .or. a0_informed_in_new_format)then
+            give_tip_a0_for_reciprocal = .TRUE.
+        endif
         do i=1,3
             k_starts(idir,:) = k_starts(idir,:) + read_k_start(idir,i)*b_matrix_pc(i,:)
             k_ends(idir,:) = k_ends(idir,:) + read_k_end(idir,i)*b_matrix_pc(i,:)
@@ -749,9 +808,10 @@ if(ios == 0)then
         n_kpts_dirs(:) = n_kpts_dirs(1)
     endif
 else
-    !! If the BandUP cannot find a (sequence of) number(s) on "char_n_kpts_dirs", then it assumes you want to 
-    !! perform an automatic scan for folding pckpts
-    !! This will probably not be used if you use the BandUP's pre-processing tool to get exactly the pckpts you want
+    !! If the BandUP cannot find a (sequence of) number(s) on "char_n_kpts_dirs", 
+    !! then it assumes you want to perform an automatic scan for folding pckpts
+    !! This will probably not be used if you use the BandUP's pre-processing tool 
+    !! to get exactly the pckpts you want
     opt_for_auto_pkpt_search = .TRUE.
 endif
 !! If you want to parse only 1 pckpt, then use it as both the start and the end of the kpts line.
@@ -764,8 +824,10 @@ enddo
 !! according to whether the user has actually defined them or not
 if(opt_for_auto_pkpt_search)then
     if(print_stuff)then
-        write(*,'(A)')'Checking automatically for folding pc-kpts along the directions specified in the input file.'
-        write(*,'(A,E10.3,A)')'The automatic scan for pc-kpts will be performed in intervals of ',min_dk,' A^-1.'
+        write(*,'(A)')'Checking automatically for folding pc-kpts along &
+                       the directions specified in the input file.'
+        write(*,'(A,E10.3,A)')'The automatic scan for pc-kpts will be &
+                               performed in intervals of ',min_dk,' A^-1.'
     endif
     do idir=1, ndirs
         n_kpts_dirs(idir) = ceiling(1.0_dp + norm(k_ends(idir,:) - k_starts(idir,:))/dabs(min_dk))
@@ -774,26 +836,32 @@ endif
 if(print_stuff)then
     do idir=1, ndirs
         if(opt_for_auto_pkpt_search)then
-            write(*,'(2(A,I0))')'      # of pc-kpts requested along pcbz direction ',idir,': ',n_kpts_dirs(idir)
+            write(*,'(2(A,I0))')'      # of pc-kpts requested along pcbz direction ', &
+                                idir,': ',n_kpts_dirs(idir)
         else
-            write(*,'(2(A,I0))')'# of pc-kpts requested along pcbz direction ',idir,': ',n_kpts_dirs(idir)
+            write(*,'(2(A,I0))')'# of pc-kpts requested along pcbz direction ', &
+                                idir,': ',n_kpts_dirs(idir)
         endif
     enddo
 endif
 
 if(warn_old_format_cartesian)then
     write(*,*)
-    write(*,'(A)')'>>> NOTICE: Passing a0 in the first line of the k-points file is deprecated and no longer recommended.'
+    write(*,'(A)')'>>> NOTICE: Passing a0 in the first line of the k-points file is &
+                               deprecated and no longer recommended.'
     if(a0_informed_in_new_format)then
-        write(*,'(A)')'            * You have also passed a0 after "' // trim(adjustl(coords_type_flag)) // '".'
+        write(*,'(A)')'            * You have also passed a0 after "' // &
+                                     trim(adjustl(coords_type_flag)) // '".'
         write(*,'(A,f0.5,A)')'            * Only this value will be used (a0 =',a0,').'
     endif
-    write(*,'(A)')'            * It will work, but we now recommend that you specify a0 after the tag "cartesian" (separated by a space).'
+    write(*,'(A)')'            * It will work, but we now recommend that you specify a0 &
+                                 after the tag "cartesian" (separated by a space).'
 endif
 
 if(give_tip_a0_for_reciprocal)then
     write(*,*)
-    write(*,'(A)')">>> Tip: You don't need to pass the scaling parameter a0 when the k-points are informed in fractional (reciprocal) coordinates."
+    write(*,'(A)')">>> Tip: You don't need to pass the scaling parameter a0 when &
+                            the k-points are informed in fractional (reciprocal) coordinates."
 endif
 
 write(*,*)''
@@ -831,7 +899,8 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff
         case default ! Using VASP as default
             inquire(file=args%WF_file, exist=file_exists)
             if(.not. file_exists)then
-                write(*,'(3A)')"ERROR (read_wavefunction): File ", trim(adjustl(args%WF_file)), " doesn't exist."
+                write(*,'(3A)')"ERROR (read_wavefunction): File ", &
+                               trim(adjustl(args%WF_file)), " doesn't exist."
                 ios = -1
                 return
             endif
@@ -855,7 +924,8 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff
 
     select case(trim(adjustl(args%pw_code)))
         case default ! Using VASP as default
-            call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, read_coeffs=read_coefficients, iostat=ios)
+            call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, &
+                              read_coeffs=read_coefficients, iostat=ios)
         case('qe')
             call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
     end select
@@ -899,17 +969,21 @@ else
         neqv_dirs_pcbz = all_dirs_used_for_EBS_along_pcbz_dir(idir)%neqv
         neqv_dirs_SCBZ = all_dirs_used_for_EBS_along_pcbz_dir(idir)%neqv_SCBZ
         write(*,"(A,I0,A)")"    >>> Direction #",idir,":"
-        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz," equivalent directions w.r.t. symmetry operations of the pc"
-        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ," equivalent directions w.r.t. symmetry operations of the SC"
+        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_pcbz, &
+                                      " equivalent directions w.r.t. symmetry operations of the pc"
+        write(*,"(A,I0,A)")"        * Found ",neqv_dirs_SCBZ, &
+                                      " equivalent directions w.r.t. symmetry operations of the SC"
 
         n_needed_dirs = size(all_dirs_used_for_EBS_along_pcbz_dir(idir)%irr_dir(:))
         if(n_needed_dirs > 1)then
             ncompl_dirs = all_dirs_used_for_EBS_along_pcbz_dir(idir)%ncompl_dirs 
             n_irr_compl_dirs = all_dirs_used_for_EBS_along_pcbz_dir(idir)%n_irr_compl_dirs
-            write(*,"(A,I0,A)")"        * ",ncompl_dirs," complementary pcbz directions will be considered in order to get a &
-                                                                symmetry-averaged EBS."
+            write(*,"(A,I0,A)")"        * ",ncompl_dirs, &
+                               " complementary pcbz directions will be considered &
+                                 in order to get a symmetry-averaged EBS."
             if(ncompl_dirs /= n_irr_compl_dirs)then
-                write(*,"(A,I0,A)")"        * The number of irreducible complementary directions is ",n_irr_compl_dirs,"." 
+                write(*,"(A,I0,A)")"        * The number of irreducible complementary &
+                                    directions is ",n_irr_compl_dirs,"." 
             endif
         else
             write(*,"(A)")"        * No complementary pcbz directions are needed."
@@ -942,17 +1016,22 @@ implicit none
 logical, intent(in) :: stop_when_a_pckpt_cannot_be_parsed
 
     if(stop_when_a_pckpt_cannot_be_parsed)then
-        write(*,'(A)')"    ERROR: Could not calculate the spectral weight for the pair (k, K) being parsed right now."
+        write(*,'(A)')"    ERROR: Could not calculate the spectral weight for the pair &
+                                  (k, K) being parsed right now."
         write(*,'(A)')"           The cause is probably that either:"
-        write(*,'(A)')"               * The folding vector G = k - K has been estimated incorrectly by the code (symmetry issue), or"
+        write(*,'(A)')"               * The folding vector G = k - K has been estimated &
+                                        incorrectly by the code (symmetry issue), or"
         write(*,'(A)')"               * K doesn't unfold onto k after all."
-        write(*,'(A)')"           Have you used the pre-procesing tool to find the SC-Kpts you needed?"
+        write(*,'(A)')"           Have you used the pre-procesing tool to &
+                                  find the SC-Kpts you needed?"
         write(*,'(A)')"               * If not, please try that. This might solve the problem."
         write(*,'(A)')"               * If yes, please contact me (Paulo)."
         write(*,'(A)')"           Stopping now."
     else
-        write(*,'(A)')"    WARNING: Not enough coefficients in the WAVECAR file to unfold this pc wave-vector."
-        write(*,'(A)')"             Be careful with your results: they might be incomplete or even wrong."
+        write(*,'(A)')"    WARNING: Not enough coefficients in the wavefunction file &
+                                    to unfold this pc wave-vector."
+        write(*,'(A)')"             Be careful with your results: they might be incomplete &
+                                    or even wrong."
     endif
 
 end subroutine print_message_pckpt_cannot_be_parsed
@@ -965,15 +1044,19 @@ logical, intent(in) :: stop_if_GUR_fails, is_main_code
 
     if(GUR%n_pckpts /= GUR%n_folding_pckpts)then ! if GUR failed
         if(stop_if_GUR_fails)then
-            write(*,'(A)')'ERROR: Could not determine all gemetric unfolding relations between the chosen SC-Kpts and pc-kpts.'
+            write(*,'(A)')'ERROR: Could not determine all gemetric unfolding relations &
+                                  between the chosen SC-Kpts and pc-kpts.'
         else
-            write(*,'(A)')'WARNING: Could not determine all gemetric unfolding relations between the chosen SC-Kpts and pc-kpts.'
+            write(*,'(A)')'WARNING: Could not determine all gemetric unfolding relations &
+                                    between the chosen SC-Kpts and pc-kpts.'
             write(*,'(A)')'         The code may fail!'
         endif
         write(*,'(A,I0,A)')'       * ',GUR%n_pckpts,' pc-kpts have been checked.'
-        write(*,'(A,I0,A)')'       * ',GUR%n_folding_pckpts,' pc-kpts satisfied the geometric unfolding relations.'
+        write(*,'(A,I0,A)')'       * ',GUR%n_folding_pckpts, &
+                           ' pc-kpts satisfied the geometric unfolding relations.'
         if(is_main_code)then
-            write(*,'(A)')'       Have you used the pre-procesing tool to find the SC-Kpts you needed?'
+            write(*,'(A)')'       Have you used the pre-procesing tool &
+                                  to find the SC-Kpts you needed?'
             write(*,'(A)')'       * If not, please try that. This might solve the problem.'
             write(*,'(A)')'       * If yes, please contact me (Paulo).'
         endif
@@ -982,17 +1065,20 @@ logical, intent(in) :: stop_if_GUR_fails, is_main_code
         endif
     else
         write(*,'(A)')'The geometric unfolding relations have been successfully determined. Good!'
-        write(*,'(A,I0,A)')'    * ',GUR%n_folding_pckpts,' pc-kpts satisfied the geometric unfolding relations.'
+        write(*,'(A,I0,A)')'    * ',GUR%n_folding_pckpts, &
+                           ' pc-kpts satisfied the geometric unfolding relations.'
     endif
 
 end subroutine print_message_success_determining_GUR
 
 
 subroutine say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
-                                        pckpts_to_be_checked,energy_grid,e_fermi,zero_of_kpts_scale, &
+                                        pckpts_to_be_checked, energy_grid, &
+                                        e_fermi, zero_of_kpts_scale, &
                                         n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed)
 implicit none
-type(UnfoldedQuantitiesForOutput),  intent(in) :: delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS
+type(UnfoldedQuantitiesForOutput),  intent(in) :: delta_N_only_selected_dirs, &
+                                                  delta_N_symm_avrgd_for_EBS
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 real(kind=dp), dimension(:), intent(in) :: energy_grid
 real(kind=dp), intent(in) :: e_fermi, zero_of_kpts_scale
@@ -1002,21 +1088,25 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
     write(*,*)
     write(*,*)
     write(*,'(A)')'Band unfolding process finished.'
-    write(*,'(2(A,I0),A)')'A total of ',n_folding_pckpts,' pc-kpts (out of the ',n_input_pc_kpts,' checked) satisfied the folding condition.'
+    write(*,'(2(A,I0),A)')'A total of ',n_folding_pckpts, &
+                          ' pc-kpts (out of the ',n_input_pc_kpts, &
+                          ' checked) satisfied the folding condition.'
     if(n_folding_pckpts_parsed > 0)then
         if(n_folding_pckpts_parsed /= n_folding_pckpts)then
             write(*,'(A,I0,A)')'From these points, ', n_folding_pckpts_parsed, ' could be used.'
         endif
 
         if(args%no_symm_avg)then
-            write(*,"(A)")'>>> No symmetry-averaged EBS has been calculated ("-no_symm_avg" flag used).'
+            write(*,"(A)")'>>> No symmetry-averaged EBS has been &
+                               calculated ("-no_symm_avg" flag used).'
         else
             !! Writing the delta_N_symm_avrgd_for_EBS
             call write_band_struc(args%output_file_symm_averaged_EBS, &
                                   pckpts_to_be_checked, energy_grid, &
                                   delta_N_symm_avrgd_for_EBS, &
                                   EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-            write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS have been saved to the file listed below:'
+            write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS &
+                               have been saved to the file listed below:'
             write(*,'(2A)')'    * ', trim(adjustl(args%output_file_symm_averaged_EBS))
         endif
 
@@ -1025,11 +1115,13 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
                               pckpts_to_be_checked, energy_grid, &
                               delta_N_only_selected_dirs, &
                               EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-        write(*,'(A)')'>>> The delta_Ns for the unfolding strictly along the direction(s) you requested have been saved to the file listed below:'
+        write(*,'(A)')'>>> The delta_Ns for the unfolding strictly along the direction(s) &
+                           you requested have been saved to the file listed below:'
         write(*,'(2A)')'    * ', trim(adjustl(args%output_file_only_user_selec_direcs))
          
         if(zero_of_kpts_scale > 1E-4_dp)then
-            write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', zero_of_kpts_scale,'.'
+            write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', &
+                                 zero_of_kpts_scale,'.'
         endif
     else
         write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to the output file.'
@@ -1062,8 +1154,8 @@ real(kind=dp) :: time_percentual
             if(t_in_sec < 60.0_dp)then
                 write(*,'(A,f7.2,A,f0.1,A)') message, t_in_sec, 's (', time_percentual, '%).'
             else
-                    write(*,'(A,f7.2,A,f0.1,3A)') message, t_in_sec, 's (', time_percentual, '%, ', &
-                    trim(adjustl(formatted_time(t_in_sec))),').'
+                    write(*,'(A,f7.2,A,f0.1,3A)') message, t_in_sec, 's (', &
+                        time_percentual, '%, ', trim(adjustl(formatted_time(t_in_sec))),').'
             endif
         endif
     endif
@@ -1079,13 +1171,20 @@ real(kind=dp) :: elapsed_time
     times%end = time()
     elapsed_time = times%end - times%start
     write(*,*)
-    call print_time(elapsed_time,            'Total elapsed time:                                               ', elapsed_time)
-    call print_time(times%read_wf,           'Time spent reading the wavefunctions file:                        ', elapsed_time)
-    call print_time(times%calc_spec_weights, 'Time spent calculating spectral weights:                          ', elapsed_time)
-    call print_time(times%calc_SF,           'Time spent calculating spectral functions:                        ', elapsed_time)
-    call print_time(times%calc_dN,           'Time spent calculating the delta_Ns:                              ', elapsed_time)
-    call print_time(times%calc_rho,          'Time spent calculating unfolding-density matrices:                ', elapsed_time)
-    call print_time(times%calc_pauli_vec,    'Time spent calculating SC matrix elements of Pauli spin matrices: ', elapsed_time)
+    call print_time(elapsed_time, &
+        'Total elapsed time:                                               ', elapsed_time)
+    call print_time(times%read_wf, &
+        'Time spent reading the wavefunctions file:                        ', elapsed_time)
+    call print_time(times%calc_spec_weights, &
+        'Time spent calculating spectral weights:                          ', elapsed_time)
+    call print_time(times%calc_SF, &
+        'Time spent calculating spectral functions:                        ', elapsed_time)
+    call print_time(times%calc_dN, &
+        'Time spent calculating the delta_Ns:                              ', elapsed_time)
+    call print_time(times%calc_rho, &
+        'Time spent calculating unfolding-density matrices:                ', elapsed_time)
+    call print_time(times%calc_pauli_vec, &
+        'Time spent calculating SC matrix elements of Pauli spin matrices: ', elapsed_time)
 
 
 end subroutine print_final_times
