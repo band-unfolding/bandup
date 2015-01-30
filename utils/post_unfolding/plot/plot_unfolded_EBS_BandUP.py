@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Copyright (C) 2013, 2014 Paulo V. C. Medeiros, Jonas Bjork
+# Copyright (C) 2013-2015 Paulo V. C. Medeiros, Jonas Bjork
 # This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 # BandUP is free software: you can redistribute it and/or modify
@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
+from __future__ import print_function
 import argparse
 from scipy.interpolate import griddata
 import numpy as np
@@ -175,11 +176,7 @@ class BandUpPlotOptions(argparse.ArgumentParser):
 
 
     def get_available_cmaps(self):
-        colormap_names = []
-        for m in plt.cm._cmapnames:
-            colormap_names.append(m)
-            if(m + '_r' in dir(plt.cm)):
-                colormap_names.append(m + '_r')
+        colormap_names = sorted([m for m in plt.cm.datad], key=str.lower)
         colormaps = dict([[cmap_name, plt.get_cmap(cmap_name)] for cmap_name in colormap_names])
         # Custom colormaps - I'm still testing
         try:
@@ -248,8 +245,8 @@ class BandUpPlot():
         if(not args.no_symm_lines or not args.no_symm_labels):
             self.pos_high_symm_points, self.labels_high_symm_lines = self.get_pos_and_labels_high_symm_points()
             if(not args.no_symm_lines):
-                print 'Vertical lines will be automatically drawn at: k = %s' \
-                      % ', '.join(map("{:9.5f}".format, self.pos_high_symm_points))
+                print ('Vertical lines will be automatically drawn at: k = %s' \
+                      % ', '.join(map("{:9.5f}".format, self.pos_high_symm_points)))
         
         self.title = ''
         self.x_axis_label = ''
@@ -310,7 +307,7 @@ class BandUpPlot():
         else:
             self.fig_height_inches = self.fig_width_inches / args.aspect_ratio
             if(not args.portrait and not args.running_from_GUI):
-                print 'Assuming portrait orientation for the output figure.'
+                print ('Assuming portrait orientation for the output figure.')
 
     def __color_E_f_and_high_symm_lines(self, image, args_linecolor):
         # Defining the colors of the vertical and horizontal lines.
@@ -332,7 +329,7 @@ class BandUpPlot():
         
 
     def read_BandUP_output(self):
-        print 'Reading input file "%s"' % self.args.input_file
+        print ('Reading input file "%s"' % self.args.input_file)
         
         spin_projections = None
         spin_projections_read = False
@@ -359,26 +356,26 @@ class BandUpPlot():
         if(not spin_projections_read):
             KptsCoords, energies, delta_Ns = np.loadtxt(self.args.input_file, usecols=(0,1,2),unpack=True)
             if(failed_reading_spin_projections):
-                print self.indent + 'WARNING: Could not read spin info.'
+                print (self.indent + 'WARNING: Could not read spin info.')
 
 
-        print self.indent + '* Max. delta_N:          ' + "{:7.3f}".format(np.max(delta_Ns))
-        print self.indent + '* Min. non-zero delta_N: ' + "{:7.3f}".format(min([value for value in delta_Ns if abs(value) > 0.95E-3]))
+        print (self.indent + '* Max. delta_N:          ' + "{:7.3f}".format(np.max(delta_Ns)))
+        print (self.indent + '* Min. non-zero delta_N: ' + "{:7.3f}".format(min([value for value in delta_Ns if abs(value) > 0.95E-3])))
         if(spin_projections is not None):
-            print self.indent + 'Plotting also spin info (projections of the expectation values of Pauli matrices, still under test!).'
-            print 2 * self.indent + '* Maxval of the projections: ' + \
-                  "{:7.3f}".format(np.max(spin_projections))
+            print (self.indent + 'Plotting also spin info (projections of the expectation values of Pauli matrices).')
+            print (2 * self.indent + '* Maxval of the projections: ' + \
+                   "{:7.3f}".format(np.max(spin_projections)))
             try:
                 min_proj = min([value for value in spin_projections if abs(value) > 0.95E-3])
             except ValueError:
                 min_proj = 0.0 
-            print 2 * self.indent + '* Minval of the projections:' + \
-                  "{:7.3f}".format(min_proj)
+            print (2 * self.indent + '* Minval of the projections:' + \
+                   "{:7.3f}".format(min_proj))
             if(abs(min_proj) > 0.95E-3 or abs(np.max(spin_projections)) > 0.95E-3):
-                print 2 * self.indent + '* Positive projection values will be shown in blue.'
-                print 2 * self.indent + '* Negative projection values will be shown in red.'
+                print (2 * self.indent + '* Positive projection values will be shown in blue.')
+                print (2 * self.indent + '* Negative projection values will be shown in red.')
 
-        print 'Eliminating duplicated points...'
+        print ('Eliminating duplicated points...')
         sorted_index_data = np.lexsort((energies, KptsCoords))
         KptsCoords = KptsCoords[sorted_index_data] + self.args.shift_kpts_coords
         energies = energies[sorted_index_data] + self.args.shift_energy
@@ -424,7 +421,7 @@ class BandUpPlot():
             spin_projections = np.array(new_spin_projections)
         else:
             spin_projections = None
-        print self.indent + '* Done with eliminating duplicated points.'
+        print (self.indent + '* Done with eliminating duplicated points.')
 
         return KptsCoords, energies, delta_Ns, spin_projections
 
@@ -433,7 +430,7 @@ class BandUpPlot():
         size_of_old_data = float(len(self.KptsCoords))
         if(self.kmin>self.KptsCoords.min() or self.kmax<self.KptsCoords.max() or 
            self.emin>self.energies.min() or self.emax<self.energies.max()):
-            print 'Trying to reduce data such that only the needed part of it is parsed.'
+            print ('Trying to reduce data such that only the needed part of it is parsed.')
             new_KptsCoords = []
             new_energies = []
             new_delta_Ns = []
@@ -452,9 +449,8 @@ class BandUpPlot():
             if(new_spin_projections):
                 spin_projections = np.array(new_spin_projections)
             size_of_new_data = float(len(KptsCoords))
-            print self.indent + '* Done. Working with %.2f' % (100.0*size_of_new_data/size_of_old_data), \
-                  '% of the data read in.'
-
+            print (self.indent + '* Done. Working with %.2f' % (100.0*size_of_new_data/size_of_old_data), \
+                   '% of the data read in.')
         return KptsCoords, energies, delta_Ns, spin_projections
 
 
@@ -500,10 +496,10 @@ class BandUpPlot():
             kmin, kmax = kmax, kmin
         if(kmin < self.KptsCoords.min()): 
             kmin = self.KptsCoords.min()
-            print 'WARNING: Resetting k_min to %s.' % "{:9.5f}".format(kmin)
+            print ('WARNING: Resetting k_min to %s.' % "{:9.5f}".format(kmin))
         if(kmax > self.KptsCoords.max()): 
             kmax = self.KptsCoords.max()
-            print 'WARNING: Resetting k_max to %s.' % "{:9.5f}".format(kmax)
+            print ('WARNING: Resetting k_max to %s.' % "{:9.5f}".format(kmax))
         if emin > emax:
             emin, emax = emax, emin
         # Setting emin and emax to the nearest values in the energy grid
@@ -613,20 +609,20 @@ class BandUpPlot():
         for idir in range(ndirections):
             if(coords_type[0].upper() == 'C'):
                 if(not a0_informed_in_kpts_file):
-                    print 'ERROR: You have selected cartesian coordinates in your input k-points file, ' \
-                          'but you have not passed a scaling parameter "a0".'
-                    print '       The actuall coordiates of the k-points are given by: '\
-                          'ki[actual] = two_pi*ki[passed in file]/a0.'
-                    print '       Please write the value of a0 after your tag "' + \
-                          coords_type + '", and run the code again.'
-                    print 'Stopping now.'
+                    print ('ERROR: You have selected cartesian coordinates in your input k-points file, ' \
+                           'but you have not passed a scaling parameter "a0".')
+                    print ('       The actuall coordiates of the k-points are given by: '\
+                           'ki[actual] = two_pi*ki[passed in file]/a0.')
+                    print ('       Please write the value of a0 after your tag "' + \
+                           coords_type + '", and run the code again.')
+                    print ('Stopping now.')
                     sys.exit(0)
                 k_start[idir] = (2.0*np.pi)*read_k_start[idir]/latt_param_kpts_file
                 k_end[idir] = (2.0*np.pi)*read_k_end[idir]/latt_param_kpts_file
             else:
                 if((coords_type[0].upper() != 'R') and (idir==0)):
-                    print 'WARNING: Assuming that the pc-kpts have been informed in '\
-                          'fractional (reciprocal) coordinates.'
+                    print ('WARNING: Assuming that the pc-kpts have been informed in '\
+                           'fractional (reciprocal) coordinates.')
                 for i in range(3):
                     k_start[idir] += read_k_start[idir,i]*b_matrix_pc[i]
                     k_end[idir] += read_k_end[idir,i]*b_matrix_pc[i]
@@ -692,20 +688,20 @@ def make_plot(plot):
     indent = plot.plot_options.indent
     args = plot.plot_options.args
     # Creating the plot
-    print 'Generating the plot...'
+    print ('Generating the plot...')
     fig = plt.figure(figsize=(plot.fig_width_inches,plot.fig_height_inches))
     ax = fig.add_subplot(111)
     # Defining the color schemes.
-    print indent + '>>> Using the "' + plot.cmap_name + '" colormap.'
+    print (indent + '>>> Using the "' + plot.cmap_name + '" colormap.')
     if(plot.plot_options.using_default_cmap and not args.running_from_GUI):
-        print 2 * indent + 'Tip: You can try different colormaps by either:'
-        print 2 * indent + '     * Running the plot tool with the option -icmap n, ' \
-              'with n in the range from 0 to', len(plot.plot_options.cmaps) - 1
-        print 2 * indent + '     * Running the plot tool with the option "-cmap cmap_name".'
-        print 2 * indent + '> Take a look at'
-        print 4 * indent + '<http://matplotlib.org/examples/color/colormaps_reference.html>'
-        print 2 * indent + '  for a list of colormaps, or run'
-        print 4 * indent + '"./plot_unfolded_EBS_BandUP.py --help".'
+        print (2 * indent + 'Tip: You can try different colormaps by either:')
+        print (2 * indent + '     * Running the plot tool with the option -icmap n, ' \
+               'with n in the range from 0 to', len(plot.plot_options.cmaps) - 1)
+        print (2 * indent + '     * Running the plot tool with the option "-cmap cmap_name".')
+        print (2 * indent + '> Take a look at')
+        print (4 * indent + '<http://matplotlib.org/examples/color/colormaps_reference.html>')
+        print (2 * indent + '  for a list of colormaps, or run')
+        print (4 * indent + '"./plot_unfolded_EBS_BandUP.py --help".')
 
     # Building the countour plot from the read data
     # Defining the (ki,Ej) grid.
@@ -738,24 +734,24 @@ def make_plot(plot):
     if(manually_normalize_colorbar_min_and_maxval or not args.disable_auto_round_vmin_and_vmax):
         modified_vmin_or_vmax = False
         if not args.disable_auto_round_vmin_and_vmax and not args.running_from_GUI:
-            print plot.indent + '* Automatically renormalizing color scale '\
-                  '(you can disable this with the option --disable_auto_round_vmin_and_vmax):'
+            print (plot.indent + '* Automatically renormalizing color scale '\
+                   '(you can disable this with the option --disable_auto_round_vmin_and_vmax):')
         if manually_normalize_colorbar_min_and_maxval:
-            print plot.indent + '* Manually renormalizing color scale'
+            print (plot.indent + '* Manually renormalizing color scale')
         if(minval_for_colorbar is not None):
             previous_vmin = np.min(grid_freq)
             if(abs(previous_vmin - minval_for_colorbar) >= 0.1):
                 modified_vmin_or_vmax = True
-                print 2 * indent + 'Previous vmin = %.1f, new vmin = %.1f' % (previous_vmin, 
-                                                                              minval_for_colorbar)
+                print (2 * indent + 'Previous vmin = %.1f, new vmin = %.1f' % (previous_vmin, 
+                                                                               minval_for_colorbar))
         else:
             minval_for_colorbar = np.min(grid_freq)
         if(maxval_for_colorbar is not None):
             previous_vmax = np.max(grid_freq)
             if(abs(previous_vmax - maxval_for_colorbar) >= 0.1):
                 modified_vmin_or_vmax = True
-                print 2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (previous_vmax, 
-                                                                              maxval_for_colorbar)
+                print (2 * indent + 'Previous vmax = %.1f, new vmax = %.1f' % (previous_vmax, 
+                                                                               maxval_for_colorbar))
         else:
             maxval_for_colorbar = np.max(grid_freq)
         if(modified_vmin_or_vmax):
@@ -767,13 +763,13 @@ def make_plot(plot):
         v = np.linspace(minval_for_colorbar, maxval_for_colorbar, args.n_levels, endpoint=True)
     else: 
         v = np.linspace(np.min(grid_freq), np.max(grid_freq), args.n_levels, endpoint=True)
-    print indent + '* Drawing contour plot...'
-    print 2 * indent + '> Using %i color levels. Use the option "--n_levels" to choose a different number.' %args.n_levels
+    print (indent + '* Drawing contour plot...')
+    print (2 * indent + '> Using %i color levels. Use the option "--n_levels" to choose a different number.' %args.n_levels)
     image = ax.contourf(ki, Ei, grid_freq, levels=v, cmap=plot.cmap)
 
     plot_spin_proj_requested = args.plot_spin_perp or args.plot_spin_para or args.plot_sigma_x or args.plot_sigma_y or args.plot_sigma_z
     if(plot_spin_proj_requested and plot.spin_projections is not None):
-        print indent + '* Drawing spin projection info (still under test!)'
+        print (indent + '* Drawing spin projection info')
         cmap_for_spin_plot = [plt.cm.bwr, plt.cm.RdBu, plt.cm.seismic_r][0]
 
         if(args.clip_spin is None):
@@ -782,8 +778,8 @@ def make_plot(plot):
         else:
             vmax_spin = abs(args.clip_spin)
             vmin_spin = -1.0 * abs(args.clip_spin)
-            print 2 * indent + '* New maxval for spin: %.2f' % vmax_spin
-            print 2 * indent + '* New minval for spin: %.2f' % vmin_spin
+            print (2 * indent + '* New maxval for spin: %.2f' % vmax_spin)
+            print (2 * indent + '* New minval for spin: %.2f' % vmin_spin)
  
         spin_projections = np.clip(plot.spin_projections, vmin_spin, vmax_spin)
         grid_freq_spin = griddata((plot.KptsCoords, plot.energies), spin_projections, (ki[None,:], Ei[:,None]), 
@@ -810,7 +806,7 @@ def make_plot(plot):
                                     linewidth=[100.0 * plot.dE_for_hist2d * (item ** 2) for item in spin_projections_for_scatter], 
                                     c=spin_projections_for_scatter, cmap=cmap_for_spin_plot)
         else:
-            print 2 * indent + '* The abs values of the spin projections were all < 1E-3.'
+            print (2 * indent + '* The abs values of the spin projections were all < 1E-3.')
 
     #Preparing the plot
     ax.set_xlim(plot.kmin, plot.kmax)
@@ -833,10 +829,10 @@ def make_plot(plot):
                          plot.pos_high_symm_points[i] in x_tiks_positions]
         x_tiks_labels = [xlabel for xlabel in x_tiks_labels if xlabel]
     if x_tiks_labels:
-        print indent + '* K-point labels read from the "' + args.kpoints_file + '" file:'
+        print (indent + '* K-point labels read from the "' + args.kpoints_file + '" file:')
         for ilabel in range(len(x_tiks_labels)):
-            print 2 * indent + "k = {:9.5f}".format(x_tiks_positions[ilabel]) + ', label =',\
-                  x_tiks_labels[ilabel]
+            print(2 * indent + "k = {:9.5f}".format(x_tiks_positions[ilabel]) + ', label =',\
+                   x_tiks_labels[ilabel])
         plt.xticks(x_tiks_positions, x_tiks_labels, fontsize=plot.tick_marks_size)
     else:
         plot.x_axis_label = '$k \hspace{0.25} (\AA^{-1})$'
@@ -900,24 +896,24 @@ def make_plot(plot):
         if(args.output_file is None):
             args.output_file = abspath(default_out_basename + '.' + args.file_format)
 
-        print 'Savig figure to file "%s" ...' % args.output_file
+        print ('Savig figure to file "%s" ...' % args.output_file)
         if(args.fig_resolution[0].upper() == 'H'):
-            print indent + '* High-resolution figure (600 dpi).'
+            print (indent + '* High-resolution figure (600 dpi).')
             fig_resolution_in_dpi = 600
         elif (args.fig_resolution[0].upper() == 'M'):
-            print indent + '* Medium-resolution figure (300 dpi).'
+            print (indent + '* Medium-resolution figure (300 dpi).')
             fig_resolution_in_dpi = 300
         elif (args.fig_resolution[0].upper() == 'L'):
-            print indent + '* Low-resolution figure (100 dpi).'
+            print (indent + '* Low-resolution figure (100 dpi).')
             fig_resolution_in_dpi = 100
         else:
-            print indent + 'Assuming medium-resolution (300 dpi) for the figure.'
+            print (indent + 'Assuming medium-resolution (300 dpi) for the figure.')
             fig_resolution_in_dpi = 300
         plt.savefig(args.output_file, dpi=fig_resolution_in_dpi, bbox_inches='tight')
-        print indent + '* Done saving figure (%s).' % args.output_file
+        print (indent + '* Done saving figure (%s).' % args.output_file)
 
     if args.saveshow:
-        print 'Opening saved figure (%s)...' % default_out_basename
+        print ('Opening saved figure (%s)...' % default_out_basename)
         # 'xdg-open' might fail to find the defualt program in some systems
         # For such cases, one can try to use other alternatives (just add more to the list below)
         image_viewer_list = ['xdg-open', 'eog']
@@ -928,12 +924,12 @@ def make_plot(plot):
             if(success_opening_file):
                 break
         if(not success_opening_file):
-            print indent + '* Failed (%s): no image viewer detected.' % default_out_basename
+            print (indent + '* Failed (%s): no image viewer detected.' % default_out_basename)
 
     if args.show:
-        print 'Showing figure (%s)...' % default_out_basename
+        print ('Showing figure (%s)...' % default_out_basename)
         plt.show()
-        print indent + '* Done showing figure (%s).' % default_out_basename
+        print (indent + '* Done showing figure (%s).' % default_out_basename)
 
 
 if __name__ == '__main__':
