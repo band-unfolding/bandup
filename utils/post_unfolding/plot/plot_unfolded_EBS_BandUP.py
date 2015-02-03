@@ -176,7 +176,7 @@ class BandUpPlotOptions(argparse.ArgumentParser):
 
 
     def get_available_cmaps(self):
-        colormap_names = sorted([m for m in plt.cm.datad], key=str.lower)
+        colormap_names = sorted(plt.cm.datad.keys(), key=lambda s: s.lower())
         colormaps = dict([[cmap_name, plt.get_cmap(cmap_name)] for cmap_name in colormap_names])
         # Custom colormaps - I'm still testing
         try:
