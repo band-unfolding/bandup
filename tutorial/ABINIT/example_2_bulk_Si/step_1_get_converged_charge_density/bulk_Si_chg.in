@@ -1,0 +1,40 @@
+# Bulk Si, calculating the charge density
+
+chkprim 0 # Tell ABINIT to ignore the fact that this is not a PC
+prtwf 0   # Disable writing the WFK file 
+prteig 0  # Disable writing the EIG files
+
+#Definition of the unit cell
+scalecart 3*5.43 # Scaling factor for the lattice vectors 
+acell 1 1 1 angstrom # Stting length units to angstrom
+rprim 1 0 0  0 1 0  0 0 1 
+
+#Definition of the atom types
+ntypat 1 # Number of types of atoms
+# Atomic numbers  
+znucl 14 
+
+#Definition of the atoms
+natom 8           
+typat 8*1
+# Coordinates         
+xred # Reduced coordinates
+   0.000000000   0.000000000   0.000000000
+   0.000000000   0.500000000   0.500000000
+   0.500000000   0.500000000   0.000000000
+   0.500000000   0.000000000   0.500000000
+   0.750000000   0.250000000   0.750000000
+   0.250000000   0.250000000   0.250000000
+   0.250000000   0.750000000   0.750000000
+   0.750000000   0.750000000   0.250000000
+
+#Definition of the planewave basis set
+ecut 10.0 # Maximal plane-wave kinetic energy cut-off, in Hartree
+
+#Definition of the k-point grid
+kptopt 1    # Usual mode for GS calculations
+ngkpt 8 8 8 # 
+
+#Definition of the SCF procedure
+nstep 30          # Maximal number of SCF cycles (default was 1 in v5.3)
+toldfe 1.0d-6 eV  # Convergence criterium 

@@ -1,0 +1,5 @@
+Mind that the .sh submit script provided here is just an example.
+You will most probably have to change it to suit the way your 
+computer/cluster works.
+
+Also, take a look at the input file. You might want to modify it too.

@@ -48,7 +48,7 @@ call get_commline_args(args)
 
 call get_crystal_from_file(crystal_SC,input_file=args%input_file_supercell, &
                            stop_if_file_not_found=.FALSE., success=crystal_SC_read_from_file)
-call read_wavefunction(wf, args, ikpt=1, read_coeffs=.FALSE.)
+call read_wavefunction(wf, args, ikpt=1, read_coeffs=.FALSE., stop_if_not_found=.TRUE.)
 
 if(.not. crystal_SC_read_from_file) call create_crystal(crystal_SC, latt_vecs=wf%A_matrix)
 call get_prim_cell(crystal_SC, symprec=default_symprec)

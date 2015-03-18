@@ -45,7 +45,7 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
     write(*,'(A)')'               Pre-processing utility "get_SCKPTS_pre_BandUP"'
     write(*,'(A)')'   >>> Getting the SC-KPTS you will need for your plane-wave calculation <<<'
     write(*,*)
-    call get_commline_args(args)
+    call get_commline_args(args, running_from_main_code=.FALSE.)
     call get_crystal_from_file(crystal_pc,input_file=args%input_file_prim_cell, stop_if_file_not_found=.TRUE.)
     call get_prim_cell(crystal_pc, symprec=default_symprec)
     call get_crystal_from_file(crystal_SC,input_file=args%input_file_supercell, stop_if_file_not_found=.TRUE.)
@@ -129,13 +129,14 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
 
     do idir=1, size(all_dirs_used_for_EBS_along_pcbz_dir(:))
         if(all_dirs_used_for_EBS_along_pcbz_dir(idir)%ncompl_dirs > 0)then
-            write(*,"(6(A,/),A)")"====================================================================================================", &
-                                 "NOTICE:                                                                                             ", &
-                                 "       We have considered more pcbz directions than what you asked for. We did this because the SC", &
-                                 "       and the pc belong to different symmetry groups, and, therefore, some pcbz k-points that  ", &
-                                 "       are equivalent by symmetry operations of the pc might not be equivalent by symmetry ops. of", & 
-                                 "       the SC. Don't worry, though: Only irreducible complementary directions have been kept.    ", &
-                                 "===================================================================================================="
+            write(*,"(6(A,/),A)")&
+             "====================================================================================================", &
+             "NOTICE:                                                                                             ", &
+             "       We have considered more pcbz directions than what you asked for. We did this because the SC", &
+             "       and the pc belong to different symmetry groups, and, therefore, some pcbz k-points that  ", &
+             "       are equivalent by symmetry operations of the pc might not be equivalent by symmetry ops. of", & 
+             "       the SC. Don't worry, though: Only irreducible complementary directions have been kept.    ", &
+             "===================================================================================================="
             exit
         endif
     enddo
@@ -157,7 +158,11 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
             do icoord=1,3
                 point(icoord) = real(nint(point(icoord)/default_symprec),kind=dp) * default_symprec
             enddo
-            write(03,'(3(2X,'//trim(adjustl(float_format))//'),2X,I1)')(point(i), i=1,3),1
+            if(trim(adjustl(args%pw_code))=='abinit')then
+                write(03,'(3(2X,'//trim(adjustl(float_format))//'),2X,I1)')(point(i), i=1,3)
+            else
+                write(03,'(3(2X,'//trim(adjustl(float_format))//'),2X,I1)')(point(i), i=1,3), 1
+            endif
         enddo
         write(03,'(A)')''
         write(03,'(A)')''

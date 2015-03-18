@@ -33,6 +33,7 @@ use general_io
 use qexml_module
 use read_qe_wavefunctions
 use read_vasp_wavecar
+use read_abinit_wavefunctions
 use read_vasp_files
 use write_vasp_files
 use math
@@ -321,6 +322,13 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
+!================================================================================================
+!> \ingroup changes_upon_new_interface
+!> Prints the last messages before the unfolding process starts.
+!> If you introduce an interface to a new ab initio code, and don't modify this
+!! routine, no specific information about the ab initio code will be shown, but
+!! BandUP will work just fine.
+!================================================================================================
 subroutine print_last_messages_before_unfolding(args, list_of_SCKPTS, B_matrix_SC, vbz, &
                                                 E_start, E_end, delta_e, e_fermi, spinor_wf)
 implicit none
@@ -337,8 +345,8 @@ character(len=2) :: file_size_units, mem_per_kpt_units
 logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
     nkpts = size(list_of_SCKPTS)
-    select case(upper_case(trim(args%pw_code)))
-        case ('VASP') 
+    select case(lower_case(trim(args%pw_code)))
+        case('vasp', 'abinit') 
             call get_file_size_in_bytes(file_size_in_bytes, file=args%WF_file)
             file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
             file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
@@ -359,13 +367,20 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
                 mem_per_kpt_units = 'MB'
             endif
             write(*,*)
-            write(*,'(A)')'Parsing VASP wavefunctions.'
+            write(*,'(A,X,A,X,A)')'Parsing', upper_case(trim(args%pw_code)), 'wavefunctions.'
+            write(*,'(3A)')'    * File = "', trim(adjustl(args%WF_file)),'"'
+            if(lower_case(trim(args%pw_code))=='abinit')then
+                write(*,'(A)')'========================================================================='
+                write(*,'(A)')'    The interface to ABINIT is still under test. Use it with caution.    '
+                write(*,'(A)')'                    Feedback is appreciated!!                            '
+                write(*,'(A)')'========================================================================='
+            endif
             write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units, &
                                     ' big. Only the necessary data will be read.'
             write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units, &
                                     ' at a time.'
 
-        case ('QE')
+        case('qe')
             write(*,*)
             write(*,'(A)')'Parsing Quantum ESPRESSO (pwscf) wavefunctions.'
             write(*,'(5A)')'Using prefix = "', trim(args%qe_prefix), &
@@ -567,9 +582,59 @@ real(kind=dp) :: alat
     call qexml_closefile("read", ierr=ios)
     if(ios/=0) write(*,'(A)')"WARNING (get_SCKPTS_QE): Error closing xml data-file."
 
-endsubroutine get_SCKPTS_QE
+end subroutine get_SCKPTS_QE
 
 
+subroutine get_SCKPTS_ABINIT(list_of_SCKPTS, args)
+implicit none
+type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
+type(comm_line_args), intent(in) :: args
+integer :: io_unit, ikpt, nkpts, alloc_stat
+type(vec3d), dimension(:), allocatable :: skpts_rec
+real(kind=dp) :: Vcell
+real(kind=dp), dimension(1:3) :: a1, a2, a3, b1, b2, b3
+real(kind=dp), dimension(1:3, 1:3) :: A_matrix
+logical :: wf_file_exists
+
+    inquire(file=args%wf_file, exist=wf_file_exists)
+    if(.not. wf_file_exists)then
+        write(*,'(3A)')"ERROR: Wavefunction file '",trim(adjustl(args%wf_file)),"' not found."
+        write(*,'(A)')'       Cannot continue. Stopping now.'
+        stop
+    endif
+
+    io_unit = available_io_unit() 
+    open(unit=io_unit, file=args%wf_file, form='unformatted', recl=1, status='old')
+        call read_abinit_wfk_header(unit=io_unit, A_matrix=A_matrix, kpts=skpts_rec)
+    close(io_unit)
+    ! Latt. vecs.
+    A_matrix = bohr * A_matrix
+    a1 = A_matrix(1,:)
+    a2 = A_matrix(2,:)
+    a3 = A_matrix(3,:)
+    Vcell= dabs(dot_product(a1, cross(a2,a3)))
+    ! Vectors of the reciprocal lattice.
+    b1 = twopi*cross(a2,a3)/Vcell
+    b2 = twopi*cross(a3,a1)/Vcell
+    b3 = twopi*cross(a1,a2)/Vcell
+
+    nkpts = size(skpts_rec)
+    deallocate(list_of_SCKPTS, stat=alloc_stat)
+    allocate(list_of_SCKPTS(1:nkpts))
+    do ikpt=1, nkpts
+        list_of_SCKPTS(ikpt)%coord(:) = skpts_rec(ikpt)%coord(1) * b1 + &
+                                        skpts_rec(ikpt)%coord(2) * b2 + &
+                                        skpts_rec(ikpt)%coord(3) * b3
+    enddo
+
+end subroutine get_SCKPTS_ABINIT
+
+
+!================================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of all SC-kpoints contained in the wavefunction file(s).
+!> The k-points should be in cartesian coordinates.
+!================================================================================================
 subroutine get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -577,8 +642,10 @@ type(comm_line_args), intent(in) :: args
 type(crystal_3D), intent(in) :: crystal_SC
 
     select case(trim(adjustl(args%pw_code)))
-        case ('qe')
+        case('qe')
             call get_SCKPTS_QE(list_of_SCKPTS, args)
+        case('abinit')
+            call get_SCKPTS_ABINIT(list_of_SCKPTS, args)
         case default
             call get_SCKPTS_contained_in_wavecar(list_of_SCKPTS, args, crystal_SC)
     end select
@@ -869,20 +936,28 @@ write(*,*)''
 end subroutine read_pckpts_selected_by_user
 
 
+!===============================================================================
+!> \ingroup changes_upon_new_interface
+!> General interface to the routines that read the wavefunction file(s) from the
+!! various codes supported by BandUP. It checks for the existence of the files,
+!! decides on whether read the coefficients or not, checks the consistence of
+!! the ikpt and spin choices and (optionally) renormalizes the wavefunctions.
+!===============================================================================
 subroutine read_wavefunction(wf, args, ikpt, read_coeffs, &
                              elapsed_time, add_elapsed_time_to, &
-                             iostat, verbose)
+                             iostat, verbose, stop_if_not_found)
 implicit none
 type(pw_wavefunction), intent(inout) :: wf
 type(comm_line_args), intent(in) :: args
 integer, intent(in) :: ikpt
-logical, intent(in), optional :: read_coeffs, verbose
+logical, intent(in), optional :: read_coeffs, verbose, stop_if_not_found
 real(kind=dp), intent(out), optional :: elapsed_time
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer, intent(out), optional :: iostat
 integer :: ios, i_kpt, iband, i
 real(kind=dp) :: stime, ftime, inner_prod
-logical :: file_exists, spin_reset, read_coefficients, print_stuff
+logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
+           stop_if_wf_not_found
 
     stime = time()
 
@@ -890,18 +965,26 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff
     if(present(verbose)) print_stuff = verbose
     read_coefficients = .TRUE. ! Reading the coeffs by default
     if(present(read_coeffs)) read_coefficients = read_coeffs
+    stop_if_wf_not_found = .FALSE.
+    if(present(stop_if_not_found)) stop_if_wf_not_found = stop_if_not_found
+
 
     ios = 0
     ! Check if file exists
     select case(trim(adjustl(args%pw_code)))
         case('qe')
             continue ! Still to implement this test
-        case default ! Using VASP as default
+        case default ! If VASP or ABINIT
             inquire(file=args%WF_file, exist=file_exists)
             if(.not. file_exists)then
                 write(*,'(3A)')"ERROR (read_wavefunction): File ", &
                                trim(adjustl(args%WF_file)), " doesn't exist."
                 ios = -1
+                if(stop_if_wf_not_found)then
+                    write(*,'(A)')'Stopping now.'
+                    stop
+                endif
+                if(present(iostat)) iostat = ios
                 return
             endif
     end select
@@ -928,15 +1011,20 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff
                               read_coeffs=read_coefficients, iostat=ios)
         case('qe')
             call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
+        case('abinit')
+            call read_abinit_wfk_file(wf, file=args%WF_file, ikpt=i_kpt, &
+                                      read_coeffs=read_coefficients, iostat=ios)
     end select
-    if(renormalize_wf)then
+    if(read_coefficients .and. renormalize_wf)then
         !$omp parallel do default(none) schedule(guided) &
         !$ private(iband, inner_prod, i) &
         !$ shared(wf)
         do iband=1, wf%n_bands
             inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), &
                                             wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
-            wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
+            if(inner_prod > epsilon(1.0_dp))then
+                wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
+            endif
         enddo
     endif
 

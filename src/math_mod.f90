@@ -53,6 +53,9 @@ interface trace
     module procedure trace_cplx
 end interface trace
 
+interface norm
+    module procedure norm_sp, norm_dp, cplx_norm_dp, cplx_norm_sp
+end interface norm
 
 CONTAINS
 
@@ -388,14 +391,45 @@ real(kind=dp), dimension(1:3), intent(in) :: a, b, c
 
 end function triple_product
 
-function norm(v) result(rtn)
+
+function norm_sp(v) result(rtn)
 implicit none
-  real(kind=dp), dimension(1:3) :: v
+  real(kind=sp), dimension(:) :: v
+  real(kind=sp) :: rtn
+
+  rtn = sqrt(dot_product(v,v))
+
+end function norm_sp
+
+
+function cplx_norm_sp(v) result(rtn)
+implicit none
+  complex(kind=sp), dimension(:) :: v
+  real(kind=sp) :: rtn
+
+  rtn = sqrt(abs(dot_product(v,v)))
+
+end function cplx_norm_sp
+
+function norm_dp(v) result(rtn)
+implicit none
+  real(kind=dp), dimension(:) :: v
   real(kind=dp) :: rtn
 
   rtn = sqrt(dot_product(v,v))
 
-end function norm
+end function norm_dp
+
+
+function cplx_norm_dp(v) result(rtn)
+implicit none
+  complex(kind=dp), dimension(:) :: v
+  real(kind=dp) :: rtn
+
+  rtn = sqrt(abs(dot_product(v,v)))
+
+end function cplx_norm_dp
+
 
 function versor(v) result(rtn)
 implicit none

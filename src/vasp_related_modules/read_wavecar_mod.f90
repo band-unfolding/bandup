@@ -89,7 +89,6 @@
 
 module read_vasp_wavecar
 use constants_and_types
-use cla_wrappers
 use math
 use general_io, only: available_io_unit
 !$ use omp_lib

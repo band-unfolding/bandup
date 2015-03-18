@@ -1,0 +1,59 @@
+# Graphene SC, calculating the charge density
+
+chkprim 0 # Tell ABINIT to ignore the fact that this is not a PC
+prtwf 0   # Disable writing the WFK file 
+prteig 0  # Disable writing the EIG files
+
+#Definition of the unit cell
+scalecart 3*2.467 # Scaling factor for the lattice vectors 
+acell 3*1 angstrom # Setting length units to angstrom
+rprim 
+3.464101614   0.000000000   0.000000000
+0.000000000   3.000000000   0.000000000
+0.000000000   0.000000000   6.080259424
+
+#Definition of the atom types
+ntypat 1 # Number of types of atoms
+# Atomic numbers  
+znucl 6 
+
+#Definition of the atoms
+natom 24           
+typat 24*1
+# Coordinates         
+xred # Reduced coordinates
+   0.083333333   0.166666667   0.500000000
+   0.166666666   0.000000000   0.500000000
+   0.333333333   0.000000000   0.500000000
+   0.416666666   0.166666667   0.500000000
+   0.583333333   0.166666667   0.500000000
+   0.666666666   0.000000000   0.500000000
+   0.833333333   0.000000000   0.500000000
+   0.916666666   0.166666667   0.500000000
+   0.083333333   0.500000000   0.500000000
+   0.166666666   0.333333333   0.500000000
+   0.333333333   0.333333333   0.500000000
+   0.416666666   0.500000000   0.500000000
+   0.583333333   0.500000000   0.500000000
+   0.666666666   0.333333333   0.500000000
+   0.833333333   0.333333333   0.500000000
+   0.916666666   0.500000000   0.500000000
+   0.083333333   0.833333333   0.500000000
+   0.166666666   0.666666667   0.500000000
+   0.333333333   0.666666667   0.500000000
+   0.416666666   0.833333333   0.500000000
+   0.583333333   0.833333333   0.500000000
+   0.666666666   0.666666667   0.500000000
+   0.833333333   0.666666667   0.500000000
+   0.916666666   0.833333333   0.500000000
+
+#Definition of the planewave basis set
+ecut 20.0 # Maximal plane-wave kinetic energy cut-off, in Hartree
+
+#Definition of the k-point grid
+kptopt 1    # Usual mode for GS calculations
+ngkpt 15 17 1 # 
+
+#Definition of the SCF procedure
+nstep 60          # Maximal number of SCF cycles (default was 1 in v5.3)
+toldfe 1.0d-6 eV  # Convergence criterion

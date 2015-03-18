@@ -130,7 +130,7 @@ class BandUpPlotOptions(argparse.ArgumentParser):
                           help='Shift in the energy grid. Default: 0.0')
 
         self.add_argument('-interp', '--interpolation', default=None, choices=['nearest', 'linear', 'cubic'], 
-                          help='Interpolation scheme used. Default: None')
+                          help='Interpolation scheme used. Default: nearest')
 
         self.add_argument('-vmin', '--minval_for_colorbar', type=float, 
                           help='Value to which the first color of the colormap will be normalized.')
@@ -669,17 +669,17 @@ def print_opening_message():
     print ('                                                                                      \n'
            '===================================================================================== \n'
            '             BandUP: Band Unfolding code for Plane-wave based calculations            \n'
-           '                 Copyright (C) 2013, 2014 Paulo V. C. Medeiros                        \n'
+           '                  Copyright (C) 2013-2015 Paulo V. C. Medeiros                        \n'
            '                                                                                      \n'
            '              Post-processing utility "plot_unfolded_EBS_BandUP.py"                   \n'
            '            >>> Visualizing the unfolded EBSs produced by BandUP <<<                  \n'
            '===================================================================================== \n'
-           'Copyright (C) 2013, 2014 Paulo V. C. Medeiros, Jonas Bjork                            \n'
-           '                         paume@ifm.liu.se, jonas.bjork@liu.se                         \n'
-           '                         Computational Physics Division                               \n'
-           '                         Department of Physics, Chemistry and Biology - IFM           \n'
-           '                         Linkoping University                                         \n'
-           '                         Sweden                                                       \n'
+           'Copyright (C) 2013-2015 Paulo V. C. Medeiros, Jonas Bjork                             \n'
+           '                        paume@ifm.liu.se, jonas.bjork@liu.se                          \n'
+           '                        Computational Physics Division                                \n'
+           '                        Department of Physics, Chemistry and Biology - IFM            \n'
+           '                        Linkoping University                                          \n'
+           '                        Sweden                                                        \n'
            'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                           \n'
            '===================================================================================== \n'
            '                                                                                      \n')

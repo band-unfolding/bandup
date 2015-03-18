@@ -50,8 +50,8 @@ PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_po
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
 integer, parameter :: sp = selected_real_kind(6, 37), &    ! Single precision
                       dp = selected_real_kind(15, 307), &  ! Double precision
-                      kind_cplx_coeffs = sp, & ! Change to dp if you want to use double-precision
-                      qe_dp = kind(1.0_dp) ! QE's double precision
+                      qe_dp = kind(1.0_dp), & ! QE's double precision
+                      kind_cplx_coeffs = sp   ! Change to dp if you want to use double-precision
 real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi, &
                             default_tol_for_vec_equality=1E-5_dp, &
                             max_tol_for_vec_equality=1E-3_dp, &
@@ -75,7 +75,7 @@ type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &
                           output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
-                          pw_code, qe_outdir, qe_prefix 
+                          pw_code, qe_outdir, qe_prefix, abinit_files_file 
     integer :: spin_channel, n_sckpts_to_skip
     real(kind=dp), dimension(1:3) :: saxis, normal_to_proj_plane, &
                                      origin_for_spin_proj_cartesian, origin_for_spin_proj_rec

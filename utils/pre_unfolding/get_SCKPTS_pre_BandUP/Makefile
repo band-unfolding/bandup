@@ -26,6 +26,7 @@ cla_folder = $(BandUP_src_folder)/external/claf90
 spglib_folder = $(BandUP_src_folder)/external/spglib-1.5.2
 vasp_related_modules_folder = $(BandUP_src_folder)/vasp_related_modules
 qe_related_modules_folder = $(BandUP_src_folder)/qe_related_modules
+abinit_related_modules_folder = $(BandUP_src_folder)/abinit_related_modules
 espresso_folder = $(BandUP_src_folder)/external/espresso-5.1_modules_for_BandUP
 QE_modules=$(espresso_folder)/Modules
 QE_iotk=$(espresso_folder)/iotk/src
@@ -44,6 +45,7 @@ vpath %.f90 $(spglib_folder)/example
 vpath %.f90 $(BandUP_src_folder)
 vpath %.f90 $(vasp_related_modules_folder)
 vpath %.f90 $(qe_related_modules_folder)
+vpath %.f90 $(abinit_related_modules_folder)
 
 # List of executables to be built within the package
 SRC = main_get_SCKPTS_pre_BandUP.f90
@@ -53,26 +55,27 @@ EXE = get_SCKPTS_pre_BandUP.x
 # "make" builds all
 all: $(EXE)
 
-
 cla.o: kinds.o
-cla_wrappers_mod.o: kinds.o cla.o constants_and_types_mod.o
 math_mod.o: constants_and_types_mod.o spglib_f08.o
-general_io_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o
+general_io_mod.o: constants_and_types_mod.o math_mod.o
+cla_wrappers_mod.o: general_io_mod.o kinds.o cla.o constants_and_types_mod.o
 read_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o strings_mod.o
 write_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o strings_mod.o
-read_wavecar_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o general_io_mod.o
+read_wavecar_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o
 read_qe_wavefunctions_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o general_io_mod.o
+read_abinit_wavefunctions_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o
 io_routines_mod.o: constants_and_types_mod.o math_mod.o cla_wrappers_mod.o strings_mod.o \
                    general_io_mod.o read_vasp_files_mod.o write_vasp_files_mod.o \
-                   read_wavecar_mod.o read_qe_wavefunctions_mod.o
+                   read_wavecar_mod.o read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o
 band_unfolding_routines_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o \
                                general_io_mod.o io_routines_mod.o
 $(OBJ): cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o math_mod.o \
         io_routines_mod.o read_wavecar_mod.o read_vasp_files_mod.o write_vasp_files_mod.o \
-        read_qe_wavefunctions_mod.o band_unfolding_routines_mod.o
+        read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o band_unfolding_routines_mod.o
 $(EXE): cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o math_mod.o \
         band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o read_vasp_files_mod.o \
-        read_qe_wavefunctions_mod.o write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(OBJ)
+        read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o write_vasp_files_mod.o \
+        strings_mod.o io_routines_mod.o $(OBJ)
 # ======================================================================
 # General rules
 # ======================================================================
