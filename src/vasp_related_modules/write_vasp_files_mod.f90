@@ -104,11 +104,11 @@ open(unit=unit_num,file=output_file)
     call compact(aux_string)
     write(unit_num,"(2X,A)")trim(adjustl(aux_string))
 
-    if(any(crystal%unconstrained_dof_basis_atoms) == .FALSE.) write(unit_num,'(A)')'Selective Dynamics'
+    if(any(crystal%unconstrained_dof_basis_atoms) .eqv. .FALSE.) write(unit_num,'(A)')'Selective Dynamics'
     write(unit_num,'(A)') 'Cartesian' 
     ! Writing atom coordinates to the file
     do i_species=1, n_species
-        if(any(crystal%unconstrained_dof_basis_atoms) == .FALSE.)then
+        if(any(crystal%unconstrained_dof_basis_atoms) .eqv. .FALSE.)then
             do iatom=1,n_atoms
                 if(crystal%integer_types_basis_atoms(iatom) == species_in_the_basis(i_species))then
                     do icoord=1,3

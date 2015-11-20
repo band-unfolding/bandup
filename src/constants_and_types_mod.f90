@@ -61,7 +61,8 @@ real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi, &
                             two_m_over_hbar_sqrd = 0.262465831, & ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
                             Ry =  13.60569172, Hartree = 27.2113834, & ! Energy convertion to eV
                             bohr = 0.52917721092 ! Length conv. to Angstrom
-real(kind=dp), dimension(1:3,1:3), parameter :: identity_3D = real((/(/1,0,0/),(/0,1,0/),(/0,0,1/)/), kind=dp)
+real(kind=dp), dimension(1:3,1:3), parameter :: identity_3D = &
+    reshape(real((/ 1, 0, 0, 0, 1, 0, 0, 0, 1 /), kind=dp), shape(identity_3D))
 logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       stop_if_pckpt_cannot_be_parsed = .TRUE., &
                       stop_if_GUR_fails = .TRUE., &

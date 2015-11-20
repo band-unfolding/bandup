@@ -23,7 +23,7 @@
 !! Permission to distribute this module as a part of BandUP and under the terms of the GNU GPL licence (or similar)
 !! has been granted by WaveTrans' Copyright holders. Thanks!
 
-!/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
 ! module read_vasp_wavecar
 ! ===================
 !  Contains a function "read_wavefunction", which returns information about any
@@ -31,7 +31,7 @@
 !  performance of the BandUP code (or any other code that would require similar functionality).
 !  See the definition of the function for more information on the arguments.
 !  I've only tested this module on linux and using the ifort compiler.
-!/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
 
 !!$************************* List of major changes from the WaveTrans code ****************************************
 !!$*
@@ -166,7 +166,7 @@ integer :: i_kpt, nplane, i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, 
            nb1maxA, nb2maxA, nb3maxA, nb1maxB, nb2maxB, nb3maxB, nb1maxC, nb2maxC, nb3maxC, &
            npmaxA, npmaxB, npmaxC, nb1max, nb2max, nb3max, npmax, iband, ncnt,  &
            input_file_unit, irec_before_loop,temp_unit, alloc_stat, i_wf_comp, &
-           n_threads, ithread
+           n_threads_2b_used_when_reading, ithread, max_n_threads
 integer(kind=selected_int_kind(18)) :: stream_pos, irec, nrecl
 integer, dimension(:), allocatable :: io_unit_for_thread
 complex(kind=kind_cplx_coeffs) :: inner_prod
@@ -196,10 +196,16 @@ open(unit=input_file_unit, file=file, access='direct', recl=nrecl, iostat=iost, 
     endif      
     nprec = nint(xnprec) ! Numerical precision flag
     if(nprec /= 45200 .and. kind_cplx_coeffs /= dp)then
-        write(*,'(A)') 'ERROR (read_wavecar module): You seem to be using a double-precision WAVECAR (WAVECAR_double),'
-        write(*,'(A)') '                             but you are using a version of BandUP compiled for single-precision.' 
-        write(*,'(A)') '                             To generate a double-precision version of BandUP, please change the variable' 
-        write(*,'(A)') '                             "kind_cplx_coeffs" from "sp" to "dp" in the file src/math_mod.f90, and recompile the code.'
+        write(*,'(A)') 'ERROR (read_wavecar module): You seem to be &
+                        using a double-precision WAVECAR (WAVECAR_double),'
+        write(*,'(A)') '                             but you are using &
+                       a version of BandUP compiled for single-precision.' 
+        write(*,'(A)') '                             To generate a &
+                       double-precision version of BandUP, please &
+                       change the variable' 
+        write(*,'(A)') '                             "kind_cplx_coeffs"&
+                       from "sp" to "dp" in the file src/math_mod.f90, &
+                       and recompile the code.'
         write(*,'(A)') 'Stopping now.'
         stop
     endif
@@ -382,23 +388,32 @@ enddo
 if(read_coefficients)then
     deallocate(wf%pw_coeffs, stat=alloc_stat)
     allocate(wf%pw_coeffs(1:wf%n_spinor, nplane, nband))
-    ! The variables "io_unit_for_thread", "irec_before_loop" and "temp_unit" have been added
-    ! to make it possible to use openmp to parallelize (over bands) 
+    ! The variables "io_unit_for_thread", "irec_before_loop" and "temp_unit" have been 
+    ! added to make it possible to use openmp to parallelize (over bands) 
     ! the reading of the WAVECAR file.
-    n_threads = 1
-    !$ n_threads = omp_get_max_threads() 
-    allocate(io_unit_for_thread(1:n_threads))
+    max_n_threads = 1
+    !$ max_n_threads = omp_get_max_threads()
+#ifdef __INTEL_COMPILER
+    n_threads_2b_used_when_reading = max_n_threads
+#else 
+    n_threads_2b_used_when_reading = 1
+#endif
+    !$ call omp_set_num_threads(n_threads_2b_used_when_reading)
+
+    allocate(io_unit_for_thread(1:n_threads_2b_used_when_reading))
     io_unit_for_thread(1) = available_io_unit()
-    if(n_threads>1)then
-        do ithread=2, n_threads
-            io_unit_for_thread(ithread) = available_io_unit(io_unit_for_thread(ithread-1)+1,10*n_threads)
+    if(n_threads_2b_used_when_reading>1)then
+        do ithread=2, n_threads_2b_used_when_reading
+            io_unit_for_thread(ithread) = &
+                available_io_unit(io_unit_for_thread(ithread-1)+1, &
+                                  10*n_threads_2b_used_when_reading)
         enddo
     endif
 
     irec_before_loop = irec
     !$omp parallel default(none) &
-    !$    private(temp_unit, iost, irec, stream_pos, inner_prod) &
-    !$    shared(io_unit_for_thread, file, irec_before_loop, nrecl, wf)
+    !$omp private(temp_unit, iost, irec, stream_pos, inner_prod) &
+    !$omp shared(io_unit_for_thread, file, irec_before_loop, nrecl, wf)
     temp_unit = io_unit_for_thread(1)
     !$ temp_unit = io_unit_for_thread(omp_get_thread_num() + 1)
     open(unit=temp_unit,file=file,access='stream',iostat=iost,status='old')
@@ -406,13 +421,16 @@ if(read_coefficients)then
     do iband=1, wf%n_bands
         irec=irec_before_loop+iband
         stream_pos = 1 + (irec - 1) * nrecl
-        read(unit=temp_unit, pos=stream_pos) (wf%pw_coeffs(i_wf_comp,:,iband), i_wf_comp=1, wf%n_spinor)
+        read(unit=temp_unit, pos=stream_pos) (wf%pw_coeffs(i_wf_comp,:,iband), &
+                                              i_wf_comp=1, wf%n_spinor)
     enddo
     !$omp end do
     close(temp_unit)
     !$omp end parallel
     deallocate(io_unit_for_thread)
+    !$ call omp_set_num_threads(max_n_threads)
 endif
+
 if(present(iostat)) iostat = 0
 
 end subroutine read_wavecar

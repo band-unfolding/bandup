@@ -62,6 +62,8 @@ if(present(package_version))then
     write(*,'(A)') &
     "                            V. "//trim(adjustl(package_version))
 endif
+    write(*,'(A)') &
+    "                     Compiled using "//trim(adjustl(compiler_version()))
 write(*,'(8(A,/),A)') &
     '=====================================================================================', &
     'Copyright (C) 2013-2015 Paulo V. C. Medeiros                                         ', &
@@ -432,23 +434,35 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
     write(*,*)
     !! The following message should always be written to the standad output (also in any modified version of BandUP)
-    write(*,'(A)')       '=========================================================================================================================='
-    write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any modified/adapted version/part of it, you should explicitly acknowledge the use of the",& 
-                         '        code in your publications. You should also read and cite', &
+    write(*,'(A)')       '========================================='//&
+        '=========================================================='//&
+        '======================='
+    write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any '//&
+        'modified/adapted version/part of it, you should explicitly '//&
+        'acknowledge the use of the",& 
+        '        code in your publications. You should also read and cite', &
                          '                                                                                                   ', &
                          '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
                          '                                                                                               ', &
                          '        (http://dx.doi.org/10.1103/PhysRevB.89.041407) and the appropriate references therein.' 
     if(spinor_wf)then
         write(*,*)
-        write(*,'(5(A,/),A)')'        Additionally, since you are working with spinor eigenstates (spin-orbit coupling, noncollinear magnetism), ', &
-                             '        you should as well read and cite', &
-                             '                                                                                                   ', &
-                             '  >>>   Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, Phys. Rev. B 91, 041116(R) (2015)', &
-                             '                                                                                               ', &
-                             '        (http://dx.doi.org/10.1103/PhysRevB.91.041116) and the appropriate references therein.'
+        write(*,'(5(A,/),A)')'        Additionally, since you are '//&
+            'working with spinor eigenstates (spin-orbit coupling, '//&
+            'noncollinear magnetism), ', &
+            '        you should as well read and cite', &
+            '                                                      '//&
+            '                                             ', &
+                             '  >>>   Paulo V. C. Medeiros, '//&
+            'Stepan S. Tsirkin, Sven Stafström and Jonas Björk, '//&
+            'Phys. Rev. B 91, 041116(R) (2015)', &
+            '                                                   '//&
+            '                                            ', &
+            '        (http://dx.doi.org/10.1103/PhysRevB.91.041116) and the appropriate references therein.'
     endif
-    write(*,'(A)')       '=========================================================================================================================='
+    write(*,'(A)') '============================================'//&
+                   '============================================'//&
+                   '=================================='
 
     !! End of message
     write(*,*)
@@ -1017,8 +1031,8 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
     end select
     if(read_coefficients .and. renormalize_wf)then
         !$omp parallel do default(none) schedule(guided) &
-        !$ private(iband, inner_prod, i) &
-        !$ shared(wf)
+        !$omp private(iband, inner_prod, i) &
+        !$omp shared(wf)
         do iband=1, wf%n_bands
             inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), &
                                             wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))

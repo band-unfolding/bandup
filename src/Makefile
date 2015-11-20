@@ -10,15 +10,30 @@
 # ======================================================================
 # The compiler
 FC = ifort
-# Required flags: "-assume byterecl" is required for the compilation of the read_wavecar_mod module
-FCFLAGS = -assume byterecl 
+# Required flags: 
+# "-assume byterecl" is required for the read_wavecar_mod module (ifort)
+FCFLAGS_for_ifort = -assume byterecl 
+# gfortran with GNU extensions (default, but I prefer to set it explicitly)
+FCFLAGS_for_gfortran = -std=gnu -pedantic
 # Shared memory parallelization
-FCFLAGS += -openmp -parallel
+FCFLAGS_for_ifort += -openmp -parallel
+FCFLAGS_for_gfortran += -fopenmp
 # Flags for maximum performance, portability, etc. Comment (or modify) as necessary.
-FCFLAGS += -O2 -no-ipo # ipo was causing a few problems.
+FCFLAGS_for_ifort += -O2 -no-ipo # ipo was causing a few problems.
+FCFLAGS_for_gfortran += -O2
 # Enable/disable warnings and remarks
-FCFLAGS += -diag-disable remark
+FCFLAGS_for_ifort += -diag-disable remark
+FCFLAGS_for_gfortran += -w
+# Enable preprocessor
+FCFLAGS_for_ifort += -fpp
+FCFLAGS_for_gfortran += -cpp
 
+# Setting correct compiler options
+ifeq ($(FC),ifort)
+  FCFLAGS=$(FCFLAGS_for_ifort)
+else ifeq ($(FC),gfortran)
+  FCFLAGS=$(FCFLAGS_for_gfortran)
+endif
 
 # Aliases
 current_dir = $(shell pwd)
@@ -52,7 +67,6 @@ vpath %.f90 $(abinit_related_modules_folder)
 SRC = main_BandUP.f90
 OBJ = ${SRC:.f90=.o}
 EXE = BandUP.x
-
 
 # "make" builds all
 all: $(EXE)

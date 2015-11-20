@@ -162,6 +162,7 @@ implicit none
 character(len=*), intent(in) :: item
 character(len=*), dimension(:), allocatable, intent(inout) :: list
 character(len=len(list)), dimension(:), allocatable :: new_list
+integer :: size_new_list
 
 if(.not.allocated(list))then
     allocate(list(1:1))
@@ -171,7 +172,8 @@ else
     new_list(1:size(list)) = list
     new_list(size(list)+1) = item
     deallocate(list)
-    allocate(list(1:size(new_list)))
+    size_new_list = size(new_list)
+    allocate(list(1:size_new_list))
     list = new_list
     deallocate(new_list)
 endif
@@ -197,7 +199,6 @@ real(kind=dp), dimension(:,:), allocatable :: atom_pos ! dimension(:,1:3)
 character(len=3), dimension(:), allocatable :: symbols, unique_symbols
 logical, dimension(:,:), allocatable :: dof_basis_atoms ! dimension(:,1:3)
 type(crystal_3D), allocatable :: aux_crystal  
- 
     ! Defaults of optional arguments 
     default_positions(:) = 0.0_dp * (latt_vecs(1,:) + latt_vecs(2,:) + latt_vecs(3,:))
     default_unconstrained_dof(1,:) = (/.TRUE.,.TRUE.,.TRUE./) 
@@ -602,10 +603,10 @@ end subroutine get_rec_latt
 
 function coords_cart_vec_in_new_basis(cart_vec, new_basis) result(coords)
 ! Returns the coordinates of the vector cart_vec = (x,y,z) in the basis "new_basis"
-real*8, dimension(1:3) :: coords
-real*8, dimension(1:3), intent(in) :: cart_vec
-real*8, dimension(1:3,1:3), intent(in) :: new_basis
-real*8, dimension(1:3,1:3) :: aux_matrix
+real(kind=8), dimension(1:3) :: coords
+real(kind=8), dimension(1:3), intent(in) :: cart_vec
+real(kind=8), dimension(1:3,1:3), intent(in) :: new_basis
+real(kind=8), dimension(1:3,1:3) :: aux_matrix
 integer :: i
 
     aux_matrix = inverse_of_3x3_matrix(transpose(new_basis))
@@ -657,11 +658,11 @@ function vec_in_latt(vec, latt, tolerance) result(rtn)
 !! vectors latt(i,:), i=1,2,3.
 implicit none
 logical :: rtn
-real*8, dimension(1:3), intent(in) :: vec
-real*8, dimension(1:3,1:3), intent(in) :: latt
-real*8, intent(in), optional :: tolerance
-real*8, dimension(1:3) :: reduced_vec,frac_coords,reduced_frac_coords,g
-real*8 :: tol
+real(kind=8), dimension(1:3), intent(in) :: vec
+real(kind=8), dimension(1:3,1:3), intent(in) :: latt
+real(kind=8), intent(in), optional :: tolerance
+real(kind=8), dimension(1:3) :: reduced_vec,frac_coords,reduced_frac_coords,g
+real(kind=8) :: tol
 integer :: i,ig1,ig2,ig3,ig1p,ig2p,ig3p,nb1max,nb2max,nb3max
 
 tol = default_tol_for_vec_equality
@@ -1261,9 +1262,9 @@ integer :: msize, i
     rtn = 0.0_dp
     msize = size(A, dim=1)    
     !$omp parallel do default(none) schedule(guided) &
-    !$    private(i) &
-    !$    shared(msize, A, B) &
-    !$    reduction(+:rtn)
+    !$omp private(i) &
+    !$omp shared(msize, A, B) &
+    !$omp reduction(+:rtn)
     do i=1, msize
         rtn = rtn + sum(A(i,:) * B(:,i))
     enddo
@@ -1279,9 +1280,9 @@ integer :: msize, i
     rtn = 0.0_kind_cplx_coeffs
     msize = size(A, dim=1)    
     !$omp parallel do default(none) schedule(guided) &
-    !$    private(i) &
-    !$    shared(msize, A, B) &
-    !$    reduction(+:rtn)
+    !$omp private(i) &
+    !$omp shared(msize, A, B) &
+    !$omp reduction(+:rtn)
     do i=1, msize
         rtn = rtn + sum(A(i,:) * B(:,i))
     enddo
@@ -1297,9 +1298,9 @@ integer :: msize, i
     rtn = 0.0_dp
     msize = size(A, dim=1)    
     !$omp parallel do default(none) schedule(guided) &
-    !$    private(i) &
-    !$    shared(msize, A, B) &
-    !$    reduction(+:rtn)
+    !$omp private(i) &
+    !$omp shared(msize, A, B) &
+    !$omp reduction(+:rtn)
     do i=1, msize
         rtn = rtn + sum(real(A(i,:)) * real(B(:,i))) - &
                     sum(aimag(A(i,:)) * aimag(B(:,i)))
@@ -1315,9 +1316,9 @@ integer :: i
 
     rtn = 0.0_kind_cplx_coeffs
     !$omp parallel do default(none) schedule(guided) &
-    !$    private(i) &
-    !$    shared(A) &
-    !$    reduction(+:rtn)
+    !$omp private(i) &
+    !$omp shared(A) &
+    !$omp reduction(+:rtn)
     do i=1, size(A, dim=1)
         rtn = rtn + A(i,i)
     enddo
@@ -1489,7 +1490,7 @@ type(crystal_3D) :: work_crystal
                 direcs_are_eqv(kstart,kend,current_kstart,current_kend,work_crystal%symops,sprec) 
         enddo
     enddo
-    n_eqv_dirs_full_star = count(pairs_start_end_lead_to_eqv_dir == .TRUE.)
+    n_eqv_dirs_full_star = count(pairs_start_end_lead_to_eqv_dir .eqv. .TRUE.)
 
     allocate(full_star_of_eqv_dirs%eqv_dir(1:n_eqv_dirs_full_star))
     ieqv_dir=0

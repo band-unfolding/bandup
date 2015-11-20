@@ -348,9 +348,9 @@ real(kind=dp) :: tol, tol_for_vec_equality
               (tol <= max_tol_for_vec_equality))
         tol = 10_dp * tol
         !$omp parallel do &
-        !$    schedule(guided) default(none) &
-        !$    shared(wf, folding_G, crystal_pc, tol, selected_coeff_indices) &
-        !$    private(ig, trial_pc_g) 
+        !$omp schedule(guided) default(none) &
+        !$omp shared(wf, folding_G, crystal_pc, tol, selected_coeff_indices) &
+        !$omp private(ig, trial_pc_g) 
         do ig=1, wf%n_pw
             trial_pc_g = wf%G_cart(ig)%coord(:) - folding_G(:)
             if(vec_in_latt(vec=trial_pc_g, latt=crystal_pc%rec_latt_vecs, tolerance=tol))then
@@ -390,9 +390,9 @@ real(kind=dp) :: stime, ftime
     n_bands_SC_calculation = size(coeff,dim=2)
     spectral_weight(:) = 0.0_dp
     !$omp parallel do &
-    !$    schedule(guided) default(none) &
-    !$    private(iband,i,icoeff) &
-    !$    shared(n_bands_SC_calculation,selected_coeff_indices,spectral_weight,coeff)
+    !$omp schedule(guided) default(none) &
+    !$omp private(iband,i,icoeff) &
+    !$omp shared(n_bands_SC_calculation,selected_coeff_indices,spectral_weight,coeff)
     do iband = 1, n_bands_SC_calculation
         do i=1, size(selected_coeff_indices)
             icoeff = selected_coeff_indices(i)
@@ -430,9 +430,9 @@ real(kind=dp) :: E, E_SC_band, stime, ftime, sigma
     allocate(SF_at_pckpt(1:size(energies)))
     SF_at_pckpt(:) = 0.0_dp
     !$omp parallel do &
-    !$    schedule(guided) default(none) &
-    !$    private(iener,E,i_SC_band,E_SC_band)  &
-    !$    shared(energies,n_SC_bands,SC_calc_ener,SF_at_pckpt,spectral_weight,sigma)
+    !$omp schedule(guided) default(none) &
+    !$omp private(iener,E,i_SC_band,E_SC_band)  &
+    !$omp shared(energies,n_SC_bands,SC_calc_ener,SF_at_pckpt,spectral_weight,sigma)
     do iener=1,size(energies)  ! For E in the list of energy values for the E(k) plot
         E = energies(iener)
         do i_SC_band=1,n_SC_bands
@@ -487,9 +487,9 @@ real(kind=dp) :: E, E_SC_band, delta_e, sigma
     allocate(delta_N_pckpt(1:size(energies)))
     delta_N_pckpt(:) = 0.0_dp
     !$omp parallel do &
-    !$    schedule(guided) default(none) &
-    !$    private(iener,E,i_SC_band,E_SC_band)  &
-    !$    shared(energies,n_SC_bands,SC_calc_ener,delta_N_pckpt,spectral_weight, delta_e,sigma)
+    !$omp schedule(guided) default(none) &
+    !$omp private(iener,E,i_SC_band,E_SC_band)  &
+    !$omp shared(energies,n_SC_bands,SC_calc_ener,delta_N_pckpt,spectral_weight, delta_e,sigma)
     do iener=1,size(energies)  ! For E in the list of energy values for the E(k) plot
         E = energies(iener)
         do i_SC_band=1,n_SC_bands
@@ -652,13 +652,14 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     allocate(rho(1:n_SC_bands, 1:n_SC_bands))
 
     rho(:,:) = 0.0_dp
-    if(args.perform_unfold)then
+    if(args%perform_unfold)then
         !$omp parallel do &
-        !$    schedule(guided) default(none) &
-        !$    shared(n_SC_bands, pc_ener, wf, delta_e, sigma, min_prefactor, delta_N, &
-        !$           n_coeffs_pf, n_spinor, selected_coeff_indices, rho) &
-        !$    private(m1, m2, lamb_ee1, lamb_ee2, prefactor, pf_coeffs_m1, pf_coeffs_m2, &
-        !$            alloc_stat, i_spinor, pf_pw_index)
+        !$omp schedule(guided) default(none) &
+        !$omp shared(n_SC_bands, pc_ener, wf, delta_e, sigma, &
+        !$omp        min_prefactor, delta_N, n_coeffs_pf, &
+        !$omp        n_spinor, selected_coeff_indices, rho) &
+        !$omp private(m1, m2, lamb_ee1, lamb_ee2, prefactor, pf_coeffs_m1, &
+        !$omp         pf_coeffs_m2, alloc_stat, i_spinor, pf_pw_index)
         do m1=1, n_SC_bands - 1
             lamb_ee1 = lambda(pc_ener=pc_ener, SC_ener=wf%band_energies(m1), &
                               delta_e=delta_e, std_dev=sigma)
@@ -753,10 +754,12 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     enddo
     if(allocated(picked_SC_bands))then
         !$omp parallel do collapse(2) &
-        !$    schedule(guided) default(none) &
-        !$    shared(wf, SC_pauli_matrix_elmnts, picked_SC_bands, pauli_mtx_elmts_already_calc) &
-        !$    private(m1, m2, m3, m4, inner_prod_Km2Alpha_Km1Beta, inner_prod_Km2Beta_Km1Alpha, &
-        !$            inner_prod_Km2Alpha_Km1Alpha, inner_prod_Km2Beta_Km1Beta) 
+        !$omp schedule(guided) default(none) &
+        !$omp shared(wf, SC_pauli_matrix_elmnts, picked_SC_bands, &
+        !$omp        pauli_mtx_elmts_already_calc) &
+        !$omp private(m1, m2, m3, m4, inner_prod_Km2Alpha_Km1Beta, &
+        !$omp         inner_prod_Km2Beta_Km1Alpha, &
+        !$omp         inner_prod_Km2Alpha_Km1Alpha, inner_prod_Km2Beta_Km1Beta) 
         do m3=1,size(picked_SC_bands)
             do m4=1,size(picked_SC_bands)
                 m1 = picked_SC_bands(m3)
@@ -849,14 +852,15 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
     n_bands_SC_calculation = size(wf%pw_coeffs, dim=3)
     allocate(spectral_weight(1:n_bands_SC_calculation))
 
-    if(args.perform_unfold)then
+    if(args%perform_unfold)then
         spectral_weight = 0.0_dp
         do i_spinor=1,n_WF_components
            ! Calculating spectral_weights
             spectral_weight = spectral_weight + &
                               spectral_weight_for_coeff(wf%pw_coeffs(i_spinor,:,:), &
                                                         selected_coeff_indices, &
-                                                        add_elapsed_time_to=times%calc_spec_weights)
+                                                        add_elapsed_time_to=&
+                                                            times%calc_spec_weights)
         enddo
     else
         write(*,'(A)')'    **** WARNING: You are using the option "-dont_unfold". &
@@ -890,10 +894,10 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         delta_e = energy_grid(2) - energy_grid(1) ! uniform energy grid
 
         !$omp parallel do &
-        !$    schedule(guided) default(none) &
-        !$    shared(nener, delta_N, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, &
-        !$           pc_energies_to_calc_eigenvalues) &
-        !$    private(iener, dN)
+        !$omp schedule(guided) default(none) &
+        !$omp shared(nener, delta_N, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, &
+        !$omp        pc_energies_to_calc_eigenvalues) &
+        !$omp private(iener, dN)
         do iener=1, nener
             dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                          needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)

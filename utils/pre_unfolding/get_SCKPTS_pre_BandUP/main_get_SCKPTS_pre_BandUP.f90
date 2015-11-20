@@ -149,7 +149,9 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
     open(unit=03, file=args%out_file_SC_kpts)
         open(unit=04, file=args%input_file_pc_kpts)
             read(04,'(A)')file_line
-            write(03,'(A)')trim(adjustl(file_line))//' (this is exactly the header of the input kpts file) ' // trim(adjustl(file_header_BandUP_short))
+            write(03,'(A)')trim(adjustl(file_line))//' (this is &
+                           exactly the header of the input kpts &
+                           file) ' // trim(adjustl(file_header_BandUP_short))
         close(04)
         write(03,'(I0)')n_irr_unfolding_SCKPTS
         write(03,'(A)')'Reciprocal (fractional) coords. w.r.t. the SCRL vectors:' 
@@ -166,8 +168,11 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
         enddo
         write(03,'(A)')''
         write(03,'(A)')''
-        write(03,'(A)')'! The above SCKPTS (and/or some other SCKPTS related to them by symm. ops. of the SCBZ)' 
-        write(03,'(A)')'! unfold onto the pckpts listed below (selected by you) (and/or some other pckpts related to them by symm. ops. of the pcbz): '
+        write(03,'(A)')'! The above SCKPTS (and/or some other SCKPTS &
+                        related to them by symm. ops. of the SCBZ)' 
+        write(03,'(A)')'! unfold onto the pckpts listed below &
+                        (selected by you) (and/or some other pckpts &
+                        related to them by symm. ops. of the pcbz): '
         write(03,'(A)')'! (Fractional coords. w.r.t. the pcrl vectors) '
         open(unit=04, file=args%input_file_pc_kpts)
             ios=0

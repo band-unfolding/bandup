@@ -31,12 +31,13 @@ use math
 implicit none
 SAVE
 PRIVATE
-PUBLIC :: available_io_unit, file_extension, filename_without_extension, get_file_size_in_bytes, & 
-          str_len, package_version, file_header_BandUP, file_header_BandUP_short, &
-          file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell
+PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
+          get_file_size_in_bytes, str_len, package_version, file_header_BandUP, &
+          file_header_BandUP_short, file_for_pc_reduced_to_prim_cell, &
+          file_for_SC_reduced_to_prim_cell, compiler_version
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="2.6.0 (BETA), 2015-03-18"
+character(len=30), parameter :: package_version="2.7.0 (BETA), 2015-11-20"
 character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - &
                                                          Band Unfolding code for &
                                                          Plane-wave based calculations, &
@@ -52,6 +53,26 @@ character(len=str_len), parameter :: file_header_BandUP="# File created by BandU
 
 !! Functions and subroutines
 CONTAINS 
+
+function compiler_version() result(compiler_info_string)
+implicit none
+character(len=30) :: compiler_info_string
+integer :: compiler_major, compiler_minor, compiler_patch
+
+#ifdef __INTEL_COMPILER
+    write(compiler_info_string, '(A,I0)') 'Intel Fortran (ifort) V', __INTEL_COMPILER
+#elif defined __GFORTRAN__
+    compiler_major = __GNUC__
+    compiler_minor = __GNUC_MINOR__
+    compiler_patch = __GNUC_PATCHLEVEL__
+    write(compiler_info_string, '(A,2(I0,A),I0)') 'GNU Fortran (gfortran) V', &
+        compiler_major,'.',compiler_minor,'.',compiler_patch
+#else
+    compiler_info_string='Unknown Compiler'
+#endif
+
+end function compiler_version
+
 
 function available_io_unit(min_unit,max_unit) result(unit_num)
 ! Returns a number unit_num which can be safely used in statements like
