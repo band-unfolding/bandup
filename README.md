@@ -38,7 +38,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
     * A folder named "BandUP_bin" will be created.
         * You'll find the executable for BandUP in it.
     * This should work in most Unix environments with up-to-date Intel or GNU compilers 
-     installed. 
+      installed. 
         * Do check, however, the system requirements below if you have any problem.
 
 <!-- ============================================================================= -->
@@ -82,8 +82,8 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 <!-- ============================================================================= -->
 #### Tips:
 --------------------------------------------------------------------------------------
-    * BandUP accepts some optional command line arguments and flags. **To know them,** 
-      **run the code with the flag '-help'**.
+    * BandUP accepts some optional command line arguments and flags. To know them,
+      run the code with the flag '-help'.
     * Since the plotting tool has a lot of different options, I've given it a GUI:
           utils/post_unfolding/plot/plotting_tool_GUI/BandUP_plot_GUI.pyw
       You'll find a symlink to it (bandup_plot) in the BandUP_bin folder.
