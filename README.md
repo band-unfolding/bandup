@@ -1,7 +1,7 @@
 ############################################################################
 ###     BandUP: Band Unfolding code for Plane-wave based calculations             
 ############################################################################
-###### Copyright (C) 2013-2015 Paulo V. C. Medeiros - paume@ifm.liu.se
+###### Copyright (C) 2013-2015 Paulo V. C. Medeiros - pvm20@cam.ac.uk
 ##### Please visit http://www.ifm.liu.se/theomod/compphys/band-unfolding
 
 BandUP is free software: you can redistribute it and/or modify
@@ -37,7 +37,8 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
     * Run the "build.sh" script: ./build.sh
     * A folder named "BandUP_bin" will be created.
         * You'll find the executable for BandUP in it.
-    * This should work in most Unix environments with Intel compilers installed. 
+    * This should work in most Unix environments with up-to-date Intel or GNU compilers 
+     installed. 
         * Do check, however, the system requirements below if you have any problem.
 
 <!-- ============================================================================= -->
@@ -47,6 +48,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
         * Might work in other environments based on Unix
     * Fortran 95 and C compilers
         * Preferably Intel compilers (ifort and icc), version 12.1.4 (or higher)
+        * Should also work with GNU compilers (gfortran and gcc), version 5.2 (or higher)
     * Python 2.7 (or higher) for the post-processing utilities
         * You will need to have the following packages installed 
           (you probably already have most of them):
@@ -63,25 +65,25 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 <!-- ============================================================================= -->
 #### Publications:
 --------------------------------------------------------------------------------------
-    * If you use BandUP (or any part or modified version of it) in your work, please:
-          * State that you've used the BandUP code (or a modified version fo it).
+    * If you use BandUP (or any part or modified version of it) in your work, you should:
+          * State EXPLICITLY that you've used the BandUP code (or a modified version of it).
           * Read and cite the following papers (and the appropriate references therein):
 
             >>> Phys. Rev. B 89, 041407(R) (2014) <http://dx.doi.org/10.1103/PhysRevB.89.041407>
 
             >>> Phys. Rev. B 91, 041116(R) (2015) <http://dx.doi.org/10.1103/PhysRevB.91.041116>
 
-          * An appropriate way of acknowledging the use of BandUP in your publications 
-            would be, for instance, adding a sentence like 
-                    "The unfolding has been performed using the BandUP code" ,
-            followed by the citation to our papers.
+      * An appropriate way of acknowledging the use of BandUP in your publications would be, 
+        for instance, adding a sentence like 
+                "The unfolding has been performed using the BandUP code" ,
+        followed by the citation to our papers.
 
 
 <!-- ============================================================================= -->
 #### Tips:
 --------------------------------------------------------------------------------------
-    * BandUP accepts some optional command line arguments and flags. To know them, 
-      run the code with the flag '-help'.
+    * BandUP accepts some optional command line arguments and flags. **To know them,** 
+      **run the code with the flag '-help'**.
     * Since the plotting tool has a lot of different options, I've given it a GUI:
           utils/post_unfolding/plot/plotting_tool_GUI/BandUP_plot_GUI.pyw
       You'll find a symlink to it (bandup_plot) in the BandUP_bin folder.
@@ -106,7 +108,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
     * Of course, I'll try my best to help you out in case you do have problems.
     * Last, but not least: Always check the results with a critical eye, specially 
       if they don't look the way you think they are supposed to. Please notify me if 
-      weird stuff happens and you think it's the code's fault!
+      weird stuff happens and you think it's the code's fault (but do double-check first)!
  
 
 Have fun! 

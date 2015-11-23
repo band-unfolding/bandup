@@ -64,14 +64,23 @@ if(present(package_version))then
 endif
     write(*,'(A)') &
     "                     Compiled using "//trim(adjustl(compiler_version()))
-write(*,'(8(A,/),A)') &
+write(*,'(17(A,/),A)') &
     '=====================================================================================', &
     'Copyright (C) 2013-2015 Paulo V. C. Medeiros                                         ', &
-    '                        paume@ifm.liu.se                                             ', &
+    '                                                                                     ', & 
     '                        Computational Physics Division                               ', &
     '                        Department of Physics, Chemistry and Biology - IFM           ', &
     '                        Linköping University                                         ', &
     '                        Sweden                                                       ', & 
+    '                                                                                     ', & 
+    '                        Current address:                                             ', & 
+    '                        University of Cambridge                                      ', &
+    '                        Theory of Condensed Matter (TCM) Group                       ', &
+    '                        Department of Physics                                        ', &
+    '                        Cavendish Laboratory                                         ', &
+    '                        Cambridge, UK                                                ', &
+    '                        Email: pvm20@cam.ac.uk                                       ', &
+    '                                                                                     ', & 
     'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                          ', &
     '====================================================================================='
 write(*,*)
@@ -438,9 +447,9 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
         '=========================================================='//&
         '======================='
     write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any '//&
-        'modified/adapted version/part of it, you should explicitly '//&
-        'acknowledge the use of the",& 
-        '        code in your publications. You should also read and cite', &
+        'modified/adapted version/part of it, you should EXPLICITLY '//&
+        'acknowledge the use of ",& 
+        '        BandUP in your publications. You should also read and cite', &
                          '                                                                                                   ', &
                          '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
                          '                                                                                               ', &
