@@ -1,4 +1,4 @@
-!    Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+!    Copyright (C) 2013-2016 Paulo V. C. Medeiros
 !
 !    This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !
@@ -129,13 +129,15 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
 
     do idir=1, size(all_dirs_used_for_EBS_along_pcbz_dir(:))
         if(all_dirs_used_for_EBS_along_pcbz_dir(idir)%ncompl_dirs > 0)then
-            write(*,"(6(A,/),A)")&
+            write(*,"(9(A,/),A)")&
              "====================================================================================================", &
              "NOTICE:                                                                                             ", &
              "       We have considered more pcbz directions than what you asked for. We did this because the SC", &
              "       and the pc belong to different symmetry groups, and, therefore, some pcbz k-points that  ", &
              "       are equivalent by symmetry operations of the pc might not be equivalent by symmetry ops. of", & 
              "       the SC. Don't worry, though: Only irreducible complementary directions have been kept.    ", &
+             "       >> If you don't want BandUP to consider these extra pcbz directions, then run this ", &
+             "          pre-processing tool AND the main code with the option '-no_symm_avg'.", &
              "===================================================================================================="
             exit
         endif

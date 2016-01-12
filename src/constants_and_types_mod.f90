@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -82,7 +82,8 @@ type :: comm_line_args
                                      origin_for_spin_proj_cartesian, origin_for_spin_proj_rec
     logical :: stop_if_not_commensurate, write_attempted_pc_corresp_to_input_pc, &
                write_attempted_pc_corresp_to_SC, no_symm_avg, no_symm_sckpts, &
-               perform_unfold, origin_for_spin_proj_passed_in_rec
+               perform_unfold, origin_for_spin_proj_passed_in_rec, &
+               continue_if_npw_smaller_than_expected
 end type comm_line_args
 
 type :: timekeeping 

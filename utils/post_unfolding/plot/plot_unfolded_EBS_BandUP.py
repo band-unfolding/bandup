@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Copyright (C) 2013-2015 Paulo V. C. Medeiros, Jonas Bjork
+# Copyright (C) 2013-2016 Paulo V. C. Medeiros, Jonas Bjork
 # This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 # BandUP is free software: you can redistribute it and/or modify
@@ -669,17 +669,24 @@ def print_opening_message():
     print ('                                                                                      \n'
            '===================================================================================== \n'
            '             BandUP: Band Unfolding code for Plane-wave based calculations            \n'
-           '                  Copyright (C) 2013-2015 Paulo V. C. Medeiros                        \n'
+           '                  Copyright (C) 2013-2016 Paulo V. C. Medeiros                        \n'
            '                                                                                      \n'
            '              Post-processing utility "plot_unfolded_EBS_BandUP.py"                   \n'
            '            >>> Visualizing the unfolded EBSs produced by BandUP <<<                  \n'
            '===================================================================================== \n'
-           'Copyright (C) 2013-2015 Paulo V. C. Medeiros, Jonas Bjork                             \n'
-           '                        paume@ifm.liu.se, jonas.bjork@liu.se                          \n'
+           'Copyright (C) 2013-2015 Paulo V. C. Medeiros*, Jonas Bjork                            \n'
+           '                        pvm20@cam.ac.uk, jonas.bjork@liu.se                           \n'
            '                        Computational Physics Division                                \n'
            '                        Department of Physics, Chemistry and Biology - IFM            \n'
            '                        Linkoping University                                          \n'
            '                        Sweden                                                        \n'
+           '                                                                                      \n'
+           '                     * Current address:                                               \n'
+           '                       University of Cambridge                                        \n'
+           '                       Theory of Condensed Matter (TCM) Group                         \n'
+           '                       Department of Physics, Cavendish Laboratory                    \n'
+           '                       Cambridge, UK                                                  \n'
+           '                                                                                      \n'
            'Please visit www.ifm.liu.se/theomod/compphys/band-unfolding                           \n'
            '===================================================================================== \n'
            '                                                                                      \n')

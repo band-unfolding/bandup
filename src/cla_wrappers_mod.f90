@@ -1,4 +1,4 @@
-!! Copyright (C) 2014 Paulo V. C. Medeiros
+!! Copyright (C) 2014-2016 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -195,6 +195,9 @@ logical :: main_code
                       cla_char, '0, 0, 1')
     call cla_register('-origin_for_spin_proj_rec', '', cla_char, '0, 0, 0')
     call cla_register('-origin_for_spin_proj_cart', '', cla_char, '0, 0, 0')
+    call cla_register('--continue_if_npw_smaller_than_expected', &
+                      'Ignore error if the estimated npws are smaller than &
+                       the ones found.', cla_flag, 'F')
     call cla_register('-dont_unfold', 'Do not perform unfolding.', cla_flag, 'F')
 
     call cla_validate
@@ -276,6 +279,8 @@ logical :: main_code
 
 
     args%perform_unfold = .not. cla_key_present('-dont_unfold')
+    args%continue_if_npw_smaller_than_expected = &
+        cla_key_present('--continue_if_npw_smaller_than_expected')
 
 end subroutine get_commline_args
 

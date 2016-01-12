@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -66,7 +66,7 @@ endif
     "                     Compiled using "//trim(adjustl(compiler_version()))
 write(*,'(17(A,/),A)') &
     '=====================================================================================', &
-    'Copyright (C) 2013-2015 Paulo V. C. Medeiros                                         ', &
+    'Copyright (C) 2013-2016 Paulo V. C. Medeiros                                         ', &
     '                                                                                     ', & 
     '                        Computational Physics Division                               ', &
     '                        Department of Physics, Chemistry and Biology - IFM           ', &
@@ -1030,7 +1030,10 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
 
     select case(trim(adjustl(args%pw_code)))
         case default ! Using VASP as default
-            call read_wavecar(wf, file=args%WF_file, ikpt=i_kpt, &
+            call read_wavecar(wf, file=args%WF_file, &
+                              continue_if_npw_smaller_than_expected=&
+                              args%continue_if_npw_smaller_than_expected, &
+                              ikpt=i_kpt, &
                               read_coeffs=read_coefficients, iostat=ios)
         case('qe')
             call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)

@@ -1,4 +1,4 @@
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros 
+!! Copyright (C) 2013-2016 Paulo V. C. Medeiros 
 !! =============================================================================================================
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
@@ -141,7 +141,8 @@ real(kind=dp) :: xnwk
 end subroutine get_total_n_SC_kpts_wavecar
 
 
-subroutine read_wavecar(wf, file, ikpt, read_coeffs, iostat)
+subroutine read_wavecar(wf, file, ikpt, read_coeffs, &
+                        continue_if_npw_smaller_than_expected, iostat)
 implicit none
 ! Mandatory input and output variables
 type(pw_wavefunction), intent(inout) :: wf
@@ -149,7 +150,7 @@ character(len=*), intent(in) :: file
 integer, intent(in) :: ikpt
 ! Optional input and output variables
 integer, optional, intent(out) :: iostat
-logical, optional, intent(in) :: read_coeffs
+logical, optional, intent(in) :: read_coeffs, continue_if_npw_smaller_than_expected
 ! Parameters
 integer, parameter :: size_of_a_coeff_in_bytes = sizeof(cmplx(1, kind=kind_cplx_coeffs))
 real(kind=dp), parameter :: c = vasp_2m_over_hbar_sqrd ! 2m/hbar**2 in units of 1/eV Ang^2
@@ -170,11 +171,16 @@ integer :: i_kpt, nplane, i, j, iost,  ig1, ig2, ig3, ig1p, ig2p, ig3p, iplane, 
 integer(kind=selected_int_kind(18)) :: stream_pos, irec, nrecl
 integer, dimension(:), allocatable :: io_unit_for_thread
 complex(kind=kind_cplx_coeffs) :: inner_prod
-logical :: read_coefficients, reset_spin
+logical :: read_coefficients, reset_spin, continue_if_nplane_less_than_ncnt, &
+           consider_as_error
 
 ! Start
 read_coefficients = .TRUE. ! Reading the coeffs by default
 if(present(read_coeffs)) read_coefficients = read_coeffs
+continue_if_nplane_less_than_ncnt = .FALSE.
+if(present(continue_if_npw_smaller_than_expected))then
+    continue_if_nplane_less_than_ncnt = continue_if_npw_smaller_than_expected
+endif
 if(present(iostat)) iostat = -1
 
 call get_wavecar_record_lenght(nrecl, file, iost)
@@ -308,7 +314,7 @@ nb3max=max0(nb3maxA,nb3maxB,nb3maxC)
 npmax=min0(npmaxA,npmaxB,npmaxC)
 
 ! I'll now count the # of pw coeffs. 
-! I do this before storing them and the accosiated RL vecs because, 
+! I do this before storing them and the associated RL vecs because, 
 ! if we're working with spinor wavefunctions, the count will be twice as much as nplane
 ncnt=0
 do ig3=0,2*nb3max
@@ -341,11 +347,43 @@ if(ncnt /= nplane)then
         nplane = ncnt
         wf%n_spinor = 2
     else
-        write(*,'(A,I0,A)')'ERROR reading coefficients for wave vector K(',i_kpt,'):' 
-        write(*,'(A,I0)')  '    * Number of plane-waves expected for this wave vector: ', ncnt
-        write(*,'(A,I0)')  '    * Number plane-waves found in the input file: ', nplane
-        write(*,'(A)')     'Cannot continue. Stopping now.'
-        stop
+        consider_as_error = .TRUE.
+        if((nplane < ncnt) .and. continue_if_nplane_less_than_ncnt)then
+            consider_as_error = .FALSE.
+        endif
+        if(consider_as_error)then
+            write(*,'(A,I0,A)')'ERROR reading coefficients for wave vector &
+                                K(',i_kpt,'):' 
+        else
+            write(*,'(A,I0,A)')'WARNING: Problems reading coefficients for &
+                                wave vector K(',i_kpt,'):' 
+        endif
+
+        write(*,'(A,I0)')  '    * Number of plane-waves expected for this &
+                                  wave vector: ', ncnt
+        write(*,'(A,I0)')  '    * Number of plane-waves found in the input file: ', &
+                         nplane
+
+        if(consider_as_error)then
+            if(nplane < ncnt)then
+                write(*,'(A)') '    > It might be possible to ignore this error and &
+                                    still get meaningful results.'
+                write(*,'(A)') '      To try that, please run BandUP with the command &
+                                      line option'
+                write(*,'(A)') '      "--continue_if_npw_smaller_than_expected".'
+                write(*,'(A)') '      If you choose to do so, please double-check the &
+                                      results you will get, '
+                write(*,'(A)') '      as they might be incorrect.'
+            endif
+            write(*,'(A)')     'Cannot continue. Stopping now.'
+            stop
+        else
+            write(*,'(A)')'    ** You have used the command line option &
+                               "--continue_if_npw_smaller_than_expected"'
+            write(*,'(A)')'       in order to bypass this. Mind, however, that'
+            write(*,'(A)')'       THE RESULTS YOU WILL GET MIGHT BE INCORRECT.'
+            write(*,'(A)')'       Therefore, PLEASE DOUBLE-CHECK EVERYTHING!!'
+        endif
     endif
 endif
 wf%n_pw = nplane
