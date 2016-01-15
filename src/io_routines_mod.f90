@@ -452,25 +452,25 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     write(*,'(A)') &      
 "======================================================================================="
     write(*,'(8(A,/),A)') &
-"NOTICE: If you use BandUP or any modified/adapted version/part of it, then         ", &
-"        YOU SHOULD EXPLICITLY ACKNOWLEDGE THE USE OF BandUP IN YOUR PUBLICATIONS.  ", &
-"        You should also read and cite                                              ", &
-"       ┌───────────────────────────────────────────────────────┐                   ", &
-"  >>>  │ Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, │                   ", &
-"       │ Phys. Rev. B 89, 041407(R) (2014)                     │                   ", &
-"       │ http://dx.doi.org/10.1103/PhysRevB.89.041407          │                   ", & 
-"       └───────────────────────────────────────────────────────┘                   ", &
-"        and the appropriate references therein.                                    "
+"NOTICE: If you use BandUP or any modified/adapted version/part of it, then       ", &
+"        YOU SHOULD EXPLICITLY ACKNOWLEDGE THE USE OF BandUP IN YOUR PUBLICATIONS.", &
+"        You should also read and cite                                            ", &
+"        -------------------------------------------------------                  ", &
+"  >>>  │ Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, |                 ", &
+"       │ Phys. Rev. B 89, 041407(R) (2014)                     |                 ", &
+"       │ http://dx.doi.org/10.1103/PhysRevB.89.041407          |                 ", & 
+"        -------------------------------------------------------                  ", &
+"        and the appropriate references therein.                                  "
     if(spinor_wf)then
         write(*,*)
         write(*,'(7(A,/),A)') &
-"        Additionally, since you are working with spinor eigenstates (noncollinear  ", &
-"        magnetism, spin-orbit coupling), you should as well read and cite          ", &
-"       ┌──────────────────────────────────────────────────────────────────────────┐", &
+"        Additionally, since you are working with spinor eigenstates (noncollinear ",&
+"        magnetism, spin-orbit coupling), you should as well read and cite         ", &
+"        --------------------------------------------------------------------------", &
 "  >>>  | Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, |", &
 "       | Phys. Rev. B 91, 041116(R) (2015)                                        |", &
 "       | http://dx.doi.org/10.1103/PhysRevB.91.041116                             |", &
-"       └──────────────────────────────────────────────────────────────────────────┘", &
+"        --------------------------------------------------------------------------", &
 "        and the appropriate references therein.                                    "
     endif
     write(*,'(A)') &      
