@@ -368,7 +368,8 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
                 file_size_units = 'MB'
             endif
 
-            approx_mem_per_kpt_in_bytes = real(file_size_in_bytes,kind=dp)/real(nkpts,kind=dp)
+            approx_mem_per_kpt_in_bytes = &
+                real(file_size_in_bytes,kind=dp)/real(nkpts,kind=dp)
             mem_per_kpt_in_MB = approx_mem_per_kpt_in_bytes/(2.0**20)
             mem_per_kpt_in_GB = approx_mem_per_kpt_in_bytes/(2.0**30)
             mem_per_kpt = mem_per_kpt_in_GB
@@ -378,17 +379,21 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
                 mem_per_kpt_units = 'MB'
             endif
             write(*,*)
-            write(*,'(A,X,A,X,A)')'Parsing', upper_case(trim(args%pw_code)), 'wavefunctions.'
+            write(*,'(A,X,A,X,A)')'Parsing', upper_case(trim(args%pw_code)), &
+                                  'wavefunctions.'
             write(*,'(3A)')'    * File = "', trim(adjustl(args%WF_file)),'"'
             if(lower_case(trim(args%pw_code))=='abinit')then
-                write(*,'(A)')'========================================================================='
-                write(*,'(A)')'    The interface to ABINIT is still under test. Use it with caution.    '
-                write(*,'(A)')'                    Feedback is appreciated!!                            '
-                write(*,'(A)')'========================================================================='
+                write(*,'(3(A,/), A)')&
+        '=========================================================================', &
+        '    The interface to ABINIT is still under test. Use it with caution.    ', &
+        '                    Feedback is appreciated!!                            ', &
+        '========================================================================='
             endif
-            write(*,'(A,f0.2,X,2A)')'The wavefunction file is ',file_size,file_size_units, &
+            write(*,'(A,f0.2,X,2A)')'The wavefunction file is ', &
+                                    file_size,file_size_units, &
                                     ' big. Only the necessary data will be read.'
-            write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ',mem_per_kpt,mem_per_kpt_units, &
+            write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ', &
+                                    mem_per_kpt,mem_per_kpt_units, &
                                     ' at a time.'
 
         case('qe')
@@ -442,38 +447,36 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     endif
 
     write(*,*)
-    !! The following message should always be written to the standad output (also in any modified version of BandUP)
-    write(*,'(A)')       '========================================='//&
-        '=========================================================='//&
-        '======================='
-    write(*,'(5(A,/),A)')"NOTICE: If you use BandUP or any '//&
-        'modified/adapted version/part of it, you should EXPLICITLY '//&
-        'acknowledge the use of ",& 
-        '        BandUP in your publications. You should also read and cite', &
-                         '                                                                                                   ', &
-                         '  >>>   Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, Phys. Rev. B 89, 041407(R) (2014)', &
-                         '                                                                                               ', &
-                         '        (http://dx.doi.org/10.1103/PhysRevB.89.041407) and the appropriate references therein.' 
+    !! The following message should always be written to the standad output in any 
+    !! version of BandUP, no matter whether modified or not
+    write(*,'(A)') &      
+"======================================================================================="
+    write(*,'(8(A,/),A)') &
+"NOTICE: If you use BandUP or any modified/adapted version/part of it, then         ", &
+"        YOU SHOULD EXPLICITLY ACKNOWLEDGE THE USE OF BandUP IN YOUR PUBLICATIONS.  ", &
+"        You should also read and cite                                              ", &
+"       ┌───────────────────────────────────────────────────────┐                   ", &
+"  >>>  │ Paulo V. C. Medeiros, Sven Stafström and Jonas Björk, │                   ", &
+"       │ Phys. Rev. B 89, 041407(R) (2014)                     │                   ", &
+"       │ http://dx.doi.org/10.1103/PhysRevB.89.041407          │                   ", & 
+"       └───────────────────────────────────────────────────────┘                   ", &
+"        and the appropriate references therein.                                    "
     if(spinor_wf)then
         write(*,*)
-        write(*,'(5(A,/),A)')'        Additionally, since you are '//&
-            'working with spinor eigenstates (spin-orbit coupling, '//&
-            'noncollinear magnetism), ', &
-            '        you should as well read and cite', &
-            '                                                      '//&
-            '                                             ', &
-                             '  >>>   Paulo V. C. Medeiros, '//&
-            'Stepan S. Tsirkin, Sven Stafström and Jonas Björk, '//&
-            'Phys. Rev. B 91, 041116(R) (2015)', &
-            '                                                   '//&
-            '                                            ', &
-            '        (http://dx.doi.org/10.1103/PhysRevB.91.041116) and the appropriate references therein.'
+        write(*,'(7(A,/),A)') &
+"        Additionally, since you are working with spinor eigenstates (noncollinear  ", &
+"        magnetism, spin-orbit coupling), you should as well read and cite          ", &
+"       ┌──────────────────────────────────────────────────────────────────────────┐", &
+"  >>>  | Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, |", &
+"       | Phys. Rev. B 91, 041116(R) (2015)                                        |", &
+"       | http://dx.doi.org/10.1103/PhysRevB.91.041116                             |", &
+"       └──────────────────────────────────────────────────────────────────────────┘", &
+"        and the appropriate references therein.                                    "
     endif
-    write(*,'(A)') '============================================'//&
-                   '============================================'//&
-                   '=================================='
-
+    write(*,'(A)') &      
+"======================================================================================="
     !! End of message
+
     write(*,*)
     write(*,'(A)')'Unfolding starts now.'
     write(*,*)
@@ -1178,7 +1181,8 @@ logical, intent(in) :: stop_if_GUR_fails, is_main_code
             write(*,'(A)')'       Stopping now.'
         endif
     else
-        write(*,'(A)')'The geometric unfolding relations have been successfully determined. Good!'
+        write(*,'(A)')'The geometric unfolding relations have successfully been &
+                       determined. Good!'
         write(*,'(A,I0,A)')'    * ',GUR%n_folding_pckpts, &
                            ' pc-kpts satisfied the geometric unfolding relations.'
     endif

@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -70,19 +70,22 @@ logical :: are_commens
 end subroutine verify_commens
 
 
-subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
-                                        input_crystal_SC, verbose)
-!! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
+subroutine get_GUR_not_public(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
+                                        input_crystal_SC, vec_in_latt_tol_for_vec_eq, &
+                                        verbose)
+!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
 type(crystal_3D), intent(in) :: input_crystal_SC
+real(kind=dp), intent(in), optional :: vec_in_latt_tol_for_vec_eq
 logical, intent(in), optional :: verbose
 integer :: nkpts, n_selec_pcbz_dirs, i_SCKPT,ipc_kpt,ieqv_SCKPT,isym, &
            i_selec_pcbz_dir,i_needed_dirs,alloc_stat, i
 integer, dimension(:), allocatable :: n_dirs_for_EBS_along_pcbz_dir,n_pckpts_dirs
 logical, dimension(:,:,:), allocatable :: pc_kpt_already_folded
+real(kind=dp) :: vec_in_latt_tolerance_for_vec_eq
 real(kind=dp), dimension(1:3) :: pc_kpt, current_SCKPT, SCKPT_eqv_to_current_SCKPT, &
                                  trial_folding_G, origin_for_spin_proj
 real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
@@ -94,6 +97,11 @@ type(crystal_3D) :: crystal_SC
     print_stuff = .FALSE.
     if(present(verbose))then
         print_stuff = verbose
+    endif
+
+    vec_in_latt_tolerance_for_vec_eq = default_tol_for_vec_equality 
+    if(present(vec_in_latt_tol_for_vec_eq))then
+        vec_in_latt_tolerance_for_vec_eq = abs(vec_in_latt_tol_for_vec_eq)
     endif
 
     if(print_stuff)then
@@ -126,7 +134,8 @@ type(crystal_3D) :: crystal_SC
         ! This fails if use_pc_to_get_symm=.TRUE.
         call get_symm(crystal=crystal_SC, use_pc_to_get_symm=.FALSE., symprec=default_symprec) 
     endif
-    call get_star(star_of_pt=SKPTS_eqv_to_SKPT, points=list_of_SCKPTS, crystal=crystal_SC, &
+    call get_star(star_of_pt=SKPTS_eqv_to_SKPT, points=list_of_SCKPTS, &
+                  crystal=crystal_SC, &
                   tol_for_vec_equality=default_tol_for_vec_equality, &
                   symprec=default_symprec, reduce_to_bz=.TRUE.)
     !! Allocating and initializing table
@@ -209,7 +218,7 @@ type(crystal_3D) :: crystal_SC
                                                             eqv_pt(ieqv_SCKPT) % coord(:)
                         trial_folding_G(:) = pc_kpt(:) - SCKPT_eqv_to_current_SCKPT(:)
                         if(vec_in_latt(vec=trial_folding_G, latt=B_matrix_SC, &
-                                       tolerance=default_tol_for_vec_equality))then
+                                       tolerance=vec_in_latt_tolerance_for_vec_eq))then
                             GUR%SCKPT_used_for_unfolding(i_SCKPT) = .TRUE.
                             GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
                                                needed_dir(i_needed_dirs)%pckpt(ipc_kpt)% &
@@ -267,6 +276,56 @@ type(crystal_3D) :: crystal_SC
         write(*,"(A,/)")"    * Done."
     endif
 
+
+end subroutine get_GUR_not_public
+
+
+subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
+                                        input_crystal_SC, verbose)
+!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! This routine is a wrapper for the internal routine get_GUR_not_public, which
+!! determines the GUR between PC and SC. If get_GUR_not_public fails in the
+!! first attempt, than the present routine calls it again using a sligtly
+!! increased value for the tolerance for vector equality to be used in the routine
+!! that checks if vectors belong to a given Bravais lattice. The present routine
+!! keeps doing that until the GUR are successfully determined or until a maximum
+!! value for the tolerance parameter is achieved.
+implicit none
+type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
+type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
+type(crystal_3D), intent(in) :: input_crystal_SC
+logical, intent(in), optional :: verbose
+! Local vars
+integer :: n_attempts
+real(kind=dp) :: vec_in_latt_tol_for_vec_eq
+logical :: GUR_successfully_determined
+
+
+    GUR_successfully_determined = .FALSE.
+    vec_in_latt_tol_for_vec_eq = abs(default_tol_for_vec_equality)
+    n_attempts = 0
+    do while((.not. GUR_successfully_determined) .and. &
+              vec_in_latt_tol_for_vec_eq <= abs(max_tol_for_vec_equality))
+        call get_GUR_not_public(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
+                                input_crystal_SC, vec_in_latt_tol_for_vec_eq, verbose)
+        GUR_successfully_determined = GUR%n_pckpts == GUR%n_folding_pckpts
+        vec_in_latt_tol_for_vec_eq = vec_in_latt_tol_for_vec_eq + &
+                                     0.05_dp * abs(default_tol_for_vec_equality)
+        n_attempts = n_attempts + 1
+        if((.not. GUR_successfully_determined) .and. &
+           vec_in_latt_tol_for_vec_eq <= abs(max_tol_for_vec_equality))then
+            write(*,'(A,I0,4(A,/))') &
+'WARNING (get_geom_unfolding_relations): Failed to determine GURs (attempt #', &
+                                         n_attempts, ').', &
+'                                        Increasing, by &
+                                         0.05*default_tol_for_vec_equality,', &
+'                                        the tolerance on the check if vectors', &
+'                                        belong to lattice and trying again.'
+        endif
+    enddo
+    vec_in_latt_tol_for_vec_eq = vec_in_latt_tol_for_vec_eq - &
+                                 0.1_dp * abs(default_tol_for_vec_equality)
 
 end subroutine get_geom_unfolding_relations
 
@@ -342,11 +401,11 @@ real(kind=dp) :: tol, tol_for_vec_equality
     folding_G(:) = symmetrized_unf_pc_kpt(:) - current_SCKPT(:)
 
     tol_for_vec_equality = default_tol_for_vec_equality
-    tol = 0.1_dp * tol_for_vec_equality
+    tol = 0.9_dp * tol_for_vec_equality ! changed 0.1 to 0.9 on 2016/01/15
     deallocate(selected_coeff_indices, stat=alloc_stat)
     do while((.not. allocated(selected_coeff_indices)) .and. &
               (tol <= max_tol_for_vec_equality))
-        tol = 10_dp * tol
+        tol = tol + 0.1_dp*tol_for_vec_equality ! changed from tol=10_dp*tol, 2016/01/15
         !$omp parallel do &
         !$omp schedule(guided) default(none) &
         !$omp shared(wf, folding_G, crystal_pc, tol, selected_coeff_indices) &
@@ -362,13 +421,12 @@ real(kind=dp) :: tol, tol_for_vec_equality
     enddo
     if(abs(tol - tol_for_vec_equality) > epsilon(1.0_dp) .and. &
        allocated(selected_coeff_indices))then
-        write(*,'(A)') &
-        '    WARNING (select_coeffs_to_calc_spectral_weights): Problems selecting the coeffs &
-            to calculate the spec. weights for the current pc-kpt.'
-        write(*,'(2(A,f0.6),A)') &
-        '            The tolerace for testing vector equality had to be increased from ', &
-                     tol_for_vec_equality,' to ',tol,'.'
-        write(*,'(A)')'            The results might not be entirely correct.'
+        write(*,'(3(A,/),2(A,f0.6),A,/,A)') &
+'    WARNING (select_coeffs_to_calc_spectral_weights): Problems selecting the coeffs ',& 
+'            to calculate the spec. weights for the current pc-kpt.', &
+'            The tolerace for testing vector equality had to be increased ', &
+'            from ', tol_for_vec_equality,' to ',tol,'.', &
+'            Please remember to double-check that your results are consistent.'
     endif
 
 end subroutine select_coeffs_to_calc_spectral_weights

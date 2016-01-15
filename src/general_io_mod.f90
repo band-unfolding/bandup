@@ -37,19 +37,17 @@ PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           file_for_SC_reduced_to_prim_cell, compiler_version
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="2.7.0, 2016-01-12"
-character(len=str_len), parameter :: file_header_BandUP="# File created by BandUP - &
-                                                         Band Unfolding code for &
-                                                         Plane-wave based calculations, &
-                                                         V"//trim(adjustl(package_version)), &
-                                     file_header_BandUP_short="# File created by BandUP, &
-                                                               V"//trim(adjustl(package_version)),&
-                                     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
-                                                                       for_your_reference_unit_&
-                                                                       cell.POSCAR", &
-                                     file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_&
-                                                                       smaller_SC_based_on_your_&
-                                                                       input_SC.POSCAR"
+character(len=30), parameter :: package_version="2.8.0, 2016-01-15"
+character(len=str_len), parameter :: &
+    file_header_BandUP="# File created by BandUP - Band Unfolding code for &
+                          Plane-wave based calculations, &
+                          V"//trim(adjustl(package_version)), &
+    file_header_BandUP_short="# File created by BandUP, &
+                                V"//trim(adjustl(package_version)),&
+    file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
+                                      for_your_reference_unit_cell.POSCAR", &
+    file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_&
+                                      input_SC.POSCAR"
 
 !! Functions and subroutines
 CONTAINS 
