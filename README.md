@@ -1,7 +1,7 @@
 ############################################################################
 ###     BandUP: Band Unfolding code for Plane-wave based calculations             
 ############################################################################
-###### Copyright (C) 2013-2015 Paulo V. C. Medeiros - pvm20@cam.ac.uk
+###### Copyright (C) 2013-2016 Paulo V. C. Medeiros - pvm20@cam.ac.uk
 ##### Please visit http://www.ifm.liu.se/theomod/compphys/band-unfolding
 
 BandUP is free software: you can redistribute it and/or modify
@@ -35,7 +35,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 #### How to compile BandUP
 --------------------------------------------------------------------------------------
     * Run the "build.sh" script: ./build.sh
-    * A folder named "BandUP_bin" will be created.
+    * A directory named "BandUP_bin" will be created.
         * You'll find the executable for BandUP in it.
     * This should work in most Unix environments with up-to-date Intel or GNU compilers 
       installed. 
@@ -75,22 +75,22 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
       * An appropriate way of acknowledging the use of BandUP in your publications would be, 
         for instance, adding a sentence like 
-                "The unfolding has been performed using the BandUP code" ,
+                "The unfolding has been performed using the BandUP code",
         followed by the citation to our papers.
 
 
 <!-- ============================================================================= -->
 #### Tips:
 --------------------------------------------------------------------------------------
-    * BandUP accepts some optional command line arguments and flags. To know them,
-      run the code with the flag '-help'.
+    * BandUP accepts some optional command line arguments and flags. To find out more
+      about them, run the code with the flag '-help'.
     * Since the plotting tool has a lot of different options, I've given it a GUI:
           utils/post_unfolding/plot/plotting_tool_GUI/BandUP_plot_GUI.pyw
-      You'll find a symlink to it (bandup_plot) in the BandUP_bin folder.
+      You'll find a symlink to it (bandup_plot) in the BandUP_bin directory.
       * The GUI requires that you have PyQt4 in you python install.
       * If you move the BandUP_plot_GUI.pyw file, move the BandUP_plot_GUI.ui too.
     * It might be handy to include the directory BandUP_bin in your PATH. By doing so,
-      you'll be able to use BandUP in whataver folder you're working at.
+      you'll be able to use BandUP in whataver directory you're working at.
 
 
 <!-- ============================================================================= -->
@@ -101,10 +101,12 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
       operating systems, I cannot guarantee that it will always work smoothly. 
       You might eventually need to play a bit with the scripts and, very rarely, 
       with the Makefiles and source code.
-    * In the calculations and tests I've performed with BandUP so far, I've basically 
-      used intel compilers (v. 12.1.4). I *believe* that you should have no problems 
-      using other versions of ifort/icc (and *maybe* even other non-intel compilers), 
-      but I cannot, unfortunatelly, guarantee that it will work in 100% of the cases.
+    * In the calculations and tests I've performed with BandUP so far, I've mostly 
+      used intel compilers (v. 12.1.4) and, a few times, GNU compilers (v. 5.2). 
+      I *believe* that you should have no problems using other versions of ifort/icc 
+      (and *maybe* even other non-intel compilers), as well as more recent versions 
+      of gfortran/gcc. Mind, however, that I cannot guarantee that it will work in 
+      100% of the cases.
     * Of course, I'll try my best to help you out in case you do have problems.
     * Last, but not least: Always check the results with a critical eye, specially 
       if they don't look the way you think they are supposed to. Please notify me if 
