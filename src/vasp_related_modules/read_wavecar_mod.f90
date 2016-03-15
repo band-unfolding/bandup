@@ -314,8 +314,6 @@ integer, intent(in) :: ikpt
 ! Optional input and output variables
 integer, optional, intent(out) :: iostat
 logical, optional, intent(in) :: read_coeffs, continue_if_npw_smaller_than_expected
-! Parameters
-integer, parameter :: size_of_a_coeff_in_bytes = sizeof(cmplx(1, kind=kind_cplx_coeffs))
 ! Local variables
 real(kind=dp), dimension(1:3) :: frac_coords_selected_kpt 
 complex(kind=dp), allocatable :: cener(:)  ! Re{cener(iband)} = E(K; iband)
@@ -328,7 +326,8 @@ real(kind=dp) :: ecut, xnwk, xnband, xnrecl, xnspin, xnprec, xnplane, &
 integer :: i_kpt, nplane, i, j, iost, iplane, ispin, irec_start_first_spin, &
            irec_start_chosen_spin, nwk, nprec, nband, iband, n_Gvecs,  &
            input_file_unit, irec_before_loop,temp_unit, alloc_stat, i_wf_comp, &
-           n_threads_2b_used_when_reading, ithread, max_n_threads, i_correc_c_const
+           n_threads_2b_used_when_reading, ithread, max_n_threads, i_correc_c_const, &
+           size_of_a_coeff_in_bytes
 integer(kind=selected_int_kind(18)) :: stream_pos, irec, nrecl
 integer, dimension(:), allocatable :: io_unit_for_thread
 complex(kind=kind_cplx_coeffs) :: inner_prod
@@ -336,6 +335,7 @@ logical :: read_coefficients, reset_spin, continue_if_nplane_less_than_n_Gvecs, 
            consider_as_error
 
 ! Start
+size_of_a_coeff_in_bytes = sizeof(cmplx(1, kind=kind_cplx_coeffs))
 read_coefficients = .TRUE. ! Reading the coeffs by default
 if(present(read_coeffs)) read_coefficients = read_coeffs
 continue_if_nplane_less_than_n_Gvecs = .FALSE.

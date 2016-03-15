@@ -108,6 +108,9 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
       of gfortran/gcc. Mind, however, that I cannot guarantee that it will work in 
       100% of the cases.
     * Of course, I'll try my best to help you out in case you do have problems.
+      Before writing to me asking for support, however, do make sure that (i) you are 
+      using the latest version of BandUP, and (ii) your system complies with what is 
+      described in the "system requirements" section of this file. 
     * Last, but not least: Always check the results with a critical eye, specially 
       if they don't look the way you think they are supposed to. Please notify me if 
       weird stuff happens and you think it's the code's fault (but do double-check first)!
