@@ -280,7 +280,11 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
     def get_available_cmaps(self):
         colormap_names = []
-        for m in plt.cm._cmapnames:
+        try:
+            cmapnames = plt.cm._cmapnames
+        except AttributeError:
+            cmapnames = plt.cm.dated
+        for m in cmapnames:
             colormap_names.append(m)
             if(m + '_r' in dir(plt.cm)):
                 colormap_names.append(m + '_r')
