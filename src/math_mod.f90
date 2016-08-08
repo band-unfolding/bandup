@@ -704,7 +704,7 @@ return
 end function vec_in_latt
 
 
-function point_is_in_bz(point,rec_latt,origin_point) result(rtn)
+function point_is_in_bz(point,rec_latt,origin_point,tolerance,verbose) result(rtn)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !! Checks if the point "point" belongs to the 1st Brillouin zone of a Bravais
 !! lattice for which the reciprocal lettice vectors are "rec_latt(i,:)", i=1,2,3
@@ -716,14 +716,28 @@ logical :: rtn
 real(kind=dp), dimension(1:3), intent(in) :: point
 real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
 real(kind=dp), dimension(1:3), optional, intent(in) :: origin_point
+real(kind=dp), optional, intent(in) :: tolerance
+logical, intent(in), optional :: verbose
 real(kind=dp), dimension(1:3) :: origin, g
+real(kind=dp) :: tol
 integer :: ig1, ig2, ig3
+logical :: print_stuff
 
 rtn = .TRUE.
 if(present(origin_point))then
     origin(:) = origin_point(:)
 else
     origin(:) = 0.0_dp
+endif
+
+tol = abs(default_tol_for_vec_equality)
+if(present(tolerance))then
+    tol = abs(tolerance)
+endif
+
+print_stuff = .FALSE.
+if(present(verbose))then
+    print_stuff = verbose
 endif
 
 do ig3=-1,1
@@ -734,8 +748,17 @@ do ig3=-1,1
                                real(ig2,kind=dp)*rec_latt(2,:) + & 
                                real(ig3,kind=dp)*rec_latt(3,:)
             if(norm(point(:) - origin(:)) > norm(point(:) - g(:)))then
-                rtn = .FALSE.
-                return
+                if(norm(point(:) - origin(:)) - norm(point(:) - g(:)) > &
+                   min(1E-8_dp, 0.01_dp * default_tol_for_vec_equality))then
+                    rtn = .FALSE.
+                    return
+                else
+                    if(print_stuff)then
+                        write(*,'(A)')'WARNING (point_is_in_bz): Tolerance applied &
+                            when checking whether point lies inside 1BZ. Should be OK,&
+                            but do check your results.'
+                    endif
+                endif
             endif
 
         enddo
@@ -785,7 +808,7 @@ integer :: ig1, ig2, ig3, igmax
 
     ! Double-checking if the point has really been reduced 
     ! The routine will raise an error and stop otherwise
-    point_has_been_reduced = point_is_in_bz(point_reduced_to_bz,rec_latt)
+    point_has_been_reduced = point_is_in_bz(point_reduced_to_bz,rec_latt,verbose=.TRUE.)
     if(.not. point_has_been_reduced)then
         if(igmax>=10)then !  Recursion limit
             write(*,'(A)')'ERROR (reduce_point_to_bz): Failed to reduce &
@@ -803,6 +826,12 @@ integer :: ig1, ig2, ig3, igmax
             stop
         else
             ! If the previous scan fails, go for an extra layer
+            if(igmax>=10)then !  Warn about use of too many layers of kpoints
+                write(*,'(A)')'WARNING (reduce_point_to_bz): Quite large number of layers &
+                                                      of neighboring rec. latt. points. &
+                                                      This should be OK, but do check &
+                                                      your results.'
+            endif
             call reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,igmax+1) 
         endif
     endif
