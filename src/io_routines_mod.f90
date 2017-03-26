@@ -32,8 +32,9 @@ use strings
 use general_io
 use qexml_module
 use read_qe_wavefunctions
-use read_vasp_wavecar
 use read_abinit_wavefunctions
+use read_castep_wavefunctions
+use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
 use math
