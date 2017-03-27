@@ -1072,7 +1072,7 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
             call read_abinit_wfk_file(wf, file=args%WF_file, ikpt=i_kpt, &
                                       read_coeffs=read_coefficients, iostat=ios)
         case('castep')
-            call read_castep_orbitals_file(wf, trim(adjustl(args%WF_file)), i_kpt, &
+            call read_castep_orbitals_file(wf, args%WF_file, i_kpt, &
                                            read_coefficients, ios)
     end select
     if(read_coefficients .and. renormalize_wf)then

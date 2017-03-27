@@ -118,6 +118,7 @@ end subroutine get_abinit_wf_file_from_files_file
 !! @param[in] running_from_main_code Should be set to .TRUE. if running from the main code
 !================================================================================================
 subroutine get_commline_args(args, running_from_main_code)
+use iso_c_binding
 implicit none
 type(comm_line_args), intent(out) :: args
 logical, intent(in), optional :: running_from_main_code
@@ -205,6 +206,7 @@ logical :: main_code
 
     call cla_validate
 
+    call cla_get('-wf_file', args%WF_file)
     ! Setting up BandUP for VASP, Quantum Espresso, ABINIT or CASTEP
     ! The default is VASP.
     if(cla_key_present('-qe') .or. cla_key_present('-outdir') .or. &
@@ -241,9 +243,6 @@ logical :: main_code
         endif
     else
         args%pw_code = 'vasp'
-    endif
-    if(cla_key_present('-wf_file') .and. .not. cla_key_present('-castep'))then
-        call cla_get('-wf_file', args%WF_file)
     endif
 
     call cla_get('-pc_file', args%input_file_prim_cell)
