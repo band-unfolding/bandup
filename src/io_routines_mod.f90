@@ -358,7 +358,7 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
     nkpts = size(list_of_SCKPTS)
     select case(lower_case(trim(args%pw_code)))
-        case('vasp', 'abinit') 
+        case('vasp', 'abinit', 'castep') 
             call get_file_size_in_bytes(file_size_in_bytes, file=args%WF_file)
             file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
             file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
@@ -387,6 +387,12 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
                 write(*,'(3(A,/), A)')&
         '=========================================================================', &
         '    The interface to ABINIT is still under test. Use it with caution.    ', &
+        '                    Feedback is appreciated!!                            ', &
+        '========================================================================='
+            else if(lower_case(trim(args%pw_code))=='castep')then
+                write(*,'(3(A,/), A)')&
+        '=========================================================================', &
+        '    The interface to CASTEP is still under test. Use it with caution.    ', &
         '                    Feedback is appreciated!!                            ', &
         '========================================================================='
             endif
@@ -657,6 +663,25 @@ logical :: wf_file_exists
 end subroutine get_SCKPTS_ABINIT
 
 
+subroutine get_SCKPTS_CASTEP(list_of_SCKPTS, args)
+implicit none
+type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
+type(comm_line_args), intent(in) :: args
+logical :: wf_file_exists
+
+    inquire(file=args%wf_file, exist=wf_file_exists)
+    if(.not. wf_file_exists)then
+        write(*,'(3A)')"ERROR: Wavefunction file '",trim(adjustl(args%wf_file)), &
+              "' not found."
+        write(*,'(A)')'       Cannot continue. Stopping now.'
+        stop
+    endif
+
+    call get_list_of_kpts_in_orbitals_file(list_of_SCKPTS, args%wf_file)
+
+
+end subroutine get_SCKPTS_CASTEP
+
 !================================================================================================
 !> \ingroup changes_upon_new_interface
 !> Gets a list of all SC-kpoints contained in the wavefunction file(s).
@@ -673,6 +698,8 @@ type(crystal_3D), intent(in) :: crystal_SC
             call get_SCKPTS_QE(list_of_SCKPTS, args)
         case('abinit')
             call get_SCKPTS_ABINIT(list_of_SCKPTS, args)
+        case('castep')
+            call get_SCKPTS_CASTEP(list_of_SCKPTS, args)
         case default
             call get_SCKPTS_contained_in_wavecar(list_of_SCKPTS, args, crystal_SC)
     end select
@@ -1001,7 +1028,7 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
     select case(trim(adjustl(args%pw_code)))
         case('qe')
             continue ! Still to implement this test
-        case default ! If VASP or ABINIT
+        case default ! If VASP, ABINIT or CASTEP
             inquire(file=args%WF_file, exist=file_exists)
             if(.not. file_exists)then
                 write(*,'(3A)')"ERROR (read_wavefunction): File ", &
@@ -1044,6 +1071,9 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
         case('abinit')
             call read_abinit_wfk_file(wf, file=args%WF_file, ikpt=i_kpt, &
                                       read_coeffs=read_coefficients, iostat=ios)
+        case('castep')
+            call read_castep_orbitals_file(wf, trim(adjustl(args%WF_file)), i_kpt, &
+                                           read_coefficients, ios)
     end select
     if(read_coefficients .and. renormalize_wf)then
         !$omp parallel do default(none) schedule(guided) &

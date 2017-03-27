@@ -76,7 +76,7 @@ type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &
                           output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
-                          pw_code, qe_outdir, qe_prefix, abinit_files_file 
+                          pw_code, qe_outdir, qe_prefix, abinit_files_file, castep_seed 
     integer :: spin_channel, n_sckpts_to_skip
     real(kind=dp), dimension(1:3) :: saxis, normal_to_proj_plane, &
                                      origin_for_spin_proj_cartesian, origin_for_spin_proj_rec

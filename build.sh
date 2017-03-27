@@ -72,17 +72,18 @@ rm -f ${bin_folder}/BandUP.x
 rm -f ${bin_folder}/bandup
 
 cd ${working_dir}/src/external
-    ./BandUP_configure_espresso.sh $FC $CC
-    ./BandUP_configure_spglib.sh $FC $CC $OMP_FLAG
-    ./BandUP_configure_cla.sh
+#    ./BandUP_configure_espresso.sh $FC $CC
+#    tar -xvzf check2xsf2_modules_for_BandUP.tgz
+#    ./BandUP_configure_spglib.sh $FC $CC $OMP_FLAG
+#    ./BandUP_configure_cla.sh
 cd ${working_dir}/utils/pre_unfolding/get_SCKPTS_pre_BandUP
-    make FC=$FC
-    make clean
-    rm -f ${bin_folder}/get_SCKPTS_pre_BandUP.x
-    ln -s `pwd`/get_SCKPTS_pre_BandUP.x ${bin_folder}/get_SCKPTS_pre_BandUP.x
+#    make FC=$FC
+#    make clean
+#    rm -f ${bin_folder}/get_SCKPTS_pre_BandUP.x
+#    ln -s `pwd`/get_SCKPTS_pre_BandUP.x ${bin_folder}/get_SCKPTS_pre_BandUP.x
 cd ${working_dir}/src
     make FC=$FC
-    make clean
+#    make clean
     mv -f BandUP.x  ${bin_folder}
     ln -s ${bin_folder}/BandUP.x  ${bin_folder}/bandup
 cd ${working_dir}

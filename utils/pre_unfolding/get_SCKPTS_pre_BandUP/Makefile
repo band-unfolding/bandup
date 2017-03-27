@@ -31,8 +31,10 @@ FCFLAGS_for_gfortran += -cpp
 # Setting correct compiler options
 ifeq ($(FC),ifort)
   FCFLAGS=$(FCFLAGS_for_ifort)
+  CC=icc
 else ifeq ($(FC),gfortran)
   FCFLAGS=$(FCFLAGS_for_gfortran)
+  CC=gcc
 endif
 
 # Aliases
@@ -43,6 +45,8 @@ spglib_folder = $(BandUP_src_folder)/external/spglib-1.5.2
 vasp_related_modules_folder = $(BandUP_src_folder)/vasp_related_modules
 qe_related_modules_folder = $(BandUP_src_folder)/qe_related_modules
 abinit_related_modules_folder = $(BandUP_src_folder)/abinit_related_modules
+castep_related_modules_folder = $(BandUP_src_folder)/castep_related_modules
+check2xsf_modules = $(BandUP_src_folder)/external/check2xsf2_modules_for_BandUP
 espresso_folder = $(BandUP_src_folder)/external/espresso-5.1_modules_for_BandUP
 QE_modules=$(espresso_folder)/Modules
 QE_iotk=$(espresso_folder)/iotk/src
@@ -51,9 +55,11 @@ QE_clib=$(espresso_folder)/clib
 
 # libraries needed for linking
 LIBS = $(spglib_folder)/src/.libs/libsymspg.a
-LIBS += $(QE_modules)/libqemod.a $(QE_flib)/ptools.a $(QE_flib)/flib.a $(QE_clib)/clib.a $(QE_iotk)/libiotk.a
+LIBS += $(QE_modules)/libqemod.a $(QE_flib)/ptools.a $(QE_flib)/flib.a \
+        $(QE_clib)/clib.a $(QE_iotk)/libiotk.a
 # Additional module search paths
 FCFLAGS += -I$(espresso_folder)/Modules -I$(espresso_folder)/iotk/src
+CFLAGS += -I$(castep_related_modules_folder)
 
 # Folders containing needed sources
 vpath %.f90 $(cla_folder)
@@ -62,40 +68,54 @@ vpath %.f90 $(BandUP_src_folder)
 vpath %.f90 $(vasp_related_modules_folder)
 vpath %.f90 $(qe_related_modules_folder)
 vpath %.f90 $(abinit_related_modules_folder)
+vpath %.f90 $(castep_related_modules_folder)
+vpath %.c $(castep_related_modules_folder)
+vpath %.c $(check2xsf_modules)
 
 # List of executables to be built within the package
 SRC = main_get_SCKPTS_pre_BandUP.f90
-OBJ = ${SRC:.f90=.o}
+SRC_OBJ = ${SRC:.f90=.o}
 EXE = get_SCKPTS_pre_BandUP.x
+C2XSF_C_OBJS = check2xsf_mod_for_bandup.o check_read_for_bandup.o \
+               periodic_table_c2xsf.o basis_c2xsf.o super_c2xsf.o gpfa_c2xsf.o \
+               interpolate_c2xsf.o line_write_c2xsf.o ident_sym_c2xsf.o \
+               primitive_c2xsf.o ksym_c2xsf.o sort_atoms_c2xsf.o
+OBJ := cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o \
+       math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o \
+       read_vasp_files_mod.o read_qe_wavefunctions_mod.o \
+       read_abinit_wavefunctions_mod.o read_castep_wavefunctions_mod.o \
+       write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(C2XSF_C_OBJS)
 
 # "make" builds all
 all: $(EXE)
 
+# Dependencies
 cla.o: kinds.o
 math_mod.o: constants_and_types_mod.o spglib_f08.o
 general_io_mod.o: constants_and_types_mod.o math_mod.o
 cla_wrappers_mod.o: general_io_mod.o kinds.o cla.o constants_and_types_mod.o
-read_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o strings_mod.o
-write_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o strings_mod.o
+read_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o \
+                       strings_mod.o
+write_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o \
+                        strings_mod.o
 read_wavecar_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o
-read_qe_wavefunctions_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o general_io_mod.o
+read_qe_wavefunctions_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o \
+                             general_io_mod.o
 read_abinit_wavefunctions_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o
-io_routines_mod.o: constants_and_types_mod.o math_mod.o cla_wrappers_mod.o strings_mod.o \
-                   general_io_mod.o read_vasp_files_mod.o write_vasp_files_mod.o \
-                   read_wavecar_mod.o read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o
+read_castep_wavefunctions_mod.o: constants_and_types_mod.o
+io_routines_mod.o: constants_and_types_mod.o math_mod.o cla_wrappers_mod.o \
+                   strings_mod.o general_io_mod.o read_vasp_files_mod.o \
+                   write_vasp_files_mod.o read_wavecar_mod.o \
+                   read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o \
+                   read_castep_wavefunctions_mod.o
 band_unfolding_routines_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o \
                                general_io_mod.o io_routines_mod.o
-$(OBJ): cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o math_mod.o \
-        io_routines_mod.o read_wavecar_mod.o read_vasp_files_mod.o write_vasp_files_mod.o \
-        read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o band_unfolding_routines_mod.o
-$(EXE): cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o math_mod.o \
-        band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o read_vasp_files_mod.o \
-        read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o write_vasp_files_mod.o \
-        strings_mod.o io_routines_mod.o $(OBJ)
+$(SRC_OBJ): $(OBJ) 
+$(EXE): $(OBJ) $(SRC_OBJ)
 # ======================================================================
 # General rules
 # ======================================================================
-$(EXE): $(OBJ)
+$(EXE): $(SRC_OBJ) $(OBJ)
 	$(FC) $(FCFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.f90
@@ -103,6 +123,9 @@ $(EXE): $(OBJ)
 
 %.o: %.F90
 	$(FC) $(FCFLAGS) -c $<
+
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -c $<
 
 # Utility targets
 .PHONY: clean veryclean
@@ -112,3 +135,5 @@ clean:
 
 veryclean: clean
 	rm -f *~ $(EXE)
+print-%:
+	@echo '$*=$($*)'
