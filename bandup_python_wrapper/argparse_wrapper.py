@@ -1,21 +1,14 @@
 import argparse
 import os
 from bandup_python_wrapper.environ import *
-from collections import OrderedDict
-from bandup_python_wrapper.files import *
-from plot_unfolded_EBS_BandUP import (
-    main as bandup_plot,
-    BandUpPlotOptions,
-)
+from bandup_python_wrapper.files import continuation_lines
+from bandup_python_wrapper.figs import *
 
-
-# Getting the options BandUP currently supports
-cla_file = os.path.join(bandup_dir, 'src', 'cla_wrappers_mod.f90')
-bandup_cla = OrderedDict()
-with open(cla_file, 'r') as f:
-    bandup_registered_clas = []
+def get_bandup_registered_clas(bandup_path=bandup_dir):
+    cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
     cla_register_args = ['key', 'description', 'kkind', 'default']
-    for line in continuation_lines(f):
+    bandup_registered_clas = []
+    for line in continuation_lines(cla_file):
         line = ' '.join(line.split())
         line = line.replace('// ','//').replace(' //','//')
         line = line.replace('//"','').replace('"//','')
@@ -32,95 +25,314 @@ with open(cla_file, 'r') as f:
                                        line.index('%s='%(arg))>cla_arg_start])
                 except(ValueError):
                     cla_arg_end = len(line) - 1
-                arg_k,arg_v=line[cla_arg_start:cla_arg_end].strip().strip(',').split('=')
+                arg_k_arg_v = line[cla_arg_start:cla_arg_end].strip().strip(',')
+                arg_k, arg_v = arg_k_arg_v.split('=')
                 arg_v = arg_v.strip().strip('"').strip("'")
                 arg_definitions_in_line[arg_k] = arg_v
             bandup_registered_clas.append(arg_definitions_in_line)
+    return bandup_registered_clas
 
-# Now using argparse to configure those BandUP supported options here
-parser = argparse.ArgumentParser(
-             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-             add_help=False
-         )
+class BandUpArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        if('remove_conflicts_with_bandup' in kwargs): 
+            del kwargs['remove_conflicts_with_bandup']
+        if('formatter_class') not in kwargs:
+            kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
+        if('add_help' not in kwargs): kwargs['add_help'] = False
+        super(BandUpArgumentParser, self).__init__(*args, **kwargs)
+        # Adding BandUP's supported args to the parser
+        self.bandup_registered_clas = get_bandup_registered_clas()
+        for cla_dict in self.bandup_registered_clas:
+            arg_name = '%s'%(cla_dict['key'])
+            arg_help = cla_dict['description']
+            if(not arg_help): arg_help = 'No description available.'
+            parser_remaining_kwargs = {}
+            if(cla_dict['kkind'] in 
+               ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
+                parser_remaining_kwargs['default'] = cla_dict['default']
+            else:
+                parser_remaining_kwargs['action'] = 'store_true'
+                #parser_remaining_kwargs['const'] = arg_name
+            self.add_argument(arg_name, help=arg_help, **parser_remaining_kwargs)
 
-for cla_dict in bandup_registered_clas:
-    arg_name = '%s'%(cla_dict['key'])
-    arg_help = cla_dict['description']
-    if(not arg_help): arg_help = ' '
-    parser_remaining_kwargs = {}
-    if(cla_dict['kkind'] in 
-       ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
-        parser_remaining_kwargs['default'] = cla_dict['default']
-    else:
-        parser_remaining_kwargs['action'] = 'store_const'
-        parser_remaining_kwargs['const'] = arg_name
-        parser_remaining_kwargs['metavar'] = ' '
+    def print_help(self, *fargs, **fkwargs):
+        print '##################################################################'
+        print '                      Help for BandUP                             '
+        print '##################################################################'
+        super(BandUpArgumentParser, self).print_help(*fargs, **fkwargs)
+        sys.exit(0)
+    def parse_args(self, *fargs, **fkwargs):
+        args = (
+            super(BandUpArgumentParser, self).parse_args(*fargs, **fkwargs))
+        if(args.help): 
+            self.print_help()
+        unknown_args = None
+        args = self.filter_args(args) 
+        return args
+    def parse_known_args(self, *fargs, **fkwargs):
+        args, unknown_args = (
+            super(BandUpArgumentParser, self).parse_known_args(*fargs, **fkwargs))
+        if(args.help): self.print_help()
+        args = self.filter_args(args) 
+        return args, unknown_args
+    def filter_args(self, args):
+        args.argv = self.get_argv(args)
+        return args
+    def get_argv(self, args):
+        # Working out which of the supported BandUP options have actually been passed, 
+        # and generating an arg list to pass to Popen
+        argv = []
+        for cla_dict in self.bandup_registered_clas:
+            arg_name = '%s'%(cla_dict['key'])
+            if(arg_name in sys.argv):
+                argv.append(arg_name)
+                if(cla_dict['kkind'] in
+                   ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
+                    argparse_var_name = arg_name.strip('-').strip('-')
+                    val = getattr(args, argparse_var_name) 
+                    argv.append(val)
+        return argv
 
-    parser.add_argument(arg_name, help=arg_help, **parser_remaining_kwargs)
+class BandUpPlotArgumentParser(argparse.ArgumentParser):
+    #def __init__(self, source=sys.argv, parse_args=True, ignore_unknown_args=False):
+    def __init__(self, *args, **kwargs):
+        remove_conflicts_with_bandup = False
+        if('remove_conflicts_with_bandup' in kwargs):
+            remove_conflicts_with_bandup = kwargs['remove_conflicts_with_bandup']
+        if(remove_conflicts_with_bandup):
+            kwargs['add_help'] = False
+        super(BandUpPlotArgumentParser, self).__init__(*args, **kwargs)
 
-# Defining task(s) (i)
-parser.add_argument('-task', choices=['plot', 'unfold', 'p', 'u', 'pu', 'up'], 
-                    default='up', 
-                    help='Chooses whether to unfold, plot available data, or both.')
+        self.indent = 4 * ' '
+        self.add_argument('input_file', default='unfolded_EBS_symmetry-averaged.dat', 
+                          nargs='?', help='Name of the input file.')
+        self.add_argument('output_file', nargs='?', default=None, 
+                           help='%s %s %s'%('Optional: Name of the output file.', 
+                                            'If not given, it will be based on',
+                                            'the name of the input file.'))
+        self.add_argument('-kpts', '--kpoints_file', default='KPOINTS_prim_cell.in', 
+                          help=('Name of the file containing information' + 
+                                'about the primitive cell k-points. '+
+                                 'Default: KPOINTS_prim_cell.in'))
+        if(not remove_conflicts_with_bandup):
+            self.add_argument('-pc_file', '--prim_cell_file', 
+                              default='prim_cell_lattice.in', 
+                              help=('Name of the file containing information'
+                                    'about the primitive cell lattice vectors. ' +
+                                    'Default: prim_cell_lattice.in'))
+        self.add_argument('-efile', '--energy_info_file', default='energy_info.in', 
+                          help=('Name of the file containing information about ' +
+                                'the energy grid and Fermi energy to be used. ' +
+                                'Default: energy_info.in. '
+                                'This file is optional for the plotting tool.'))
+        # Colormaps
+        self.cmap_names, self.cmaps = get_available_cmaps() 
+        # Change self.default_cmap if you want another colormap to be the default one. 
+        # I used 'gist_ncar' in my paper. 
+        self.default_cmap = 'gist_ncar' 
+        if('gist_ncar' not in self.cmap_names):
+            self.default_cmap = self.cmap_names[0]
+        self.possible_cmap_choices = self.add_mutually_exclusive_group()
+        self.possible_cmap_choices.add_argument('-cmap', '--colormap', default=None, 
+                                                choices=self.cmap_names, 
+                        help='Choice of colormap for the plots (name of the colormap).'
+                             'You might want to try a few.', metavar='colormap_name')
+        self.possible_cmap_choices.add_argument('-icmap', '--icolormap', type=int, 
+                                                default=None, 
+                                                choices=range(len(self.cmap_names)), 
+                             help='Choice of colormap for the plots (integer number).', 
+                                   metavar='0~'+str(len(self.cmap_names) - 1))
+        # E-Fermi and high-symm lines
+        mpl_colors = sorted(mpl.colors.cnames.keys())
+        self.add_argument('--high_symm_linecolor', default=None, choices=mpl_colors, 
+           help='Color of the lines marking the positions of the high-symmetry points.', 
+                 metavar='some_matplotlib_color_name')
+        self.add_argument('--e_fermi_linecolor', default=None, choices=mpl_colors, 
+                          help='Color of the Fermi energy line.', 
+                          metavar='some_matplotlib_color_name')
+        self.add_argument('--line_width_E_f', type=float, default=None)
+        self.add_argument('--line_width_high_symm_points', type=float, default=None)
+        linestyles = ['solid', 'dashed', 'dashdot', 'dotted', '-', '--', '-.', ':']
+        self.add_argument('--line_style_high_symm_points', default=None, 
+                          choices=linestyles)
+        self.add_argument('--line_style_E_f', default=None, choices=linestyles)
+        self.add_argument('--tick_marks_size', type=float, default=8.0)
 
-# Help options
-parser.add_argument('-hb', '--helpbandup', action='store_true', help="Help for BandUP.")
-parser.add_argument('-hp', '--helpplot', action='store_true', 
-                    help="Help for BandUP's plotting tool.")
-parser.add_argument('-h', '--help', action='store_true',
-                    help="Help for both BandUP and BandUP's plotting tool.")
-bandup_args, unknown_bandup_args = parser.parse_known_args()
-print vars(bandup_args)
-print unknown_bandup_args
-# Defining task(s) (ii)
-if('p' in bandup_args.task.lower()):
-    bandup_args.plot = True
-if('u' in bandup_args.task.lower()):
-    bandup_args.unfold = True
+        self.add_argument('--save', action='store_true', default=False, 
+                          help='Saves the figue to a file. Default: False')
+        self.add_argument('--show', action='store_true', default=False, 
+           help='Shows the figue. Default: False if --save is selected, True otherwise.')
+        self.add_argument('--saveshow', action='store_true', default=False, 
+                          help='Saves the figue to a file and opens the saved file'
+                               'instead of creating a pyplot window. Default: False')
+        self.add_argument('-res', '--fig_resolution', default='m', choices=['l','m','h'],
+                          help='Resolution of the figure:' 
+                               'l = 100 dpi, m = 300 dpi, h = 600 dpi.'
+                               'Default: m = 300 dpi')
+        self.add_argument('--disable_auto_round_vmin_and_vmax', action='store_true', 
+                          help='Disable normalization of the vmin and vmax of '
+                               'the color scale to integer numbers.')
 
-# Figuring out the options supported by the plot script
-sysargv_for_plotting_tool = [bandup_raw['symmetry_avgd']]
-# Position of 1st non-positional args
-for iopt, opt in enumerate(sys.argv):
-    if(opt.startswith('-')): continue
-sysargv_for_plotting_tool = [arg for arg in sys.argv[iopt:] if arg not in 
-                             ['-h', '-hb', '-hp']]
+        # File format of the output figure
+        # Change the following line if you want another format to be the default.
+        self.default_fig_format = set_default_fig_format('tiff') 
+        self.add_argument('-fmt', '--file_format', default=self.default_fig_format,
+                          help='File format of the figure. Default: ' +
+                               self.default_fig_format)
 
-if(unknown_bandup_args):
-    print('The following arguments are not supported by BandUP. \n' 
-          'They will be passed on to the plotting tool: %s'%(
-          ', '.join(unknown_bandup_args))
-         )
+        self.possible_fig_orientations = self.add_mutually_exclusive_group()
+        self.possible_fig_orientations.add_argument('--landscape', action='store_true', 
+                                                    default=False)
+        self.possible_fig_orientations.add_argument('--portrait', action='store_true', 
+                                                    default=False)
 
-if(bandup_args.help):
-    bandup_args.helpbandup = True
-    bandup_args.helpplot = True
-if(bandup_args.helpbandup): 
-    print '##################################################################'
-    print '                      Help for BandUP                             '
-    print '##################################################################'
-    parser.print_help()
-    sys.exit(0)
-if(bandup_args.helpplot): 
-    if(bandup_args.helpbandup): print '\n \n'
-    plot_opts = BandUpPlotOptions(sysargv_for_plotting_tool)
-    print '##################################################################'
-    print "                      Help for BandUP's Plotting tool             "
-    print '##################################################################'
-    plot_opts.print_help()
-    sys.exit(0)
+        self.add_argument('-ar', '--aspect_ratio', type=type(Fraction('3/4')), 
+                          default=Fraction('3/4'), 
+                          help='Aspect ratio of the generated plot. Default: 3/4')
+        self.add_argument('--no_ef', action='store_true',help='Hides the E-Fermi line.')
 
-# Working out which of the BandUP options have actually been passed, and
-# generating a sys.argv-like list to pass to Popen
-sysargv_for_bandup = []
-for cla_dict in bandup_registered_clas:
-    opt = cla_dict['key']
-    if(opt in sys.argv):
-        argparse_var_name = '%s_%s'%(opt.strip('-').strip('-'), 'bandup_main')
-        sysargv_for_bandup.append(opt)
-        if(cla_dict['kkind'] in
-           ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
-            val = getattr(bandup_args, argparse_var_name) 
-            sysargv_for_bandup.append(val)
+        self.add_argument('--no_symm_lines', action='store_true', 
+                          help='Hides the high-symmetry lines.')
+        self.add_argument('--no_symm_labels', action='store_true',
+                          help='Hides the high-symmetry labels.')
+        self.add_argument('--no_cb', action='store_true',help='Hides the colorbar.')
 
 
+        self.plot_spin_projections = self.add_mutually_exclusive_group()
+        self.plot_spin_projections.add_argument('--plot_sigma_x', action='store_true', 
+                                                default=False)
+        self.plot_spin_projections.add_argument('--plot_sigma_y', action='store_true', 
+                                                default=False)
+        self.plot_spin_projections.add_argument('--plot_sigma_z', action='store_true', 
+                                                default=False)
+        self.plot_spin_projections.add_argument('--plot_spin_perp', action='store_true',
+                                                default=False)
+        self.plot_spin_projections.add_argument('--plot_spin_para', action='store_true',
+                                                 default=False)
+        self.add_argument('--clip_spin', type=float, default=None)
+        self.add_argument('--spin_marker', default='_', choices=['_', 'o'])
+
+
+        self.add_argument('-nlev', '--n_levels', type=int, default=101, 
+                          help='Number of different levels used in the contour plot.'
+                               'Default: 101')
+        self.add_argument('-kmin', type=float, default=None)
+        self.add_argument('-kmax', type=float, default=None)
+        self.add_argument('-shift_k', '--shift_kpts_coords', type=float, default=0.0, 
+                          help='Shift in the k-points. Default: 0.0')
+
+        self.add_argument('-emin', type=float, default=None)
+        self.add_argument('-emax', type=float, default=None)
+        self.add_argument('-dE', type=float, default=None)
+        self.add_argument('-shift_e', '--shift_energy', type=float, default=0.0,
+                          help='Shift in the energy grid. Default: 0.0')
+
+        self.add_argument('-interp', '--interpolation', default=None, 
+                          choices=['nearest', 'linear', 'cubic'], 
+                          help='Interpolation scheme used. Default: nearest')
+
+        self.add_argument('-vmin', '--minval_for_colorbar', type=float, 
+                          help='Value to which the first color of the colormap'
+                               'will be normalized.')
+        self.add_argument('-vmax', '--maxval_for_colorbar', type=float, 
+                          help='Value to which the last color of the colormap '
+                               'will be normalized.')
+        self.add_argument('--round_cb', type=int, default=1, 
+                          help='Number of decimal digits displayed'
+                               'in the colobar ticks.')
+
+        self.show_cb_label_options = self.add_mutually_exclusive_group()
+        self.show_cb_label_options.add_argument('--cb_label', action='store_true', 
+                                                help='Show the colorbar label.')
+        self.show_cb_label_options.add_argument('--cb_label_full', action='store_true', 
+                                                help='Show the colorbar label (full).')
+
+        
+        self.add_argument('--skip_grid_freq_clip', action='store_true', 
+                          help=argparse.SUPPRESS)
+        # Flag to know if this script has been called by the GUI
+        self.add_argument('--running_from_GUI', action='store_true', 
+                          help=argparse.SUPPRESS)
+
+    def print_help(self, *fargs, **fkwargs):
+        print '##################################################################'
+        print "                  BandUP's plotting tool: Help                    "
+        print '##################################################################'
+        super(BandUpPlotArgumentParser, self).print_help(*fargs, **fkwargs)
+
+    def parse_args(self, *fargs, **fkwargs):
+        args = (
+            super(BandUpPlotArgumentParser, self).parse_args(*fargs, **fkwargs))
+        unknown_args = None
+        args = self.filter_args(args) 
+        return args
+    def parse_known_args(self, *fargs, **fkwargs):
+        args, unknown_args = (
+            super(BandUpPlotArgumentParser, self).parse_known_args(*fargs, **fkwargs))
+        args = self.filter_args(args) 
+        return args, unknown_args
+    def filter_args(self, args):
+        if(args.icolormap is not None):
+            args.colormap = self.cmap_names[args.icolormap]
+        self.using_default_cmap = args.colormap is None
+        if(self.using_default_cmap):
+            args.colormap = self.default_cmap
+
+        if(args.saveshow):
+            args.save = True
+
+        if(args.output_file is not None):
+            args.output_file =(
+                abspath(output_file_with_supported_extension(args.output_file, 
+                                                             self.default_fig_format
+                                                            )
+                       )
+            )
+            args.save = True
+
+        if(not args.save and not args.show):
+            args.save = False
+            args.show = True
+
+        args.aspect_ratio = float(args.aspect_ratio)
+        if(args.aspect_ratio > 1.0):
+            args.aspect_ratio = 1.0 / args.aspect_ratio
+        return args
+
+class BandUpPythonArgumentParser(BandUpPlotArgumentParser, BandUpArgumentParser):
+    def __init__(self, *args, **kwargs):
+        kwargs['add_help']=False
+        kwargs['remove_conflicts_with_bandup'] = True
+        super(BandUpPythonArgumentParser, self).__init__(*args, **kwargs)
+
+        # Adding allowed task choices
+        self.add_argument('-task', choices=['plot', 'unfold', 'p', 'u', 'pu', 'up'], 
+                          default='up', 
+                          help='Chooses whether to unfold, plot available data, or both.'
+        )
+        # Help options
+        self.add_argument('-hb', '--helpbandup', action='store_true', 
+                          help="Help for BandUP.")
+        self.add_argument('-hp', '--helpplot', action='store_true', 
+                          help="Help for BandUP's plotting tool.")
+        self.add_argument('-h', '--help', action='store_true',
+                          help="Help for both BandUP and BandUP's plotting tool.")
+
+    def parse_args(self, *fargs, **fkwargs):
+        args = (
+            super(BandUpPythonArgumentParser, self).parse_args(*fargs, **fkwargs))
+        unknown_args = None
+        args = self.filter_args(args) 
+        return args
+    def parse_known_args(self, *fargs, **fkwargs):
+        args, unknown_args = (
+            super(BandUpPythonArgumentParser, self).parse_known_args(*fargs, **fkwargs))
+        args = self.filter_args(args) 
+        return args, unknown_args
+    def filter_args(self, args):
+        # Defining task(s) (ii)
+        if('p' in args.task.lower()):
+            args.plot = True
+        if('u' in args.task.lower()):
+            args.unfold = True
+        return args
