@@ -40,6 +40,7 @@ class BandUpArgumentParser(argparse.ArgumentParser):
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         if('add_help' not in kwargs): kwargs['add_help'] = False
         super(BandUpArgumentParser, self).__init__(*args, **kwargs)
+
         # Adding BandUP's supported args to the parser
         self.bandup_registered_clas = get_bandup_registered_clas()
         for cla_dict in self.bandup_registered_clas:
@@ -60,24 +61,13 @@ class BandUpArgumentParser(argparse.ArgumentParser):
         print '                      Help for BandUP                             '
         print '##################################################################'
         super(BandUpArgumentParser, self).print_help(*fargs, **fkwargs)
-        sys.exit(0)
-    def parse_args(self, *fargs, **fkwargs):
-        args = (
-            super(BandUpArgumentParser, self).parse_args(*fargs, **fkwargs))
-        if(args.help): 
-            self.print_help()
-        unknown_args = None
-        args = self.filter_args(args) 
-        return args
-    def parse_known_args(self, *fargs, **fkwargs):
+    def parse_known_args_bandup(self, *fargs, **fkwargs):
+        # Argparse calls parse_known_args when we call parse_args, so we only need
+        # to override this one
         args, unknown_args = (
-            super(BandUpArgumentParser, self).parse_known_args(*fargs, **fkwargs))
-        if(args.help): self.print_help()
-        args = self.filter_args(args) 
-        return args, unknown_args
-    def filter_args(self, args):
+            super(BandUpArgumentParser, self).parse_known_args())
         args.argv = self.get_argv(args)
-        return args
+        return args, unknown_args
     def get_argv(self, args):
         # Working out which of the supported BandUP options have actually been passed, 
         # and generating an arg list to pass to Popen
@@ -94,11 +84,11 @@ class BandUpArgumentParser(argparse.ArgumentParser):
         return argv
 
 class BandUpPlotArgumentParser(argparse.ArgumentParser):
-    #def __init__(self, source=sys.argv, parse_args=True, ignore_unknown_args=False):
     def __init__(self, *args, **kwargs):
         remove_conflicts_with_bandup = False
         if('remove_conflicts_with_bandup' in kwargs):
             remove_conflicts_with_bandup = kwargs['remove_conflicts_with_bandup']
+            del kwargs['remove_conflicts_with_bandup']
         if(remove_conflicts_with_bandup):
             kwargs['add_help'] = False
         super(BandUpPlotArgumentParser, self).__init__(*args, **kwargs)
@@ -260,18 +250,14 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         print '##################################################################'
         super(BandUpPlotArgumentParser, self).print_help(*fargs, **fkwargs)
 
-    def parse_args(self, *fargs, **fkwargs):
-        args = (
-            super(BandUpPlotArgumentParser, self).parse_args(*fargs, **fkwargs))
-        unknown_args = None
-        args = self.filter_args(args) 
-        return args
-    def parse_known_args(self, *fargs, **fkwargs):
+    def parse_known_args_plot(self, *fargs, **fkwargs):
+        # Argparse calls parse_known_args when we call parse_args, so we only need
+        # to override this one
         args, unknown_args = (
             super(BandUpPlotArgumentParser, self).parse_known_args(*fargs, **fkwargs))
-        args = self.filter_args(args) 
+        args = self.filter_args_plot(args)
         return args, unknown_args
-    def filter_args(self, args):
+    def filter_args_plot(self, args):
         if(args.icolormap is not None):
             args.colormap = self.cmap_names[args.icolormap]
         self.using_default_cmap = args.colormap is None
@@ -299,40 +285,55 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
             args.aspect_ratio = 1.0 / args.aspect_ratio
         return args
 
-class BandUpPythonArgumentParser(BandUpPlotArgumentParser, BandUpArgumentParser):
+class BandUpPythonArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        kwargs['add_help']=False
-        kwargs['remove_conflicts_with_bandup'] = True
+        kwargs['add_help'] = False
+        if('formatter_class' not in kwargs):
+            kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         super(BandUpPythonArgumentParser, self).__init__(*args, **kwargs)
 
-        # Adding allowed task choices
-        self.add_argument('-task', choices=['plot', 'unfold', 'p', 'u', 'pu', 'up'], 
-                          default='up', 
-                          help='Chooses whether to unfold, plot available data, or both.'
-        )
-        # Help options
-        self.add_argument('-hb', '--helpbandup', action='store_true', 
-                          help="Help for BandUP.")
-        self.add_argument('-hp', '--helpplot', action='store_true', 
-                          help="Help for BandUP's plotting tool.")
-        self.add_argument('-h', '--help', action='store_true',
-                          help="Help for both BandUP and BandUP's plotting tool.")
+        self.default_main_task = 'unfold'
+        bandup_parser = BandUpArgumentParser(add_help=False)
+        bandup_plot_parser = BandUpPlotArgumentParser(add_help=False)
+        self.subparsers = self.add_subparsers(dest='main_task',
+                              help='Task to be performed. (default: unfold)')
+        # This is to prevent the .subparsers.add_parser method to fail,
+        # attempting to init this class recursively
+        self.subparsers._parser_class = argparse.ArgumentParser
+        self.bandup_subparser = self.subparsers.add_parser('unfold', 
+            help="Runs BandUP's main code", parents=[bandup_parser])
+        self.bandup_plot_subparser = self.subparsers.add_parser('plot', 
+            help="Plots BandUP's output files.", parents=[bandup_plot_parser])
+        self.add_argument('-h', '--help', action='store_const', const='True',
+                          help='show this help message and exit', 
+                          default=argparse.SUPPRESS)
 
-    def parse_args(self, *fargs, **fkwargs):
-        args = (
-            super(BandUpPythonArgumentParser, self).parse_args(*fargs, **fkwargs))
-        unknown_args = None
-        args = self.filter_args(args) 
-        return args
+    def print_help(self, *args, **kwargs):
+        print self.format_help()
+        extra_help_msg = "Each task has its own help as well"
+        sys.exit(0)
+
     def parse_known_args(self, *fargs, **fkwargs):
+        # Argparse calls parse_known_args when we call parse_args, so we only need
+        # to override this one
+        help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
+        pos_h_flag = float('Inf')
+        if('-h' in sys.argv[1:]): pos_h_flag = sys.argv.index('-h')
+        if('-help' in sys.argv[1:]): pos_h_flag=min(pos_h_flag, sys.argv.index('-help'))
+        pos_subparser_choice = float('Inf')
+        if('unfold' in sys.argv[1:]): pos_subparser_choice = sys.argv.index('unfold')
+        if('plot' in sys.argv[1:]): 
+            pos_subparser_choice = min(pos_subparser_choice, sys.argv.index('plot'))
+        
+        main_help_requested = help_requested and (pos_h_flag < pos_subparser_choice)
+        if(main_help_requested):
+            self.print_help()
+        if(fargs==(None, None) and fkwargs=={} and not help_requested): 
+            fargs=[[self.default_main_task]]
+            self.main_task = self.default_main_task
         args, unknown_args = (
             super(BandUpPythonArgumentParser, self).parse_known_args(*fargs, **fkwargs))
-        args = self.filter_args(args) 
+        #args = self.filter_args(args) 
         return args, unknown_args
-    def filter_args(self, args):
-        # Defining task(s) (ii)
-        if('p' in args.task.lower()):
-            args.plot = True
-        if('u' in args.task.lower()):
-            args.unfold = True
-        return args
+    ##def filter_args(self, args, *fargs, **fkwargs):
+    #    #return args

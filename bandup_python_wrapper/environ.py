@@ -4,10 +4,16 @@ import sys
 try:
     bandup_dir = os.environ['BANDUPDIR']
 except(KeyError):
-    print('Environment variable "BANDUPDIR" not set. Please set it to \n'+
-          "BandUP's main directory " + '(the one where "build.sh" is located).')
-    print 'Stopping now.'
-    sys.exit(1)
+    msg = 'TEST'
+    msg = ('The variable "BANDUPDIR" is not defined in your environment.\n' +
+           18*' '+"Please set it yo BandUP's main directory.\n"+
+           18*' '+'    > This is the directory where "build.sh" is located.\n'+
+           18*' '+'Example:\n'+
+           28*' '+'export BANDUPDIR=$HOME/codes/BandUP\n'+
+           18*' '+'To have this automatically set next time you open a terminal, \n'+
+           18*' '+'you can add the same command to, e.g., the file "~/.bash_profile".'
+          )
+    raise EnvironmentError(msg)
 
 user_home = os.path.expanduser('~')
 plot_path = os.path.join(bandup_dir, "utils", "post_unfolding", "plot")
