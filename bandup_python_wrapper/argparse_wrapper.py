@@ -277,26 +277,33 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
 
 class BandUpPythonArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        kwargs['add_help'] = False
         if('formatter_class' not in kwargs):
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         super(BandUpPythonArgumentParser, self).__init__(*args, **kwargs)
 
-        self.default_main_task = 'unfold'
         self.bandup_parser = BandUpArgumentParser(add_help=False)
         self.bandup_plot_parser = BandUpPlotArgumentParser(add_help=False)
+
+        self.allowed_tasks = {}
+        self.allowed_tasks['unfold'] = {'subparser_name':'bandup',
+                                        'help':"Runs BandUP's main code",
+                                        'parents':[self.bandup_parser]}
+        self.allowed_tasks['plot'] = {'subparser_name':'bandup_plot',
+                                      'help':"Plots BandUP's output files.",
+                                      'parents':[self.bandup_plot_parser]}
+        self.default_main_task = 'unfold'
+
         self.subparsers = self.add_subparsers(dest='main_task',
                               help='Task to be performed. (default: unfold)')
         # This is to prevent the .subparsers.add_parser method to fail,
         # attempting to init this class recursively
         self.subparsers._parser_class = argparse.ArgumentParser
-        self.bandup_subparser = self.subparsers.add_parser('unfold', 
-            help="Runs BandUP's main code", parents=[self.bandup_parser])
-        self.bandup_plot_subparser = self.subparsers.add_parser('plot', 
-            help="Plots BandUP's output files.", parents=[self.bandup_plot_parser])
-        self.add_argument('-h', '--help', action='store_const', const='True',
-                          help='show this help message and exit', 
-                          default=argparse.SUPPRESS)
+        # Adding subparsers
+        for task, task_info in self.allowed_tasks.iteritems():
+            subparser = self.subparsers.add_parser(task, 
+                help=task_info['help'], parents=task_info['parents'])
+            setattr(self, '%s_subparser'%(task_info['subparser_name']), subparser)
+
 
     def print_help(self, *args, **kwargs):
         print self.format_help()
@@ -307,28 +314,19 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         # Argparse calls parse_known_args when we call parse_args, so we only need
         # to override this one
 
-        # Finding positional args passed to program
-        positional_args = []
+        # Finding 1st positional arg passed to program. This will be used to handle the 
+        # "no subparser selected" and set task to self.default_main_task in this case
+        first_positional_arg = None
         for arg in sys.argv[1:]:
-            if(arg.startswith('-')): continue
-            positional_args.append(arg)
-        # Deciding whether to print the general help or not
+            if(not arg.startswith('-')): 
+                first_positional_arg = arg
+                continue 
+        # Defining 'unfold' as default task
+        task_defined = first_positional_arg in self.allowed_tasks
         help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
-        pos_h_flag = float('Inf')
-        if('-h' in sys.argv[1:]): pos_h_flag = sys.argv.index('-h')
-        if('-help' in sys.argv[1:]): pos_h_flag=min(pos_h_flag, sys.argv.index('-help'))
-        pos_subparser_choice = float('Inf')
-        if('unfold' in sys.argv[1:]): pos_subparser_choice = sys.argv.index('unfold')
-        if('plot' in sys.argv[1:]): 
-            pos_subparser_choice = min(pos_subparser_choice, sys.argv.index('plot'))
-        main_help_requested = help_requested and (pos_h_flag < pos_subparser_choice)
-        if(main_help_requested):
-            self.print_help()
-
-        # Defining task (subparser) as 'unfold' if no specific task is requested
-        if(fargs==(None, None) and fkwargs=={} and not help_requested and not 
-           positional_args): 
-            fargs=[[self.default_main_task]]
+        if(not task_defined and not help_requested):
+            sys.argv.insert(1, self.default_main_task) 
+     
         args, unknown_args = (
             super(BandUpPythonArgumentParser, self).parse_known_args(*fargs, **fkwargs))
         args = self.filter_args(args) 
