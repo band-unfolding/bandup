@@ -1,8 +1,25 @@
+# Copyright (C) 2017 Paulo V. C. Medeiros
+# A python wrapper to BandUP and its plotting tool
+# This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+#
+# BandUP is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+#  BandUP is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import os
 from bandup_python_wrapper.environ import *
 from bandup_python_wrapper.files import continuation_lines
 from bandup_python_wrapper.figs import *
+from collections import OrderedDict
 
 def get_bandup_registered_clas(bandup_path=bandup_dir):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
@@ -32,16 +49,20 @@ def get_bandup_registered_clas(bandup_path=bandup_dir):
             bandup_registered_clas.append(arg_definitions_in_line)
     return bandup_registered_clas
 
-class BandUpArgumentParser(argparse.ArgumentParser):
+
+class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         if('remove_conflicts_with_bandup' in kwargs): 
             del kwargs['remove_conflicts_with_bandup']
         if('formatter_class') not in kwargs:
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         if('add_help' not in kwargs): kwargs['add_help'] = False
-        super(BandUpArgumentParser, self).__init__(*args, **kwargs)
+        super(BandUpPreUnfoldingArgumentParser, self).__init__(*args, **kwargs)
 
         # Adding BandUP's supported args to the parser
+        symm_args = self.add_argument_group('Symmetry-related options')
+        input_files_args = self.add_argument_group('Input file options')
+        output_files_args = self.add_argument_group('Output file options')
         self.bandup_registered_clas = get_bandup_registered_clas()
         for cla_dict in self.bandup_registered_clas:
             arg_name = '%s'%(cla_dict['key'])
@@ -53,8 +74,94 @@ class BandUpArgumentParser(argparse.ArgumentParser):
                 parser_remaining_kwargs['default'] = cla_dict['default']
             else:
                 parser_remaining_kwargs['action'] = 'store_true'
-                #parser_remaining_kwargs['const'] = arg_name
-            self.add_argument(arg_name, help=arg_help, **parser_remaining_kwargs)
+            if(arg_name in ['-out_sckpts_file']):
+                output_files_args.add_argument(arg_name, help=arg_help, 
+                                               **parser_remaining_kwargs)
+            elif(('no_symm' in arg_name) or ('skip_propose_pc' in arg_name)):
+                symm_args.add_argument(arg_name, help=arg_help,
+                                          **parser_remaining_kwargs)
+            elif(arg_name in ['-pc_file', '-sc_file', '-pckpts_file']):
+                input_files_args.add_argument(arg_name, help=arg_help,
+                                         **parser_remaining_kwargs)
+
+class BandUpArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        if('remove_conflicts_with_bandup' in kwargs): 
+            del kwargs['remove_conflicts_with_bandup']
+        if('formatter_class') not in kwargs:
+            kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
+        if('add_help' not in kwargs): kwargs['add_help'] = False
+        super(BandUpArgumentParser, self).__init__(*args, **kwargs)
+
+        # Adding BandUP's supported args to the parser
+        debug_args = self.add_argument_group('Ideally only for tests')
+        spinor_args = self.add_argument_group('For noncollinear mag. calcs.')
+        symm_args = self.add_argument_group('Symmetry-related options')
+        egrid_args = self.add_argument_group('Energy grid options '+
+            '(specify either ONLY "-energy_file" OR *all* the others)')
+        input_files_args = self.add_argument_group('Input file options')
+        output_files_args = self.add_argument_group('Output file options')
+        spin_args = self.add_argument_group('Spin-polarized calculations')
+        castep_args = self.add_argument_group('For CASTEP')
+        abinit_args = self.add_argument_group('For ABINIT')
+        qe_args = self.add_argument_group('For Quantum ESPRESSO')
+        self.bandup_registered_clas = get_bandup_registered_clas()
+        for cla_dict in self.bandup_registered_clas:
+            arg_name = '%s'%(cla_dict['key'])
+            arg_help = cla_dict['description']
+            if(not arg_help): arg_help = 'No description available.'
+            parser_remaining_kwargs = {}
+            if(cla_dict['kkind'] in 
+               ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
+                parser_remaining_kwargs['default'] = cla_dict['default']
+            else:
+                parser_remaining_kwargs['action'] = 'store_true'
+            if(arg_name in ['-saxis', '-normal_to_proj_plane', 
+                              '-origin_for_spin_proj_rec', 
+                              '-origin_for_spin_proj_cart']):
+                spinor_args.add_argument(arg_name, help=arg_help, 
+                                         **parser_remaining_kwargs)
+            elif(arg_name in ['-castep', '-seed']):
+                castep_args.add_argument(arg_name, help=arg_help, 
+                                         **parser_remaining_kwargs)
+            elif(arg_name in ['-abinit', '-files_file']):
+                abinit_args.add_argument(arg_name, help=arg_help,
+                                         **parser_remaining_kwargs)
+            elif(arg_name in ['-qe', '-outdir', '-prefix']):
+                qe_args.add_argument(arg_name, help=arg_help, 
+                                         **parser_remaining_kwargs)
+            elif(arg_name in ['-energy_file']):
+                arg_help += ' Otherwise, see options below in this group.'
+                egrid_args.add_argument(arg_name, help=arg_help, metavar='FILE',
+                                          **parser_remaining_kwargs)
+            elif('-out' in arg_name):
+                output_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
+                                               **parser_remaining_kwargs)
+            elif('file' in arg_name):
+                input_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
+                                              **parser_remaining_kwargs)
+            elif(('symm' in arg_name) or ('skip_propose_pc' in arg_name)):
+                symm_args.add_argument(arg_name, help=arg_help,
+                                          **parser_remaining_kwargs)
+            elif(arg_name in ['-spin_channel']):
+                spin_args.add_argument(arg_name, help=arg_help, metavar='ISPIN',
+                                          **parser_remaining_kwargs)
+            elif(arg_name in ['-continue_if_not_commensurate', 
+                              '--continue_if_npw_smaller_than_expected',
+                              '-dont_unfold']):
+                debug_args.add_argument(arg_name, help=arg_help,
+                                        **parser_remaining_kwargs)
+            else:
+                self.add_argument(arg_name, help=arg_help, **parser_remaining_kwargs)
+        # Energy-related stuff
+        egrid_args.add_argument('-efermi', type=float, default=None,
+                                help='Fermi energy (eV). Take from self-consist. calc.!')
+        egrid_args.add_argument('-emin', type=float, default=None, 
+                                help='Minimum energy in the grid')
+        egrid_args.add_argument('-emax', type=float, default=None, 
+                                help='Maximum energy in the grid')
+        egrid_args.add_argument('-dE', type=float, default=None, metavar='dE',
+                                help='Energy grid spacing.')
 
     def parse_known_args(self, *fargs, **fkwargs):
         # Argparse calls parse_known_args when we call parse_args, so we only need
@@ -288,8 +395,14 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
         self.bandup_parser = BandUpArgumentParser(add_help=False)
         self.bandup_plot_parser = BandUpPlotArgumentParser(add_help=False)
+        self.bandup_pre_unf_parser = BandUpPreUnfoldingArgumentParser(add_help=False)
 
-        self.allowed_tasks = {}
+        # Defining available tasks and setting the default one to 'unfolding'
+        self.allowed_tasks = OrderedDict()
+        self.allowed_tasks['pre_unfold'] = {'subparser_name':'bandup',
+                                            'help':"Runs BandUP's pre-unfolding tool "+
+                                            "to get the SC-KPTs needed for unfolding.",
+                                            'parents':[self.bandup_pre_unf_parser]}
         self.allowed_tasks['unfold'] = {'subparser_name':'bandup',
                                         'help':"Runs BandUP's main code",
                                         'parents':[self.bandup_parser]}
@@ -298,45 +411,43 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                                       'parents':[self.bandup_plot_parser]}
         self.default_main_task = 'unfold'
 
+        # Implementing each task with a different subparser
         self.subparsers = self.add_subparsers(dest='main_task',
                               help='Task to be performed. (default: unfold)')
         # This is to prevent the .subparsers.add_parser method to fail,
         # attempting to init this class recursively
         self.subparsers._parser_class = argparse.ArgumentParser
-        # Adding subparsers
         for task, task_info in self.allowed_tasks.iteritems():
             subparser = self.subparsers.add_parser(task, 
-                help=task_info['help'], parents=task_info['parents'])
+                help=task_info['help'], parents=task_info['parents'],
+                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
             setattr(self, '%s_subparser'%(task_info['subparser_name']), subparser)
 
         # Adding task-dependent options
         # Plot subparser:
-        self.bandup_plot_subparser.add_argument('-plotdir', 
+        bandup_plot_extra_opts = self.bandup_plot_subparser.add_argument_group(
+                                     'Options available'+
+                                     ' only through this Python interface')
+        bandup_plot_extra_opts.add_argument('-plotdir', 
             default=os.path.join(working_dir,"plots"),
-            help='Directory where plot will be saved. Default: ./plot')
-
-        # Directory configuration stuff
-        dir_opts = self.add_argument_group('Options related to I/O files and dirs')
-        dir_opts.add_argument('-self_consist_calc_dir', 
-                              default=default_self_consist_calc_dir)
-        dir_opts.add_argument('-wavefunc_calc_dir', default=default_wavefunc_calc_dir)
-        dir_opts.add_argument('-results_dir', default=default_results_dir)
-        # Energy-related stuff
-        energy_options = self.add_argument_group('Energy grid options '+
-            '(the option "-efile" is not compatible with the others)')
-        energy_options.add_argument('-efermi', type=float, default=None,
-                                    help='Value of E_Fermi.')
-        energy_options.add_argument('-emin', type=float, default=None)
-        energy_options.add_argument('-emax', type=float, default=None)
-        energy_options.add_argument('-dE', type=float, default=None)
-        energy_options.add_argument('-efile', '--energy_info_file', 
-                                    default='energy_info.in',
-                                    help=('Name of the file containing information '+
-                                          'about the energy grid and Fermi energy '+
-                                          'to be used. ' +
-                                          'Default: energy_info.in. '
-                                          'This file is optional for the plotting tool.')
-        )
+            help='Directory where plot will be saved')
+        bandup_plot_extra_opts.add_argument('-results_dir', default=default_results_dir,
+            help='Dir where BandUP was run.')
+        bandup_plot_extra_opts.add_argument('--overwrite', action='store_true',
+            help='Overwrite files/directories if copy paths coincide.')
+        # BandUP subparser
+        bandup_extra_opts = self.bandup_subparser.add_argument_group('Options available'+
+                                                 ' only through this Python interface')
+        bandup_extra_opts.add_argument('-wavefunc_calc_dir', 
+                                       default=default_wavefunc_calc_dir,
+            help='Directory where the WFs to be unfolded are stored.')
+        bandup_extra_opts.add_argument('-self_consist_calc_dir', 
+                                       default=default_self_consist_calc_dir,
+            help='Dir containing the self-consistent calc files.')
+        bandup_extra_opts.add_argument('-results_dir', default=default_results_dir,
+            help='Dir where the BandUP will be run.')
+        bandup_extra_opts.add_argument('--overwrite', action='store_true',
+            help='Overwrite files/directories if copy paths coincide.')
 
 
     def print_help(self, *args, **kwargs):

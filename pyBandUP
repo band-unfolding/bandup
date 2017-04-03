@@ -20,32 +20,15 @@ from bandup_python_wrapper.files import (
     mkdir,
     create_bandup_input,
 )
-import shutil
-import os
-import sys
-from bandup_python_wrapper.environ import (
-    default_pre_unfolding_inputs_dir,
-    BandUp_exe,
-)
-from  bandup_python_wrapper.files import rmfile
-from subprocess import Popen, PIPE, STDOUT
+from bandup_python_wrapper.runners import run_bandup
 
 parser = BandUpPythonArgumentParser()
-parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
 
 if(args.main_task=='unfold'):
     mkdir(args.results_dir,  True)
     create_bandup_input(args)
-
-    # Running BandUP 
-    os.chdir(args.results_dir)
-    bandup_run_options = [BandUp_exe] + args.argv
-    with open("out_BandUP.dat", 'w') as f:
-        bandup_run = Popen(bandup_run_options, stdout=PIPE, stderr=STDOUT)
-        for line in iter(bandup_run.stdout.readline, ''):
-            sys.stdout.write(line)
-            f.write(line)
+    run_bandup(args)
 
 
 
