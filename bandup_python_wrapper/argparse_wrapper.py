@@ -63,7 +63,7 @@ class BandUpArgumentParser(argparse.ArgumentParser):
             super(BandUpArgumentParser, self).parse_known_args())
         args.argv = self.get_argv(args)
         return args, unknown_args
-    def get_argv(self, args):
+    def get_argv(self, args, run_dir=None):
         # Working out which of the supported BandUP options have actually been passed, 
         # and generating an arg list to pass to Popen
         argv = []
@@ -75,6 +75,11 @@ class BandUpArgumentParser(argparse.ArgumentParser):
                    ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
                     argparse_var_name = arg_name.strip('-').strip('-')
                     val = getattr(args, argparse_var_name) 
+                    # Relative paths instead of absolute ones, to get shorter paths
+                    if(('file' in argparse_var_name) and (run_dir is not None)):
+                        abspath = os.path.abspath(val)
+                        path_rel_to_run_dir = os.path.relpath(abspath, run_dir)
+                        val = path_rel_to_run_dir
                     argv.append(val)
         return argv
 
@@ -304,10 +309,44 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                 help=task_info['help'], parents=task_info['parents'])
             setattr(self, '%s_subparser'%(task_info['subparser_name']), subparser)
 
+        # Adding task-dependent options
+        # Plot subparser:
+        self.bandup_plot_subparser.add_argument('-plotdir', 
+            default=os.path.join(working_dir,"plots"),
+            help='Directory where plot will be saved. Default: ./plot')
+
+        # Directory configuration stuff
+        dir_opts = self.add_argument_group('Options related to I/O files and dirs')
+        dir_opts.add_argument('-self_consist_calc_dir', 
+                              default=default_self_consist_calc_dir)
+        dir_opts.add_argument('-wavefunc_calc_dir', default=default_wavefunc_calc_dir)
+        dir_opts.add_argument('-results_dir', default=default_results_dir)
+        # Energy-related stuff
+        energy_options = self.add_argument_group('Energy grid options '+
+            '(the option "-efile" is not compatible with the others)')
+        energy_options.add_argument('-efermi', type=float, default=None,
+                                    help='Value of E_Fermi.')
+        energy_options.add_argument('-emin', type=float, default=None)
+        energy_options.add_argument('-emax', type=float, default=None)
+        energy_options.add_argument('-dE', type=float, default=None)
+        energy_options.add_argument('-efile', '--energy_info_file', 
+                                    default='energy_info.in',
+                                    help=('Name of the file containing information '+
+                                          'about the energy grid and Fermi energy '+
+                                          'to be used. ' +
+                                          'Default: energy_info.in. '
+                                          'This file is optional for the plotting tool.')
+        )
+
 
     def print_help(self, *args, **kwargs):
+        calling_script = sys.argv[0]
         print self.format_help()
-        extra_help_msg = "Each task has its own help as well"
+        extra_help_msg = "Each task has its own help as well, which can be requested\n"
+        extra_help_msg+= 'by passing "-h" or "--help" after the name of the task.\n'
+        extra_help_msg+= 'Eg.: %s unfold -h'%(calling_script)
+        print extra_help_msg
+        print ''
         sys.exit(0)
 
     def parse_known_args(self, *fargs, **fkwargs):
@@ -326,7 +365,34 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
         if(not task_defined and not help_requested):
             sys.argv.insert(1, self.default_main_task) 
-     
+
+        # Making sure arguments are compatible
+        individual_energy_opts = ['-emin', '-emax', '-dE', '-efermi']
+        efile_passed = (
+            len(set(['-efile', '--energy_info_file']).intersection(sys.argv[1:]))>0
+        )
+        individual_energy_opts_passed = (
+            len(set(individual_energy_opts).intersection(sys.argv[1:]))>0
+        )
+        if(efile_passed and individual_energy_opts_passed):
+            msg = ('%s: error: Args "-efile" or "--energy_info_file"'%(sys.argv[0]) +
+                   ' not allowed with any of:\n'+
+                   '"-efermi", "-emin", "-emax", "-dE".')
+            self.error(msg)
+        elif(individual_energy_opts_passed):
+            all_needed_ener_opts_passed = (
+                len(set(individual_energy_opts).intersection(sys.argv[1:])) == 
+                len(set(individual_energy_opts))
+            )
+            if(not all_needed_ener_opts_passed):
+                msg = 'All options from %s'%(', '.join(individual_energy_opts))
+                msg += ' need to be passed if one of them is passed. Alternatively, '
+                msg += 'you can also specify these values in a file using the option '
+                msg += '"-efile FILENAME".'
+                self.error(msg)
+
+
+        # Now finally parsing args
         args, unknown_args = (
             super(BandUpPythonArgumentParser, self).parse_known_args(*fargs, **fkwargs))
         args = self.filter_args(args) 
@@ -335,8 +401,30 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
     def filter_args(self, args, *fargs, **fkwargs):
         if(args.main_task == 'unfold'):
+            subparser = self.bandup_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
-            args.argv = self.bandup_parser.get_argv(args)
+            args.argv = self.bandup_parser.get_argv(args, run_dir=args.results_dir)
+            if(args.castep):
+                if(not args.seed):
+                    # Working out the seed
+                    bands_file = [os.path.join(args.self_consist_calc_dir,fname) for 
+                                  fname in
+                                  os.listdir(args.self_consist_calc_dir) if
+                                  fname.endswith('.bands')][0]
+                    args.seed = os.path.splitext(os.path.basename(bands_file))[0]
+                    print 'WARNING: Seed not passed as argument. Using "%s".'%(
+                           args.seed)
+                    args.argv.append('-seed')
+                    args.argv.append(args.seed)
         elif(args.main_task == 'plot'):
+            subparser = self.bandup_plot_parser
             args = self.bandup_plot_parser.filter_args_plot(args)
+
+        args.default_values = {}
+        for arg in dir(args):
+            if(arg.startswith('_')): continue
+            try:
+                args.default_values[arg] = subparser.get_default(arg)
+            except(TypeError):
+                pass
         return args
