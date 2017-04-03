@@ -1,4 +1,7 @@
 import matplotlib as mpl
+# Below: To be able to create mpl figures without running an X server
+#        mpl.use must be called before importing pyplot
+mpl.use('Agg')
 from matplotlib import pyplot as plt
 from fractions import Fraction
 import sys
