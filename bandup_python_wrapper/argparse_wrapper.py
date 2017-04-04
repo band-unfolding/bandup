@@ -25,7 +25,7 @@ from .environ import (
     working_dir,
 )
 from .defaults import defaults
-from .files import continuation_lines
+from .files import continuation_lines, get_efermi
 from .figs import (
     get_matplotlib_color_names,
     get_available_cmaps,
@@ -498,7 +498,10 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             sys.argv.insert(1, self.default_main_task) 
 
         # Making sure arguments are compatible
-        individual_energy_opts = ['-emin', '-emax', '-dE', '-efermi']
+        needed_energy_opts = ['-emin', '-emax', '-dE']
+        # EFermi will be read from file if not passed
+        individual_energy_opts = needed_energy_opts + ['-efermi']
+
         efile_passed = (
             len(set(['-efile', '--energy_info_file']).intersection(sys.argv[1:]))>0
         )
@@ -512,14 +515,14 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             self.error(msg)
         elif(individual_energy_opts_passed):
             all_needed_ener_opts_passed = (
-                len(set(individual_energy_opts).intersection(sys.argv[1:])) == 
-                len(set(individual_energy_opts))
+                len(set(needed_energy_opts).intersection(sys.argv[1:])) == 
+                len(set(needed_energy_opts))
             )
             if(not all_needed_ener_opts_passed):
-                msg = 'All options from %s'%(', '.join(individual_energy_opts))
+                msg = 'All options from %s'%(', '.join(needed_energy_opts))
                 msg += ' need to be passed if one of them is passed. Alternatively, '
                 msg += 'you can also specify these values in a file using the option '
-                msg += '"-efile FILENAME".'
+                msg += '"--energy_info_file FILENAME".'
                 self.error(msg)
 
 
@@ -550,6 +553,10 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
+        if(args.efermi is None): 
+            args.efermi = get_efermi(args)
+            if(args.efermi is None):
+                warnings.warn('Could not get E-Fermi!') 
 
         args.default_values = {}
         for arg in dir(args):

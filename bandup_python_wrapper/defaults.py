@@ -33,10 +33,16 @@ step2dir = {'step_1':'self_consist_calc', 'step_2':'pre_unfolding_out',
             'step_3':'wavefunc_calc'}
 for step, d in step2dir.iteritems():
     try:
+        # If the user executes the script inside the "step_4*" dir (or similar dir level)
         tentative_dir=glob.glob(os.path.join(os.path.dirname(working_dir),'%s*'%(step)))
         tentative_dir = tentative_dir[0]
     except(IndexError):
-        tentative_dir = None
+        try:
+            # If the user executes the script at the dir containing the "step_*" dirs
+            tentative_dir=glob.glob(os.path.join(working_dir,'%s*'%(step)))
+            tentative_dir = tentative_dir[0]
+        except(IndexError):
+            tentative_dir = None
     defaults['%s_dir'%(d)] = tentative_dir
 
 defaults['pre_unfolding_inputs_dir'] = None
