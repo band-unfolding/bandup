@@ -19,8 +19,8 @@ from __future__ import print_function
 import argparse
 from scipy.interpolate import griddata
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import os
 from os.path import join, abspath, dirname, splitext, basename
 import sys
@@ -28,12 +28,13 @@ import json
 from fractions import Fraction
 from subprocess import Popen, PIPE
 
+from .environ import original_matplotlib_backend
+
 
 class BandUpPlot():
-    def __init__(self, plot_options):
-        self.plot_options = plot_options
-        self.indent = plot_options.indent
-        self.args = plot_options.args
+    def __init__(self, args):
+        self.indent = 4 * ' '
+        self.args = args
         args = self.args
         self.KptsCoords, self.energies, self.delta_Ns, self.spin_projections = (
             self.read_BandUP_output())
@@ -42,7 +43,7 @@ class BandUpPlot():
         self.KptsCoords, self.energies, self.delta_Ns, self.spin_projections = (
             self.reduced_read_data())
         self.cmap_name = args.colormap
-        self.cmap = plot_options.cmaps[self.cmap_name]
+        self.cmap = args.aux_settings['cmaps'][self.cmap_name]
 
         self.pos_high_symm_points = None
         if(not args.no_symm_lines or not args.no_symm_labels):
@@ -345,13 +346,13 @@ class BandUpPlot():
 
 
     def get_dE_for_grid(self):
-        if(self.plot_options.args.dE is not None):
+        if(self.args.dE is not None):
             # Priority #1 for the command line arguments
-            dE_for_hist2d = self.plot_options.args.dE
+            dE_for_hist2d = self.args.dE
         else:
             try:
                 # Priority #2 for the energy_info_file 
-                with open(self.plot_options.args.energy_info_file) as energy_info_file:
+                with open(self.args.energy_info_file) as energy_info_file:
                     energy_info_file_lines = energy_info_file.readlines()
                     dE_for_hist2d = abs(float(energy_info_file_lines[3].split()[0]))
                     if dE_for_hist2d == 0:
@@ -365,7 +366,7 @@ class BandUpPlot():
 
 
     def get_pos_and_labels_high_symm_points(self):
-        args = self.plot_options.args
+        args = self.args
         # Determining the positions of high-symmetry BZ points on the plot
         kpts_file_lines = []
         with open(args.kpoints_file,'r') as kpts_file:
@@ -533,18 +534,21 @@ def print_opening_message():
            '                                                                                      \n')
 
 def make_plot(plot):
-    indent = plot.plot_options.indent
-    args = plot.plot_options.args
+    indent = plot.indent
+    args = plot.args
     # Creating the plot
+    # Switching backends only here speeds up the code for everything else
+    plt.switch_backend(original_matplotlib_backend) 
     print ('Generating the plot...')
     fig = plt.figure(figsize=(plot.fig_width_inches,plot.fig_height_inches))
     ax = fig.add_subplot(111)
     # Defining the color schemes.
     print (indent + '>>> Using the "' + plot.cmap_name + '" colormap.')
-    if(plot.plot_options.using_default_cmap and not args.running_from_GUI):
+    if(args.aux_settings['using_default_cmap'] and not args.running_from_GUI):
         print (2 * indent + 'Tip: You can try different colormaps by either:')
         print (2 * indent + '     * Running the plot tool with "-icmap n", ' \
-               'with n in the range from 0 to', len(plot.plot_options.cmaps) - 1)
+               'with n in the range from 0 to', 
+               len(args.aux_settings['cmaps']) - 1)
         print (2 * indent + 
                '     * Running the plot tool with the option "-cmap cmap_name".')
         print (2 * indent + '> Take a look at')

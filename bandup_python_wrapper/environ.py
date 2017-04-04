@@ -16,6 +16,9 @@
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import sys
+import matplotlib as mpl
+
+original_matplotlib_backend = mpl.get_backend()
 
 try:
     bandup_dir = os.environ['BANDUPDIR']
@@ -36,5 +39,6 @@ plot_script = os.path.join(plot_path, "plot_unfolded_EBS_BandUP.py")
 sys.path.insert(0, os.path.dirname(plot_script))
 
 working_dir = os.getcwd()
+#working_dir = os.path.abspath(os.path.dirname(sys.argv[0]))
 BandUp_exe = os.path.join(bandup_dir, "BandUP_bin", "BandUP.x")
 

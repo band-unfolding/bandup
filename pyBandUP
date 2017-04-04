@@ -15,12 +15,15 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+import os
 from bandup_python_wrapper.argparse_wrapper import BandUpPythonArgumentParser
 from bandup_python_wrapper.files import (
     mkdir,
     create_bandup_input,
+    create_bandup_plot_input,
 )
 from bandup_python_wrapper.runners import run_bandup
+from bandup_python_wrapper.plot import BandUpPlot, make_plot
 
 parser = BandUpPythonArgumentParser()
 args = parser.parse_args()
@@ -30,12 +33,13 @@ if(args.main_task=='unfold'):
     create_bandup_input(args)
     run_bandup(args)
 elif(args.main_task=='plot'):
-    print args.clip_spin
-    #plot = BandUpPlot(parser)
+    mkdir(args.plotdir,  True)
+    create_bandup_plot_input(args)
+    os.chdir(args.plotdir)
+    plot = BandUpPlot(args)
+    make_plot(plot)
 elif(args.main_task=='pre-unfold'):
    pass
 else:
     print 'Task "%s" not available.'%(args.main_task)
-
-
 

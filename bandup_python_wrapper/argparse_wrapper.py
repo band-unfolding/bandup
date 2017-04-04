@@ -31,6 +31,7 @@ from .figs import (
     get_available_cmaps,
     set_default_fig_format,
 )
+from .warnings_wrapper import warnings
 
 def get_bandup_registered_clas(bandup_path=bandup_dir):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
@@ -63,8 +64,6 @@ def get_bandup_registered_clas(bandup_path=bandup_dir):
 
 class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        if('remove_conflicts_with_bandup' in kwargs): 
-            del kwargs['remove_conflicts_with_bandup']
         if('formatter_class') not in kwargs:
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         if('add_help' not in kwargs): kwargs['add_help'] = False
@@ -97,8 +96,6 @@ class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
 
 class BandUpArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        if('remove_conflicts_with_bandup' in kwargs): 
-            del kwargs['remove_conflicts_with_bandup']
         if('formatter_class') not in kwargs:
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         if('add_help' not in kwargs): kwargs['add_help'] = False
@@ -202,38 +199,18 @@ class BandUpArgumentParser(argparse.ArgumentParser):
                     argv.append(val)
         return argv
 
+
 class BandUpPlotArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
-        remove_conflicts_with_bandup = False
-        if('remove_conflicts_with_bandup' in kwargs):
-            remove_conflicts_with_bandup = kwargs['remove_conflicts_with_bandup']
-            del kwargs['remove_conflicts_with_bandup']
-        if(remove_conflicts_with_bandup):
-            kwargs['add_help'] = False
         super(BandUpPlotArgumentParser, self).__init__(*args, **kwargs)
 
+        # Non-argument definitions
         self.aux_settings = {}
-        self.add_argument('input_file', default='unfolded_EBS_symmetry-averaged.dat', 
-                          nargs='?', help='Name of the input file.')
-        self.add_argument('output_file', nargs='?', default=None, 
-                           help='%s %s %s'%('Optional: Name of the output file.', 
-                                            'If not given, it will be based on',
-                                            'the name of the input file.'))
-        self.add_argument('-kpts', '--kpoints_file', default='KPOINTS_prim_cell.in', 
-                          help=('Name of the file containing information' + 
-                                'about the primitive cell k-points. '+
-                                 'Default: KPOINTS_prim_cell.in'))
-        if(not remove_conflicts_with_bandup):
-            self.add_argument('-pc_file', '--prim_cell_file', 
-                              default='prim_cell_lattice.in', 
-                              help=('Name of the file containing information'
-                                    'about the primitive cell lattice vectors. ' +
-                                    'Default: prim_cell_lattice.in'))
-        self.add_argument('-efile', '--energy_info_file', default='energy_info.in', 
-                          help=('Name of the file containing information about ' +
-                                'the energy grid and Fermi energy to be used. ' +
-                                'Default: energy_info.in. '
-                                'This file is optional for the plotting tool.'))
+        mpl_colors = get_matplotlib_color_names()
+        linestyles = ['solid', 'dashed', 'dashdot', 'dotted', '-', '--', '-.', ':']
+        # File format of the output figure
+        # Change the following line if you want another format to be the default.
+        self.aux_settings['default_fig_format'] = set_default_fig_format('tiff') 
         # Colormaps
         self.aux_settings['cmap_names'],self.aux_settings['cmaps']=get_available_cmaps() 
         # Change self.aux_settings['default_cmap'] if you want 
@@ -242,6 +219,63 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         self.aux_settings['default_cmap'] = 'gist_ncar' 
         if('gist_ncar' not in self.aux_settings['cmap_names']):
             self.aux_settings['default_cmap'] = self.aux_settings['cmap_names'][0]
+
+        # Argument groups
+        kptgrid_args = self.add_argument_group('Options controlling the kpt grid')
+        efermi_args = self.add_argument_group('Fermi energy line options')
+        graph_args = self.add_argument_group('Graph appearance')
+        spinor_args = self.add_argument_group('Spinor-related options')
+        hsline_args = self.add_argument_group('High-symmetry line options')
+        egrid_args = self.add_argument_group('Options controlling the energy grid')
+        cbar_args = self.add_argument_group('Colorbar options')
+        colormap_args = self.add_argument_group('Options controlling colormap settings')
+        output_files_args = self.add_argument_group('Output file options')
+        input_files_args = self.add_argument_group('Input file options')
+
+        # Mandatory and optional input configs
+        input_files_args.add_argument('input_file', 
+                                      default='unfolded_EBS_symmetry-averaged.dat', 
+                                      nargs='?', help='Name of the input file.')
+        input_files_args.add_argument('-kpts', '--kpoints_file', '-pckpts_file',
+                                      default='KPOINTS_prim_cell.in', metavar='FILE',
+                                      help=('Name of the file containing information' + 
+                                            'about the primitive cell k-points. '+
+                                             'Default: KPOINTS_prim_cell.in'))
+        input_files_args.add_argument('-pc_file', '--prim_cell_file', metavar='FILE', 
+                                      default='prim_cell_lattice.in', 
+                                      help=('Name of the file containing information'
+                                            'about the primitive cell lattice vectors. '+
+                                            'Default: prim_cell_lattice.in'))
+        input_files_args.add_argument('-efile', '--energy_info_file', '-energy_file',
+                                      default='energy_info.in', metavar='FILE', 
+                          help=('Name of the file containing information about '+
+                                'the energy grid and Fermi energy to be used. '+
+                                'Default: energy_info.in. '
+                                'This file is optional for the plotting tool.'))
+
+        # Deciding how to output results
+        output_files_args.add_argument('output_file', nargs='?', default=None, 
+                                  help='%s %s %s'%('Optional: Name of the output file.', 
+                                            'If not given, it will be based on',
+                                            'the name of the input file.'))
+        output_files_args.add_argument('--save', action='store_true', default=False, 
+                                       help='Saves the figue to a file. Default: False')
+        output_files_args.add_argument('--show', action='store_true', default=False, 
+           help='Shows the figue. Default: False if --save is selected, True otherwise.')
+        output_files_args.add_argument('--saveshow', action='store_true', default=False, 
+                          help='Saves the figue to a file and opens the saved file'
+                               'instead of creating a pyplot window. Default: False')
+        output_files_args.add_argument('-res', '--fig_resolution', default='m', 
+                                       choices=['l','m','h'],
+                                       help='Resolution of the figure:' 
+                                       'l = 100 dpi, m = 300 dpi, h = 600 dpi.'
+                                       'Default: m = 300 dpi')
+        output_files_args.add_argument('-fmt', '--file_format', 
+                                       default=self.aux_settings['default_fig_format'],
+                                       help='File format of the figure. Default: ' +
+                                       self.aux_settings['default_fig_format'])
+
+        # Colormap stuff
         self.possible_cmap_choices = self.add_mutually_exclusive_group()
         self.possible_cmap_choices.add_argument('-cmap', '--colormap', default=None, 
                                                 choices=self.aux_settings['cmap_names'], 
@@ -252,63 +286,56 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
                              choices=range(len(self.aux_settings['cmap_names'])), 
                              help='Choice of colormap for the plots (integer number).', 
                              metavar='0~'+str(len(self.aux_settings['cmap_names']) - 1))
-        # E-Fermi and high-symm lines
-        mpl_colors = get_matplotlib_color_names()
-        self.add_argument('--high_symm_linecolor', default=None, choices=mpl_colors, 
+
+        # High-symm lines
+        hsline_args.add_argument('--high_symm_linecolor', default=None, 
+                                 choices=mpl_colors, 
            help='Color of the lines marking the positions of the high-symmetry points.', 
-                 metavar='some_matplotlib_color_name')
-        self.add_argument('--e_fermi_linecolor', default=None, choices=mpl_colors, 
-                          help='Color of the Fermi energy line.', 
-                          metavar='some_matplotlib_color_name')
-        self.add_argument('--line_width_E_f', type=float, default=None)
-        self.add_argument('--line_width_high_symm_points', type=float, default=None)
-        linestyles = ['solid', 'dashed', 'dashdot', 'dotted', '-', '--', '-.', ':']
-        self.add_argument('--line_style_high_symm_points', default=None, 
-                          choices=linestyles)
-        self.add_argument('--line_style_E_f', default=None, choices=linestyles)
-        self.add_argument('--tick_marks_size', type=float, default=8.0)
+           metavar='some_matplotlib_color_name')
+        hsline_args.add_argument('--line_width_high_symm_points', type=float, 
+                                 default=None)
+        hsline_args.add_argument('--line_style_high_symm_points', default=None, 
+                                 choices=linestyles)
+        hsline_args.add_argument('--no_symm_lines', action='store_true', 
+                                 help='Hides the high-symmetry lines.')
+        hsline_args.add_argument('--no_symm_labels', action='store_true',
+                                 help='Hides the high-symmetry labels.')
+        # E-Fermi line
+        efermi_args.add_argument('--e_fermi_linecolor', default=None, 
+                                 choices=mpl_colors, 
+                                 help='Color of the Fermi energy line.', 
+                                 metavar='SOME_MATPLOTLIB_COLOR_NAME')
+        efermi_args.add_argument('--line_width_E_f', type=float, default=None,
+                                  metavar='WIDTH')
+        efermi_args.add_argument('--line_style_E_f', default=None, choices=linestyles)
+        efermi_args.add_argument('--no_ef', action='store_true',
+                                 help='Hides the E-Fermi line.')
 
-        self.add_argument('--save', action='store_true', default=False, 
-                          help='Saves the figue to a file. Default: False')
-        self.add_argument('--show', action='store_true', default=False, 
-           help='Shows the figue. Default: False if --save is selected, True otherwise.')
-        self.add_argument('--saveshow', action='store_true', default=False, 
-                          help='Saves the figue to a file and opens the saved file'
-                               'instead of creating a pyplot window. Default: False')
-        self.add_argument('-res', '--fig_resolution', default='m', choices=['l','m','h'],
-                          help='Resolution of the figure:' 
-                               'l = 100 dpi, m = 300 dpi, h = 600 dpi.'
-                               'Default: m = 300 dpi')
-        self.add_argument('--disable_auto_round_vmin_and_vmax', action='store_true', 
-                          help='Disable normalization of the vmin and vmax of '
-                               'the color scale to integer numbers.')
+        # Appearance of figure
+        graph_args.add_argument('--tick_marks_size', type=float, default=8.0,
+                                metavar='SIZE')
 
-        # File format of the output figure
-        # Change the following line if you want another format to be the default.
-        self.aux_settings['default_fig_format'] = set_default_fig_format('tiff') 
-        self.add_argument('-fmt', '--file_format', 
-                          default=self.aux_settings['default_fig_format'],
-                          help='File format of the figure. Default: ' +
-                               self.aux_settings['default_fig_format'])
-
+        graph_args.add_argument('--disable_auto_round_vmin_and_vmax', 
+                                action='store_true', 
+                                help='Disable normalization of the vmin and vmax of '
+                                     'the color scale to integer numbers.')
+        graph_args.add_argument('-ar', '--aspect_ratio', 
+                                type=type(Fraction('3/4')), 
+                                default=Fraction('3/4'), 
+                                help='Aspect ratio of the generated plot. Default: 3/4')
+        graph_args.add_argument('-interp', '--interpolation', default=None, 
+                               choices=['nearest', 'linear', 'cubic'], 
+                               help='Interpolation scheme used. Default: nearest')
+        graph_args.add_argument('-nlev', '--n_levels', type=int, default=101, 
+                              help='Number of different levels used in the contour plot.'
+                               'Default: 101')
         self.possible_fig_orientations = self.add_mutually_exclusive_group()
         self.possible_fig_orientations.add_argument('--landscape', action='store_true', 
                                                     default=False)
         self.possible_fig_orientations.add_argument('--portrait', action='store_true', 
                                                     default=False)
 
-        self.add_argument('-ar', '--aspect_ratio', type=type(Fraction('3/4')), 
-                          default=Fraction('3/4'), 
-                          help='Aspect ratio of the generated plot. Default: 3/4')
-        self.add_argument('--no_ef', action='store_true',help='Hides the E-Fermi line.')
-
-        self.add_argument('--no_symm_lines', action='store_true', 
-                          help='Hides the high-symmetry lines.')
-        self.add_argument('--no_symm_labels', action='store_true',
-                          help='Hides the high-symmetry labels.')
-        self.add_argument('--no_cb', action='store_true',help='Hides the colorbar.')
-
-
+        # Spinor/spin stuff
         self.plot_spin_projections = self.add_mutually_exclusive_group()
         self.plot_spin_projections.add_argument('--plot_sigma_x', action='store_true', 
                                                 default=False)
@@ -320,45 +347,45 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
                                                 default=False)
         self.plot_spin_projections.add_argument('--plot_spin_para', action='store_true',
                                                  default=False)
-        self.add_argument('--clip_spin', type=float, default=None)
-        self.add_argument('--spin_marker', default='_', choices=['_', 'o'])
+        spinor_args.add_argument('--clip_spin', type=float, default=None,
+                                 metavar='VALUE')
+        spinor_args.add_argument('--spin_marker', default='_', choices=['_', 'o'])
 
+        # Kpt grid
+        kptgrid_args.add_argument('-kmin', type=float, default=None)
+        kptgrid_args.add_argument('-kmax', type=float, default=None)
+        kptgrid_args.add_argument('-shift_k', '--shift_kpts_coords', 
+                                  type=float, default=0.0, metavar='SHIFT', 
+                                  help='Shift in the k-points. Default: 0.0')
+        # Energy grid
+        egrid_args.add_argument('-emin', type=float, default=None)
+        egrid_args.add_argument('-emax', type=float, default=None)
+        egrid_args.add_argument('-dE', type=float, default=None, metavar='dE_VAL')
+        egrid_args.add_argument('-shift_e', '--shift_energy', type=float, default=0.0,
+                                metavar='SHIFT',
+                                help='Shift in the energy grid. Default: 0.0')
 
-        self.add_argument('-nlev', '--n_levels', type=int, default=101, 
-                          help='Number of different levels used in the contour plot.'
-                               'Default: 101')
-        self.add_argument('-kmin', type=float, default=None)
-        self.add_argument('-kmax', type=float, default=None)
-        self.add_argument('-shift_k', '--shift_kpts_coords', type=float, default=0.0, 
-                          help='Shift in the k-points. Default: 0.0')
-
-        self.add_argument('-emin', type=float, default=None)
-        self.add_argument('-emax', type=float, default=None)
-        self.add_argument('-dE', type=float, default=None)
-        self.add_argument('-shift_e', '--shift_energy', type=float, default=0.0,
-                          help='Shift in the energy grid. Default: 0.0')
-
-        self.add_argument('-interp', '--interpolation', default=None, 
-                          choices=['nearest', 'linear', 'cubic'], 
-                          help='Interpolation scheme used. Default: nearest')
-
-        self.add_argument('-vmin', '--minval_for_colorbar', type=float, 
-                          help='Value to which the first color of the colormap'
+        # Colorbar
+        cbar_args.add_argument('--no_cb', action='store_true',help='Hides the colorbar.')
+        cbar_args.add_argument('-vmin', '--minval_for_colorbar', type=float, 
+                               metavar='VAL',
+                               help='Value to which the first color of the colormap'
                                'will be normalized.')
-        self.add_argument('-vmax', '--maxval_for_colorbar', type=float, 
-                          help='Value to which the last color of the colormap '
+        cbar_args.add_argument('-vmax', '--maxval_for_colorbar', type=float,
+                               metavar='VAL',
+                               help='Value to which the last color of the colormap '
                                'will be normalized.')
-        self.add_argument('--round_cb', type=int, default=1, 
-                          help='Number of decimal digits displayed'
+        cbar_args.add_argument('--round_cb', type=int, default=1, 
+                               metavar='NDEC',
+                               help='Number of decimal digits displayed'
                                'in the colobar ticks.')
-
         self.show_cb_label_options = self.add_mutually_exclusive_group()
         self.show_cb_label_options.add_argument('--cb_label', action='store_true', 
                                                 help='Show the colorbar label.')
         self.show_cb_label_options.add_argument('--cb_label_full', action='store_true', 
                                                 help='Show the colorbar label (full).')
-
         
+        # Args not intended to be passed directly by users
         self.add_argument('--skip_grid_freq_clip', action='store_true', 
                           help=argparse.SUPPRESS)
         # Flag to know if this script has been called by the GUI
@@ -377,8 +404,8 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         args.aux_settings = self.aux_settings
         if(args.icolormap is not None):
             args.colormap = self.aux_settings['cmap_names'][args.icolormap]
-        self.using_default_cmap = args.colormap is None
-        if(self.using_default_cmap):
+        args.aux_settings['using_default_cmap'] = args.colormap is None
+        if(args.aux_settings['using_default_cmap']):
             args.colormap = self.aux_settings['default_cmap']
 
         if(args.saveshow):
@@ -449,7 +476,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                                      'Options available'+
                                      ' only through this Python interface')
         bandup_plot_extra_opts.add_argument('-plotdir', 
-            default=os.path.join(working_dir,"plots"),
+            default=defaults['plot_dir'],
             help='Directory where plot will be saved')
         bandup_plot_extra_opts.add_argument('-results_dir', 
                                             default=defaults['results_dir'],
@@ -485,15 +512,17 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         # Argparse calls parse_known_args when we call parse_args, so we only need
         # to override this one
 
-        # Finding 1st positional arg passed to program. This will be used to handle the 
+        # Positional args passed to program. This will be used to handle the 
         # "no subparser selected" and set task to self.default_main_task in this case
+        positional_args = []
         first_positional_arg = None
         i_first_pos_arg = None
         for iarg, arg in enumerate(sys.argv[1:]):
-            if(not arg.startswith('-')): 
-                first_positional_arg = arg
-                i_first_pos_arg = iarg + 1
-                break
+            if(arg.startswith('-')): break 
+            positional_args.append(arg)
+        if(positional_args): 
+            first_positional_arg = positional_args[0]
+            i_first_pos_arg = iarg
 
         # To allow abbreviations in the task names:
         if(first_positional_arg is not None):
@@ -545,7 +574,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
         # Now finally parsing args
         args, unknown_args = (
-            super(BandUpPythonArgumentParser, self).parse_known_args(*fargs, **fkwargs))
+            super(BandUpPythonArgumentParser, self).parse_known_args(
+                                                        *fargs, **fkwargs))
         args = self.filter_args(args) 
 
         return args, unknown_args
@@ -570,6 +600,20 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
+            args.positional_args = []
+            for arg in sys.argv[2:]:
+                if(arg.startswith('-')): break
+                args.positional_args.append(arg)
+            for argname in vars(args):
+                if(argname.startswith('_')): continue
+                argval = getattr(args, argname)
+                try:
+                    if('file' not in argname): continue
+                    if(os.path.basename(argval)==argval): continue
+                    new_argval = os.path.abspath(os.path.relpath(argval, working_dir))
+                    setattr(args, argname, new_argval)
+                except(AttributeError):
+                    pass
         elif(args.main_task == 'pre-unfold'):
             subparser = self.bandup_pre_unf_parser
 

@@ -5,6 +5,7 @@ import sys
 from .environ import BandUp_exe
 
 def run_bandup(args):
+    start_dir = os.getcwd()
     # Running BandUP
     os.chdir(args.results_dir)
     bandup_run_options = [BandUp_exe] + args.argv
@@ -13,3 +14,4 @@ def run_bandup(args):
         for line in iter(bandup_run.stdout.readline, ''):
             sys.stdout.write(line)
             f.write(line)
+    os.chdir(start_dir)

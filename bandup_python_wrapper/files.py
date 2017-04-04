@@ -230,3 +230,98 @@ def create_bandup_input(args):
 
 
 
+def create_bandup_plot_input(args):
+    origin2dest = {}
+    # Energy file
+    if(args.dE is None):
+        # The other related options will have been garanteed to be None when
+        # parsing the arguments
+        efile_passed = (
+            len(set(['-efile', '--energy_info_file','-energy_file']
+                   ).intersection(sys.argv[1:])
+               )>0
+        )
+        if(efile_passed):
+            fpath = getattr(args, 'energy_file')
+            new_fpath = None
+        else:
+            new_fpath = os.path.join(args.plotdir, 'energy_info.in').strip()
+            fpath = os.path.join(args.results_dir, 'energy_info.in')
+            if(not os.path.isfile(fpath)):
+                fpath = os.path.join(working_dir, 'energy_info.in')
+        fpath = fpath.strip()
+        origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
+    else:
+        # The other related options will have been garanteed not to be None when
+        # parsing the arguments
+        energy_info_file = os.path.join(args.plotdir, 'energy_info.in')
+        energy_info_file_contents = OrderedDict([("E_Fermi",args.efermi),
+                                                 ("emin",args.emin),
+                                                 ("emax",args.emax),
+                                                 ("dE",args.dE)])
+        with open(energy_info_file, 'w') as f:
+            for k,v in energy_info_file_contents.iteritems():
+                f.write("%.5f  ! %s \n"%(v,k))
+
+    # PC, SC and PC-KPT files
+    input_file_args_var_names = ['pckpts_file', 'pc_file']
+    var_names = {'pckpts_file':'kpoints_file', 'pc_file':'prim_cell_file'}
+    for arg_name in input_file_args_var_names:
+        argval = getattr(args, var_names[arg_name]).strip()
+        default = args.default_values[var_names[arg_name]].strip()
+        using_default = argval==default
+        if(not using_default):
+            fpath = os.path.abspath(os.path.relpath(argval, working_dir))
+            new_fpath = None
+        else:
+            if(not os.path.exists(args.results_dir)):
+                raise ValueError('Results directory "%s" could not be found'%(
+                                 args.results_dir)) 
+            default_fname = args.default_values[var_names[arg_name]]
+            fpath = os.path.join(args.results_dir, default)
+            new_fpath = os.path.join(args.plotdir, default).strip()
+        fpath = fpath.strip()
+        origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
+
+    if(args.positional_args):
+        fpath = args.positional_args[0].strip()
+        fpath = os.path.abspath(os.path.relpath(fpath, working_dir))
+        new_fpath = None
+    else:
+        fpath = os.path.join(args.results_dir, args.default_values['input_file'])
+        new_fpath = os.path.join(args.plotdir, args.default_values['input_file'])
+    origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
+
+    # Creating/verifying files
+    # Wavefunction files will not be copied. Symlinks will be made in this case
+    for source, dest_properties in origin2dest.iteritems():
+        assert_valid_path(source)
+        dest = dest_properties['dest']
+        to_be_copied = dest_properties['copy']
+        try:
+            if(not to_be_copied):
+                os.symlink(source, dest)
+            else:
+                if(os.path.exists(dest)): raise OSError
+                shutil.copy(source, dest) 
+        except(TypeError):
+            if(dest is None):
+                # If the user has requested a file in a specific location, in which case
+                # it will be accessed directly rather than through a symlink/copy 
+                pass
+            else:
+                raise
+        except(OSError):
+            if(args.overwrite and (dest!=source)): 
+                rmfile(source)
+                os.symlink(source, dest)
+                warnings.warn('The file "%s" has been overwritten!'%(
+                               os.path.basename(dest))) 
+            elif(args.overwrite):
+                warnings.warn('File "%s" not overwritten: Source = dest!'%(
+                               os.path.basename(dest)))
+            else:
+                warnings.warn('File "%s" already exists and will be used! '%(
+                               os.path.basename(dest))+
+                              'Please use "--overwrite" if you want to '+
+                              'overwrite it.')
