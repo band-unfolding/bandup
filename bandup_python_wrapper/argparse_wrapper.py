@@ -16,10 +16,21 @@
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import os
-from bandup_python_wrapper.environ import *
-from bandup_python_wrapper.files import continuation_lines
-from bandup_python_wrapper.figs import *
+from fractions import Fraction
 from collections import OrderedDict
+import sys
+# Imports from within the package
+from .environ import (
+    bandup_dir,
+    working_dir,
+)
+from .defaults import defaults
+from .files import continuation_lines
+from .figs import (
+    get_matplotlib_color_names,
+    get_available_cmaps,
+    set_default_fig_format,
+)
 
 def get_bandup_registered_clas(bandup_path=bandup_dir):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
@@ -200,7 +211,7 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
             kwargs['add_help'] = False
         super(BandUpPlotArgumentParser, self).__init__(*args, **kwargs)
 
-        self.indent = 4 * ' '
+        self.aux_settings = {}
         self.add_argument('input_file', default='unfolded_EBS_symmetry-averaged.dat', 
                           nargs='?', help='Name of the input file.')
         self.add_argument('output_file', nargs='?', default=None, 
@@ -223,24 +234,25 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
                                 'Default: energy_info.in. '
                                 'This file is optional for the plotting tool.'))
         # Colormaps
-        self.cmap_names, self.cmaps = get_available_cmaps() 
-        # Change self.default_cmap if you want another colormap to be the default one. 
-        # I used 'gist_ncar' in my paper. 
-        self.default_cmap = 'gist_ncar' 
-        if('gist_ncar' not in self.cmap_names):
-            self.default_cmap = self.cmap_names[0]
+        self.aux_settings['cmap_names'],self.aux_settings['cmaps']=get_available_cmaps() 
+        # Change self.aux_settings['default_cmap'] if you want 
+        # another colormap to be the default one. 
+        # I used 'gist_ncar' in my 2014 PRB(R) paper. 
+        self.aux_settings['default_cmap'] = 'gist_ncar' 
+        if('gist_ncar' not in self.aux_settings['cmap_names']):
+            self.aux_settings['default_cmap'] = self.aux_settings['cmap_names'][0]
         self.possible_cmap_choices = self.add_mutually_exclusive_group()
         self.possible_cmap_choices.add_argument('-cmap', '--colormap', default=None, 
-                                                choices=self.cmap_names, 
+                                                choices=self.aux_settings['cmap_names'], 
                         help='Choice of colormap for the plots (name of the colormap).'
                              'You might want to try a few.', metavar='colormap_name')
         self.possible_cmap_choices.add_argument('-icmap', '--icolormap', type=int, 
-                                                default=None, 
-                                                choices=range(len(self.cmap_names)), 
+                             default=None, 
+                             choices=range(len(self.aux_settings['cmap_names'])), 
                              help='Choice of colormap for the plots (integer number).', 
-                                   metavar='0~'+str(len(self.cmap_names) - 1))
+                             metavar='0~'+str(len(self.aux_settings['cmap_names']) - 1))
         # E-Fermi and high-symm lines
-        mpl_colors = sorted(mpl.colors.cnames.keys())
+        mpl_colors = get_matplotlib_color_names()
         self.add_argument('--high_symm_linecolor', default=None, choices=mpl_colors, 
            help='Color of the lines marking the positions of the high-symmetry points.', 
                  metavar='some_matplotlib_color_name')
@@ -272,10 +284,11 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
 
         # File format of the output figure
         # Change the following line if you want another format to be the default.
-        self.default_fig_format = set_default_fig_format('tiff') 
-        self.add_argument('-fmt', '--file_format', default=self.default_fig_format,
+        self.aux_settings['default_fig_format'] = set_default_fig_format('tiff') 
+        self.add_argument('-fmt', '--file_format', 
+                          default=self.aux_settings['default_fig_format'],
                           help='File format of the figure. Default: ' +
-                               self.default_fig_format)
+                               self.aux_settings['default_fig_format'])
 
         self.possible_fig_orientations = self.add_mutually_exclusive_group()
         self.possible_fig_orientations.add_argument('--landscape', action='store_true', 
@@ -360,19 +373,21 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         args = self.filter_args_plot(args)
         return args, unknown_args
     def filter_args_plot(self, args):
+        args.aux_settings = self.aux_settings
         if(args.icolormap is not None):
-            args.colormap = self.cmap_names[args.icolormap]
+            args.colormap = self.aux_settings['cmap_names'][args.icolormap]
         self.using_default_cmap = args.colormap is None
         if(self.using_default_cmap):
-            args.colormap = self.default_cmap
+            args.colormap = self.aux_settings['default_cmap']
 
         if(args.saveshow):
             args.save = True
 
         if(args.output_file is not None):
             args.output_file =(
-                abspath(output_file_with_supported_extension(args.output_file, 
-                                                             self.default_fig_format
+                abspath(
+                    output_file_with_supported_extension(
+                        args.output_file, self.aux_settings['default_fig_format']
                                                             )
                        )
             )
@@ -385,6 +400,7 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         args.aspect_ratio = float(args.aspect_ratio)
         if(args.aspect_ratio > 1.0):
             args.aspect_ratio = 1.0 / args.aspect_ratio
+
         return args
 
 class BandUpPythonArgumentParser(argparse.ArgumentParser):
@@ -402,13 +418,16 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         self.allowed_tasks['pre_unfold'] = {'subparser_name':'bandup',
                                             'help':"Runs BandUP's pre-unfolding tool "+
                                             "to get the SC-KPTs needed for unfolding.",
-                                            'parents':[self.bandup_pre_unf_parser]}
+                                            'parents':[self.bandup_pre_unf_parser],
+                                         'parent_class':BandUpPreUnfoldingArgumentParser}
         self.allowed_tasks['unfold'] = {'subparser_name':'bandup',
                                         'help':"Runs BandUP's main code",
-                                        'parents':[self.bandup_parser]}
+                                        'parents':[self.bandup_parser],
+                                        'parent_class':BandUpArgumentParser}
         self.allowed_tasks['plot'] = {'subparser_name':'bandup_plot',
                                       'help':"Plots BandUP's output files.",
-                                      'parents':[self.bandup_plot_parser]}
+                                      'parents':[self.bandup_plot_parser],
+                                      'parent_class':BandUpPlotArgumentParser}
         self.default_main_task = 'unfold'
 
         # Implementing each task with a different subparser
@@ -431,7 +450,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         bandup_plot_extra_opts.add_argument('-plotdir', 
             default=os.path.join(working_dir,"plots"),
             help='Directory where plot will be saved')
-        bandup_plot_extra_opts.add_argument('-results_dir', default=default_results_dir,
+        bandup_plot_extra_opts.add_argument('-results_dir', 
+                                            default=defaults['results_dir'],
             help='Dir where BandUP was run.')
         bandup_plot_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
@@ -439,12 +459,12 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         bandup_extra_opts = self.bandup_subparser.add_argument_group('Options available'+
                                                  ' only through this Python interface')
         bandup_extra_opts.add_argument('-wavefunc_calc_dir', 
-                                       default=default_wavefunc_calc_dir,
+                                       default=defaults['wavefunc_calc_dir'],
             help='Directory where the WFs to be unfolded are stored.')
         bandup_extra_opts.add_argument('-self_consist_calc_dir', 
-                                       default=default_self_consist_calc_dir,
+                                       default=defaults['self_consist_calc_dir'],
             help='Dir containing the self-consistent calc files.')
-        bandup_extra_opts.add_argument('-results_dir', default=default_results_dir,
+        bandup_extra_opts.add_argument('-results_dir', default=defaults['results_dir'],
             help='Dir where the BandUP will be run.')
         bandup_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
@@ -470,7 +490,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         for arg in sys.argv[1:]:
             if(not arg.startswith('-')): 
                 first_positional_arg = arg
-                continue 
+                break
         # Defining 'unfold' as default task
         task_defined = first_positional_arg in self.allowed_tasks
         help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
@@ -514,7 +534,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         if(args.main_task == 'unfold'):
             subparser = self.bandup_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
-            args.argv = self.bandup_parser.get_argv(args, run_dir=args.results_dir)
+            args.argv = subparser.get_argv(args, run_dir=args.results_dir)
             if(args.castep):
                 if(not args.seed):
                     # Working out the seed
@@ -529,7 +549,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                     args.argv.append(args.seed)
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
-            args = self.bandup_plot_parser.filter_args_plot(args)
+            args = subparser.filter_args_plot(args)
 
         args.default_values = {}
         for arg in dir(args):

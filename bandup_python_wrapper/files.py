@@ -17,7 +17,10 @@
 import os
 import shutil
 import sys
-from bandup_python_wrapper.environ import default_pre_unfolding_inputs_dir
+# Imports from within the package
+from .defaults import defaults
+from .warnings_wrapper import warnings
+
 
 def mkdir(path, ignore_existing=False):
     try:
@@ -113,8 +116,10 @@ def create_bandup_input(args):
         if(not '-%s'%(arg_name) in sys.argv[1:]):
             using_default = True
         if(using_default):
+            if(defaults['pre_unfolding_inputs_dir'] is None):
+                raise ValueError('Default "pre_unfolding_inputs_dir" not defined') 
             default_fname = args.default_values[arg_name]
-            fpath = os.path.join(default_pre_unfolding_inputs_dir, default_fname)
+            fpath = os.path.join(defaults['pre_unfolding_inputs_dir'], default_fname)
             new_fpath = os.path.join(args.results_dir, default_fname)
             rmfile(new_fpath)
             os.symlink(fpath, new_fpath)

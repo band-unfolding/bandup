@@ -1,7 +1,8 @@
-import sys
 from subprocess import Popen, PIPE, STDOUT
 import os
-from bandup_python_wrapper.environ import BandUp_exe
+import sys
+# Imports from within the package
+from .environ import BandUp_exe
 
 def run_bandup(args):
     # Running BandUP

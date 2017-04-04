@@ -19,10 +19,12 @@ import matplotlib as mpl
 #        mpl.use must be called before importing pyplot
 mpl.use('Agg')
 from matplotlib import pyplot as plt
-from fractions import Fraction
-import sys
-from bandup_python_wrapper.environ import plot_path
+# Imports from within the package
+from .environ import plot_path
 
+
+def get_matplotlib_color_names():
+    return sorted(mpl.colors.cnames.keys())
 
 def get_available_cmaps():
     colormap_names = sorted(plt.cm.datad.keys(), key=lambda s: s.lower())
