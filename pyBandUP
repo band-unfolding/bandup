@@ -32,6 +32,10 @@ if(args.main_task=='unfold'):
 elif(args.main_task=='plot'):
     print args.clip_spin
     #plot = BandUpPlot(parser)
+elif(args.main_task=='pre-unfold'):
+   pass
+else:
+    print 'Task "%s" not available.'%(args.main_task)
 
 
 

@@ -146,6 +146,7 @@ class BandUpArgumentParser(argparse.ArgumentParser):
                 egrid_args.add_argument(arg_name, help=arg_help, metavar='FILE',
                                           **parser_remaining_kwargs)
             elif('-out' in arg_name):
+                if('out_sckpts_file' in arg_name): continue # Pre-unf utility only
                 output_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
                                                **parser_remaining_kwargs)
             elif('file' in arg_name):
@@ -415,7 +416,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
         # Defining available tasks and setting the default one to 'unfolding'
         self.allowed_tasks = OrderedDict()
-        self.allowed_tasks['pre_unfold'] = {'subparser_name':'bandup',
+        self.allowed_tasks['pre-unfold'] = {'subparser_name':'bandup',
                                             'help':"Runs BandUP's pre-unfolding tool "+
                                             "to get the SC-KPTs needed for unfolding.",
                                             'parents':[self.bandup_pre_unf_parser],
@@ -487,10 +488,26 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         # Finding 1st positional arg passed to program. This will be used to handle the 
         # "no subparser selected" and set task to self.default_main_task in this case
         first_positional_arg = None
-        for arg in sys.argv[1:]:
+        i_first_pos_arg = None
+        for iarg, arg in enumerate(sys.argv[1:]):
             if(not arg.startswith('-')): 
                 first_positional_arg = arg
+                i_first_pos_arg = iarg + 1
                 break
+
+        # To allow abbreviations in the task names:
+        if(first_positional_arg is not None):
+            n_compat_choices = 0
+            compatible_task = None
+            for allowed_task in self.allowed_tasks:
+                if(first_positional_arg==allowed_task[:len(first_positional_arg)]):
+                    n_compat_choices += 1
+                    compatible_task = allowed_task
+            if(n_compat_choices!=1): compatible_task = None
+            if(compatible_task is not None): 
+                first_positional_arg = compatible_task
+                sys.argv[i_first_pos_arg] = first_positional_arg
+
         # Defining 'unfold' as default task
         task_defined = first_positional_arg in self.allowed_tasks
         help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
@@ -553,10 +570,16 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
-        if(args.efermi is None): 
-            args.efermi = get_efermi(args)
-            if(args.efermi is None):
-                warnings.warn('Could not get E-Fermi!') 
+        elif(args.main_task == 'pre-unfold'):
+            subparser = self.bandup_pre_unf_parser
+
+        try:
+            if(args.efermi is None): 
+                args.efermi = get_efermi(args)
+                if(args.efermi is None):
+                    warnings.warn('Could not get E-Fermi!') 
+        except(AttributeError):
+            pass
 
         args.default_values = {}
         for arg in dir(args):
