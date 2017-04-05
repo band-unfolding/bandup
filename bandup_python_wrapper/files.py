@@ -132,6 +132,19 @@ def get_efermi(args):
     return efermi
 
 
+def guess_castep_seed(args):
+    guessed_seed = None
+    try:
+        bands_file = [os.path.join(args.self_consist_calc_dir,fname) for 
+                      fname in
+                      os.listdir(args.self_consist_calc_dir) if
+                      fname.endswith('.bands')][0]
+        guessed_seed = os.path.splitext(os.path.basename(bands_file))[0]
+    except(IndexError):
+        pass
+    return guessed_seed
+
+
 def create_bandup_input(args):
     origin2dest = {}
     # Energy file

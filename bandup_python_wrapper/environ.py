@@ -27,7 +27,6 @@ ideal_bandup_src_dir_is_valid = os.path.isfile(
                                     os.path.join(ideal_bandup_src_dir,'main_BandUP.f90')
                                 )
 ideal_bandup_dir_is_valid = ideal_bandup_src_dir_is_valid
-print ideal_bandup_dir
 try:
     bandup_dir = os.environ['BANDUPDIR']
     bandup_dir_accessible = os.access(bandup_dir, os.R_OK)

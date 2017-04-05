@@ -25,7 +25,7 @@ from .environ import (
     working_dir,
 )
 from .defaults import defaults
-from .files import continuation_lines, get_efermi, valid_path
+from .files import continuation_lines, get_efermi, valid_path, guess_castep_seed
 from .figs import (
     get_matplotlib_color_names,
     get_available_cmaps,
@@ -33,6 +33,24 @@ from .figs import (
 )
 from .warnings_wrapper import warnings
 from .sysargv import arg_passed
+
+
+class StoreAbsPath(argparse.Action):
+    """ Action to store an absolute path derived from the passed relative path. 
+
+        It is useful to remember that
+        argparse does not use the action when applying the default
+
+    """
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(StoreAbsPath, self).__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        # If the path argument is explicitly passed (i.e., not using its default value),
+        # then it is assumed to be relative to working_dir
+        new_path = os.path.abspath(os.path.relpath(values, working_dir))
+        setattr(namespace, self.dest, new_path)
 
 
 def get_bandup_registered_clas(bandup_path=bandup_dir):
@@ -584,25 +602,21 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             subparser = self.bandup_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
             args.argv = subparser.get_argv(args, run_dir=args.results_dir)
-            if(args.castep):
-                if(not args.seed):
-                    # Working out the seed
-                    bands_file = [os.path.join(args.self_consist_calc_dir,fname) for 
-                                  fname in
-                                  os.listdir(args.self_consist_calc_dir) if
-                                  fname.endswith('.bands')][0]
-                    args.seed = os.path.splitext(os.path.basename(bands_file))[0]
-                    print 'WARNING: Seed not passed as argument. Using "%s".'%(
-                           args.seed)
-                    args.argv.append('-seed')
-                    args.argv.append(args.seed)
+            if(args.castep and not args.seed):
+                args.seed = guess_castep_seed(args)
+                args.argv.append('-seed')
+                args.argv.append(args.seed)
+                warnings.warn('Seed not passed as argument. Using "%s".'%(args.seed))
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
+            # Getting pos args because the plotting tool takes 2: in and out files
             args.positional_args = []
             for arg in sys.argv[2:]:
                 if(arg.startswith('-')): break
                 args.positional_args.append(arg)
+            # Now converting in/out file relative paths to absolute paths
+            # Relative paths are assumed to have been given w.r.t. working_dir
             for argname in vars(args):
                 if(argname.startswith('_')): continue
                 argval = getattr(args, argname)
