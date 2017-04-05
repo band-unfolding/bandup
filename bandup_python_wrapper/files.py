@@ -20,6 +20,7 @@ import sys
 import errno
 from collections import OrderedDict
 from scipy.constants import physical_constants
+import argparse
 # Imports from within the package
 from .defaults import defaults
 from .warnings_wrapper import warnings
