@@ -60,4 +60,4 @@ defaults['sc_file'] = 'supercell_lattice.in'
 
 for k,v in defaults.iteritems():
     if(v is None):
-        warnings.warn('Could not determine default for "%s".'%(k))
+        warnings.warn('Could not set a valid default for "%s".'%(k))

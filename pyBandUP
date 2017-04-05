@@ -23,7 +23,11 @@ from bandup_python_wrapper.files import (
     create_bandup_plot_input,
 )
 from bandup_python_wrapper.runners import run_bandup
-from bandup_python_wrapper.plot import BandUpPlot, make_plot
+from bandup_python_wrapper.plot import (
+    print_opening_message,
+    BandUpPlot, 
+    make_plot,
+)
 
 parser = BandUpPythonArgumentParser()
 args = parser.parse_args()
@@ -33,6 +37,7 @@ if(args.main_task=='unfold'):
     create_bandup_input(args)
     run_bandup(args)
 elif(args.main_task=='plot'):
+    print_opening_message()
     mkdir(args.plotdir,  True)
     create_bandup_plot_input(args)
     os.chdir(args.plotdir)

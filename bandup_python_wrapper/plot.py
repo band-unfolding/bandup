@@ -516,7 +516,7 @@ def print_opening_message():
            '              Post-processing utility "plot_unfolded_EBS_BandUP.py"                   \n'
            '            >>> Visualizing the unfolded EBSs produced by BandUP <<<                  \n'
            '===================================================================================== \n'
-           'Copyright (C) 2013-2016 Paulo V. C. Medeiros*, Jonas Bjork                            \n'
+           'Copyright (C) 2013-2017 Paulo V. C. Medeiros*, Jonas Bjork                            \n'
            '                        pvm20@cam.ac.uk, jonas.bjork@liu.se                           \n'
            '                        Computational Physics Division                                \n'
            '                        Department of Physics, Chemistry and Biology - IFM            \n'
