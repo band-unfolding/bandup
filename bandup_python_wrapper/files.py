@@ -277,9 +277,10 @@ def create_bandup_plot_input(args):
             for k,v in energy_info_file_contents.iteritems():
                 f.write("%.5f  ! %s \n"%(v,k))
 
-    # PC, SC and PC-KPT files
-    input_file_args_var_names = ['pckpts_file', 'pc_file']
-    var_names = {'pckpts_file':'kpoints_file', 'pc_file':'prim_cell_file'}
+    # PC, SC, PC-KPT, and main input files
+    input_file_args_var_names = ['pckpts_file', 'pc_file', 'input_file']
+    var_names = {'pckpts_file':'kpoints_file', 'pc_file':'prim_cell_file',
+                 'input_file':'input_file'}
     for arg_name in input_file_args_var_names:
         argval = getattr(args, var_names[arg_name]).strip()
         default = args.default_values[var_names[arg_name]].strip()
@@ -297,14 +298,14 @@ def create_bandup_plot_input(args):
         fpath = fpath.strip()
         origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
 
-    if(args.positional_args):
-        fpath = args.positional_args[0].strip()
-        fpath = os.path.abspath(os.path.relpath(fpath, working_dir))
-        new_fpath = None
-    else:
-        fpath = os.path.join(args.results_dir, args.default_values['input_file'])
-        new_fpath = os.path.join(args.plotdir, args.default_values['input_file'])
-    origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
+#    if(args.positional_args):
+#        fpath = args.positional_args[0].strip()
+#        fpath = os.path.abspath(os.path.relpath(fpath, working_dir))
+#        new_fpath = None
+#    else:
+#        fpath = os.path.join(args.results_dir, args.default_values['input_file'])
+#        new_fpath = os.path.join(args.plotdir, args.default_values['input_file'])
+#    origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
 
     # Creating/verifying files
     # Wavefunction files will not be copied. Symlinks will be made in this case

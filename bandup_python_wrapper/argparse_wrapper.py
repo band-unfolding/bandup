@@ -35,23 +35,50 @@ from .warnings_wrapper import warnings
 from .sysargv import arg_passed
 
 
-class StoreAbsPath(argparse.Action):
-    """ Action to store an absolute path derived from the passed relative path. 
+def store_abs_path_action_gen(assert_existence=False, rel_path_start=working_dir):
+    class StoreAbsPath(argparse.Action):
+        """ Action to store an absolute path derived from the passed relative path. 
 
-        It is useful to remember that
-        argparse does not use the action when applying the default
+            It is useful to remember that
+            argparse does not use the action when applying the default
 
-    """
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        super(StoreAbsPath, self).__init__(option_strings, dest, **kwargs)
-    def __call__(self, parser, namespace, values, option_string=None):
-        # If the path argument is explicitly passed (i.e., not using its default value),
-        # then it is assumed to be relative to working_dir
-        new_path = os.path.abspath(os.path.relpath(values, working_dir))
-        setattr(namespace, self.dest, new_path)
+        """
+        def __init__(self, option_strings, dest, **kwargs):
+            super(StoreAbsPath, self).__init__(option_strings, dest, **kwargs)
+        def __call__(self, parser, namespace, values, option_string=None):
+            # If the path argument is explicitly passed, then it is assumed
+            # to be relative to working_dir
+            new_path = values
+            if(values is not None):
+                new_path = os.path.abspath(os.path.relpath(values, rel_path_start))
+                if(assert_existence):
+                    if(not os.path.exists(new_path)):
+                        msg = '"%s" argument:\n'%(self.dest)
+                        msg += 'Path\n\n'
+                        msg += 4*' ' + "%s\n\n"%(new_path)
+                        msg += 'does not exist or is not accessible.'
+                        parser.error(msg)
+            setattr(namespace, self.dest, new_path)
+    return StoreAbsPath
 
+def obsolete_arg_action_gen(alternative_option=None):
+    class RefuseObsoleteArgs(argparse.Action):
+        """ This action will produce an error is an obsolete option has been passed 
+
+            This assumes that the default value of such options is argparse.SUPPRESS
+
+        """
+        def __init__(self, option_strings, dest, **kwargs):
+            super(RefuseObsoleteArgs, self).__init__(option_strings, dest, **kwargs)
+        def __call__(self, parser, namespace, values, option_string=None):
+            if(values != argparse.SUPPRESS):
+                msg = 'The option "%s" is no longer accepted.'%(self.dest)
+                if(alternative_option is not None):
+                    msg += '\n' + 22*' '
+                    msg += 'Please use "%s %s" instead.'%(alternative_option, values)
+                parser.error(msg)
+    return RefuseObsoleteArgs
+    
 
 def get_bandup_registered_clas(bandup_path=bandup_dir):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
@@ -106,13 +133,15 @@ class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
                 parser_remaining_kwargs['action'] = 'store_true'
             if(arg_name in ['-out_sckpts_file']):
                 output_files_args.add_argument(arg_name, help=arg_help, 
-                                               **parser_remaining_kwargs)
+                    action=store_abs_path_action_gen(assert_existence=False), 
+                    **parser_remaining_kwargs)
             elif(('no_symm' in arg_name) or ('skip_propose_pc' in arg_name)):
                 symm_args.add_argument(arg_name, help=arg_help,
                                           **parser_remaining_kwargs)
             elif(arg_name in ['-pc_file', '-sc_file', '-pckpts_file']):
                 input_files_args.add_argument(arg_name, help=arg_help,
-                                         **parser_remaining_kwargs)
+                    action=store_abs_path_action_gen(assert_existence=True), 
+                    **parser_remaining_kwargs)
 
 class BandUpArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -161,14 +190,17 @@ class BandUpArgumentParser(argparse.ArgumentParser):
             elif(arg_name in ['-energy_file']):
                 arg_help += ' Otherwise, see options below in this group.'
                 egrid_args.add_argument(arg_name, help=arg_help, metavar='FILE',
-                                          **parser_remaining_kwargs)
+                    action=store_abs_path_action_gen(assert_existence=True), 
+                    **parser_remaining_kwargs)
             elif('-out' in arg_name):
                 if('out_sckpts_file' in arg_name): continue # Pre-unf utility only
                 output_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
-                                               **parser_remaining_kwargs)
+                    action=store_abs_path_action_gen(assert_existence=False), 
+                    **parser_remaining_kwargs)
             elif('file' in arg_name):
                 input_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
-                                              **parser_remaining_kwargs)
+                    action=store_abs_path_action_gen(assert_existence=True), 
+                    **parser_remaining_kwargs)
             elif(('symm' in arg_name) or ('skip_propose_pc' in arg_name)):
                 symm_args.add_argument(arg_name, help=arg_help,
                                           **parser_remaining_kwargs)
@@ -241,6 +273,7 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
             self.aux_settings['default_cmap'] = self.aux_settings['cmap_names'][0]
 
         # Argument groups
+        obsolete_args = self.add_argument_group('Obsolete/discontinued options')
         kptgrid_args = self.add_argument_group('Options controlling the kpt grid')
         efermi_args = self.add_argument_group('Fermi energy line options')
         graph_args = self.add_argument_group('Graph appearance')
@@ -252,32 +285,48 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         output_files_args = self.add_argument_group('Output file options')
         input_files_args = self.add_argument_group('Input file options')
 
-        # Mandatory and optional input configs
-        input_files_args.add_argument('input_file', 
-                                      default='unfolded_EBS_symmetry-averaged.dat', 
-                                      nargs='?', help='Name of the input file.')
+        # Obsolete options
+        # These are no longer accepted, but were kept here to warn those that 
+        # normally use them and, when applicable, offer alternatives
+        obsolete_args.add_argument('positional_input_file',
+            default=argparse.SUPPRESS, 
+            action=obsolete_arg_action_gen('-input_file'), 
+            nargs='?', help=argparse.SUPPRESS)
+        obsolete_args.add_argument('positional_output_file',
+            default=argparse.SUPPRESS, 
+            action=obsolete_arg_action_gen('-output_file'), 
+            nargs='?', help=argparse.SUPPRESS)
+
+        # Input files
+        input_files_args.add_argument('-input_file', 
+            default='unfolded_EBS_symmetry-averaged.dat',
+            action=store_abs_path_action_gen(assert_existence=True), 
+            help='Name of the input file.')
         input_files_args.add_argument('-kpts', '--kpoints_file', '-pckpts_file',
-                                      default='KPOINTS_prim_cell.in', metavar='FILE',
-                                      help=('Name of the file containing information' + 
-                                            'about the primitive cell k-points. '+
-                                             'Default: KPOINTS_prim_cell.in'))
+            default='KPOINTS_prim_cell.in', metavar='FILE',
+            action=store_abs_path_action_gen(assert_existence=True), 
+            help=('Name of the file containing information' + 
+                  'about the primitive cell k-points. '+
+                  'Default: KPOINTS_prim_cell.in'))
         input_files_args.add_argument('-pc_file', '--prim_cell_file', metavar='FILE', 
-                                      default='prim_cell_lattice.in', 
-                                      help=('Name of the file containing information'
-                                            'about the primitive cell lattice vectors. '+
-                                            'Default: prim_cell_lattice.in'))
+            default='prim_cell_lattice.in', 
+            action=store_abs_path_action_gen(assert_existence=True), 
+            help=('Name of the file containing information'
+                  'about the primitive cell lattice vectors. '+
+                  'Default: prim_cell_lattice.in'))
         input_files_args.add_argument('-efile', '--energy_info_file', '-energy_file',
-                                      default='energy_info.in', metavar='FILE', 
-                          help=('Name of the file containing information about '+
-                                'the energy grid and Fermi energy to be used. '+
-                                'Default: energy_info.in. '
-                                'This file is optional for the plotting tool.'))
+            default='energy_info.in', metavar='FILE', 
+            action=store_abs_path_action_gen(assert_existence=True), 
+            help=('Name of the file containing information about '+
+                  'the energy grid and Fermi energy to be used. '+
+                  'Default: energy_info.in. '
+                  'This file is optional for the plotting tool.'))
 
         # Deciding how to output results
-        output_files_args.add_argument('output_file', nargs='?', default=None, 
-                                  help='%s %s %s'%('Optional: Name of the output file.', 
-                                            'If not given, it will be based on',
-                                            'the name of the input file.'))
+        output_files_args.add_argument('-output_file', default=None, 
+            action=store_abs_path_action_gen(assert_existence=False), 
+            help='%s %s'%('Optional: Name of the output file.', 
+                 'If not given, it will be based on the name of the input file.'))
         output_files_args.add_argument('--save', action='store_true', default=False, 
                                        help='Saves the figue to a file. Default: False')
         output_files_args.add_argument('--show', action='store_true', default=False, 
@@ -495,24 +544,30 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         bandup_plot_extra_opts = self.bandup_plot_subparser.add_argument_group(
                                      'Options available'+
                                      ' only through this Python interface')
-        bandup_plot_extra_opts.add_argument('-plotdir', 
-                                            default=defaults['plot_dir'],
-                                            help='Directory where plot will be saved')
-        bandup_plot_extra_opts.add_argument('-results_dir', type=valid_path, 
-                                            default=defaults['results_dir'],
-                                            help='Dir where BandUP was run.')
+        bandup_plot_extra_opts.add_argument('-plotdir',
+            action=store_abs_path_action_gen(assert_existence=False), 
+            default=defaults['plot_dir'],
+            help='Directory where plot will be saved')
+        bandup_plot_extra_opts.add_argument('-results_dir', 
+            action=store_abs_path_action_gen(assert_existence=True), 
+            default=defaults['results_dir'],
+            help='Dir where BandUP was run.')
         bandup_plot_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
         # BandUP subparser
         bandup_extra_opts = self.bandup_subparser.add_argument_group('Options available'+
                                                  ' only through this Python interface')
-        bandup_extra_opts.add_argument('-wavefunc_calc_dir', type=valid_path, 
-                                       default=defaults['wavefunc_calc_dir'],
+        bandup_extra_opts.add_argument('-wavefunc_calc_dir', 
+            action=store_abs_path_action_gen(assert_existence=True), 
+            default=defaults['wavefunc_calc_dir'],
             help='Directory where the WFs to be unfolded are stored.')
-        bandup_extra_opts.add_argument('-self_consist_calc_dir', type=valid_path, 
-                                       default=defaults['self_consist_calc_dir'],
+        bandup_extra_opts.add_argument('-self_consist_calc_dir',
+            action=store_abs_path_action_gen(assert_existence=True), 
+            default=defaults['self_consist_calc_dir'],
             help='Dir containing the self-consistent calc files.')
-        bandup_extra_opts.add_argument('-results_dir', default=defaults['results_dir'],
+        bandup_extra_opts.add_argument('-results_dir', 
+            action=store_abs_path_action_gen(assert_existence=False), 
+            default=defaults['results_dir'],
             help='Dir where the BandUP will be run.')
         bandup_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
@@ -536,13 +591,11 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         # "no subparser selected" and set task to self.default_main_task in this case
         positional_args = []
         first_positional_arg = None
-        i_first_pos_arg = None
         for iarg, arg in enumerate(sys.argv[1:]):
             if(arg.startswith('-')): break 
             positional_args.append(arg)
         if(positional_args): 
             first_positional_arg = positional_args[0]
-            i_first_pos_arg = iarg
 
         task_defined = first_positional_arg is not None
         help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
@@ -557,6 +610,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             if(n_compat_choices!=1): compatible_task = None
             if(compatible_task is not None): 
                 first_positional_arg = compatible_task
+                i_first_pos_arg = sys.argv.index(first_positional_arg)
                 sys.argv[i_first_pos_arg] = first_positional_arg
         elif(not help_requested):
             # Defining 'unfold' as default task
@@ -611,22 +665,22 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
             # Getting pos args because the plotting tool takes 2: in and out files
-            args.positional_args = []
-            for arg in sys.argv[2:]:
-                if(arg.startswith('-')): break
-                args.positional_args.append(arg)
-            # Now converting in/out file relative paths to absolute paths
-            # Relative paths are assumed to have been given w.r.t. working_dir
-            for argname in vars(args):
-                if(argname.startswith('_')): continue
-                argval = getattr(args, argname)
-                try:
-                    if('file' not in argname): continue
-                    if(os.path.basename(argval)==argval): continue
-                    new_argval = os.path.abspath(os.path.relpath(argval, working_dir))
-                    setattr(args, argname, new_argval)
-                except(AttributeError):
-                    pass
+#            args.positional_args = []
+#            for arg in sys.argv[2:]:
+#                if(arg.startswith('-')): break
+#                args.positional_args.append(arg)
+#            # Now converting in/out file relative paths to absolute paths
+#            # Relative paths are assumed to have been given w.r.t. working_dir
+#            for argname in vars(args):
+#                if(argname.startswith('_')): continue
+#                argval = getattr(args, argname)
+#                try:
+#                    if('file' not in argname): continue
+#                    if(os.path.basename(argval)==argval): continue
+#                    new_argval = os.path.abspath(os.path.relpath(argval, working_dir))
+#                    setattr(args, argname, new_argval)
+#                except(AttributeError):
+#                    pass
         elif(args.main_task == 'pre-unfold'):
             subparser = self.bandup_pre_unf_parser
 
