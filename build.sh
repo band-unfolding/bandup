@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# If you have both compilers, ifort will be automatically selected unless you run
+# "build.sh gfortran". If You only have gfortran, it will be automatically used.
 supported_compilers='ifort gfortran'
 
 bandup_supports_chosen_compiler=false
@@ -72,18 +74,18 @@ rm -f ${bin_folder}/BandUP.x
 rm -f ${bin_folder}/bandup
 
 cd ${working_dir}/src/external
-#    ./BandUP_configure_espresso.sh $FC $CC
-#    tar -xvzf check2xsf2_modules_for_BandUP.tgz
-#    ./BandUP_configure_spglib.sh $FC $CC $OMP_FLAG
-#    ./BandUP_configure_cla.sh
+    ./BandUP_configure_espresso.sh $FC $CC
+    tar -xvzf check2xsf2_modules_for_BandUP.tgz
+    ./BandUP_configure_spglib.sh $FC $CC $OMP_FLAG
+    ./BandUP_configure_cla.sh
 cd ${working_dir}/utils/pre_unfolding/get_SCKPTS_pre_BandUP
-#    make FC=$FC
-#    make clean
-#    rm -f ${bin_folder}/get_SCKPTS_pre_BandUP.x
-#    ln -s `pwd`/get_SCKPTS_pre_BandUP.x ${bin_folder}/get_SCKPTS_pre_BandUP.x
+    make FC=$FC CC=$CC
+    make clean
+    rm -f ${bin_folder}/get_SCKPTS_pre_BandUP.x
+    ln -s `pwd`/get_SCKPTS_pre_BandUP.x ${bin_folder}/get_SCKPTS_pre_BandUP.x
 cd ${working_dir}/src
-    make FC=$FC
-#    make clean
+    make FC=$FC CC=$CC
+    make clean
     mv -f BandUP.x  ${bin_folder}
     ln -s ${bin_folder}/BandUP.x  ${bin_folder}/bandup
 cd ${working_dir}
@@ -92,6 +94,7 @@ BANDUP="${bin_folder}/BandUP.x"
 BANDUPBINPATH="${bin_folder}"
 BANDUPPLOTPATH="${working_dir}/utils/post_unfolding/plot/"
 bandup_folder="${working_dir}"
+BANDUPDIR="${working_dir}"
 
 rm -f ${BANDUPBINPATH}/'bandup_plot'
 rm -f ${BANDUPBINPATH}/'BandUP_plot_GUI.ui'
@@ -104,7 +107,7 @@ ln -s ${BANDUPPLOTPATH}/plot_unfolded_EBS_BandUP.py ${BANDUPBINPATH}/'plot_unfol
 exit 
 
 now="$(date +'%Y_%m_%d-%T')"
-for var_name in 'BANDUP' 'BANDUPBINPATH' 'BANDUPPLOTPATH' 'bandup_folder'
+for var_name in 'BANDUP' 'BANDUPBINPATH' 'BANDUPPLOTPATH' 'bandup_folder' 'BANDUPDIR'
 do
     export_statement="export $var_name=${!var_name}"
     for filename in ".bashrc" ".bash_profile" ".profile" 
