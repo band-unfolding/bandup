@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -67,7 +67,7 @@ endif
     "                     Compiled using "//trim(adjustl(compiler_version()))
 write(*,'(17(A,/),A)') &
     '=====================================================================================', &
-    'Copyright (C) 2013-2016 Paulo V. C. Medeiros                                         ', &
+    'Copyright (C) 2013-2017 Paulo V. C. Medeiros                                         ', &
     '                                                                                     ', & 
     '                        Computational Physics Division                               ', &
     '                        Department of Physics, Chemistry and Biology - IFM           ', &
@@ -334,13 +334,13 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
-!================================================================================================
+!======================================================================================
 !> \ingroup changes_upon_new_interface
 !> Prints the last messages before the unfolding process starts.
 !> If you introduce an interface to a new ab initio code, and don't modify this
 !! routine, no specific information about the ab initio code will be shown, but
 !! BandUP will work just fine.
-!================================================================================================
+!======================================================================================
 subroutine print_last_messages_before_unfolding(args, list_of_SCKPTS, B_matrix_SC, vbz, &
                                                 E_start, E_end, delta_e, e_fermi, spinor_wf)
 implicit none
@@ -538,6 +538,11 @@ character(len=10) :: str_SCKPT_number
 end subroutine print_message_pckpt_folds
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_contained_in_wavecar(list_SC_kpts_in_wavecar, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_SC_kpts_in_wavecar
@@ -562,17 +567,23 @@ real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
         deallocate(list_SC_kpts_in_wavecar,stat=alloc_stat)
         allocate(list_SC_kpts_in_wavecar(1:nkpts))
         do i_SCKPT=1,nkpts
-            irec = 2 + (i_SCKPT-1)*(1+nband) + 1 ! Positioning the register at the correct k-point
+            ! Positioning the register at the correct k-point
+            irec = 2 + (i_SCKPT-1)*(1+nband) + 1 
             read(unit=input_file_unit,rec=irec) xnplane,(SCKPT_coords(i),i=1,3)
-            list_SC_kpts_in_wavecar(i_SCKPT)%coord(:) = SCKPT_coords(1)*B_matrix_SC(1,:) + &
-                                                        SCKPT_coords(2)*B_matrix_SC(2,:) + &
-                                                        SCKPT_coords(3)*B_matrix_SC(3,:)
+            list_SC_kpts_in_wavecar(i_SCKPT)%coord(:)=SCKPT_coords(1)*B_matrix_SC(1,:)+ &
+                                                      SCKPT_coords(2)*B_matrix_SC(2,:)+ &
+                                                      SCKPT_coords(3)*B_matrix_SC(3,:)
         enddo
     close(unit=input_file_unit)
 
 end subroutine get_SCKPTS_contained_in_wavecar
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_QE(list_of_SCKPTS, args)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -618,6 +629,11 @@ real(kind=dp) :: alat
 end subroutine get_SCKPTS_QE
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_ABINIT(list_of_SCKPTS, args)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -663,6 +679,11 @@ logical :: wf_file_exists
 end subroutine get_SCKPTS_ABINIT
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_CASTEP(list_of_SCKPTS, args)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -682,11 +703,11 @@ logical :: wf_file_exists
 
 end subroutine get_SCKPTS_CASTEP
 
-!================================================================================================
+!=====================================================================================
 !> \ingroup changes_upon_new_interface
 !> Gets a list of all SC-kpoints contained in the wavefunction file(s).
 !> The k-points should be in cartesian coordinates.
-!================================================================================================
+!=====================================================================================
 subroutine get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
