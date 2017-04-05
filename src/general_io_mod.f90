@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -37,7 +37,7 @@ PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           file_for_SC_reduced_to_prim_cell, compiler_version
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="2.9.0, 2016-08-08"
+character(len=30), parameter :: package_version="2.10.0, 2017-MM-DD"
 character(len=str_len), parameter :: &
     file_header_BandUP="# File created by BandUP - Band Unfolding code for &
                           Plane-wave based calculations, &
