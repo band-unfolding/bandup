@@ -40,7 +40,7 @@ integer, dimension(:), allocatable :: selected_coeff_indices,n_pckpts_dirs
 integer :: ipc_kpt, i_SCKPT, n_selec_pcbz_dirs, alloc_stat, n_folding_pckpts_parsed, &
            i_selec_pcbz_dir, i_needed_dirs
 logical :: pckpt_folds, crystal_SC_read_from_file
-!!*************************************************************************************************
+!!*************************************************************************************
 call initialize(times)
 !$ call omp_set_dynamic(.FALSE.)
 call print_welcome_messages(package_version)
@@ -130,5 +130,5 @@ call say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm_avrgd
                                   pckpts_to_be_checked,energy_grid, e_fermi, zero_of_kpts_scale, &
                                   GUR%n_pckpts, GUR%n_folding_pckpts, n_folding_pckpts_parsed)
 call print_final_times(times)
-!!*************************************************************************************************
+!!*************************************************************************************
 end program BandUP_main
