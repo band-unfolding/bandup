@@ -6,4 +6,4 @@ cd spglib-1.5.2
 
 ./configure FC=${1:-ifort} CC=${2:-icc} CFLAGS=${3:-''}
 
-make
+make -j --max-load 2.5
