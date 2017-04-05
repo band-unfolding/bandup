@@ -533,7 +533,7 @@ def print_opening_message():
            '===================================================================================== \n'
            '                                                                                      \n')
 
-def make_plot(plot):
+def produce_figure(plot):
     indent = plot.indent
     args = plot.args
     # Creating the plot
@@ -820,7 +820,7 @@ def main(args=sys.argv, ignore_unknown_args=False):
     print_opening_message()
     plot_options = BandUpPlotOptions(args, ignore_unknown_args=ignore_unknown_args)
     plot = BandUpPlot(plot_options)
-    make_plot(plot)
+    produce_figure(plot)
 
 if __name__ == '__main__':
     main(args=sys.argv)
