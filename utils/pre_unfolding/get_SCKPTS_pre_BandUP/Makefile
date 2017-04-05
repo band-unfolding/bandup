@@ -31,10 +31,8 @@ FCFLAGS_for_gfortran += -cpp
 # Setting correct compiler options
 ifeq ($(FC),ifort)
   FCFLAGS=$(FCFLAGS_for_ifort)
-  CC=icc
 else ifeq ($(FC),gfortran)
   FCFLAGS=$(FCFLAGS_for_gfortran)
-  CC=gcc
 endif
 
 # Aliases

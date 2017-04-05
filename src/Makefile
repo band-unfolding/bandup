@@ -31,10 +31,8 @@ FCFLAGS_for_gfortran += -cpp
 # Setting correct compiler options
 ifeq ($(FC),ifort)
   FCFLAGS=$(FCFLAGS_for_ifort)
-  CC = icc
 else ifeq ($(FC),gfortran)
   FCFLAGS=$(FCFLAGS_for_gfortran)
-  CC = gcc
 endif
 
 # Aliases
@@ -59,8 +57,7 @@ LIBS += $(QE_modules)/libqemod.a $(QE_flib)/ptools.a $(QE_flib)/flib.a \
         $(QE_clib)/clib.a $(QE_iotk)/libiotk.a
 # Additional module search paths
 FCFLAGS += -I$(espresso_folder)/Modules -I$(espresso_folder)/iotk/src
-#CFLAGS += -I$(castep_related_modules_folder)
-CFLAGS += -Wall -Wno-unused-result -DQSORT $(DEFS) -g -I$(castep_related_modules_folder)
+CFLAGS += -I$(castep_related_modules_folder)
 
 # Folders containing needed sources
 vpath %.f90 $(cla_folder)
