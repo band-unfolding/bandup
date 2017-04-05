@@ -51,8 +51,8 @@ if(defaults['pre_unfolding_out_dir'] is not None):
         os.path.join(defaults['pre_unfolding_out_dir'], 'input_files')
     )
 
-defaults['results_dir'] = os.path.join(working_dir, 'band_unfolding')
-defaults['plot_dir'] = os.path.join(defaults['results_dir'], 'plot')
+defaults['results_dir'] = working_dir
+defaults['plot_dir'] = working_dir
 defaults['pckpts_file'] = 'KPOINTS_prim_cell.in'
 defaults['out_sckpts_file'] = 'KPOINTS_supercell.out'
 defaults['pc_file'] = 'prim_cell_lattice.in'
