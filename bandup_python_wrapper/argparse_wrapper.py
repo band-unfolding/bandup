@@ -664,23 +664,6 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
-            # Getting pos args because the plotting tool takes 2: in and out files
-#            args.positional_args = []
-#            for arg in sys.argv[2:]:
-#                if(arg.startswith('-')): break
-#                args.positional_args.append(arg)
-#            # Now converting in/out file relative paths to absolute paths
-#            # Relative paths are assumed to have been given w.r.t. working_dir
-#            for argname in vars(args):
-#                if(argname.startswith('_')): continue
-#                argval = getattr(args, argname)
-#                try:
-#                    if('file' not in argname): continue
-#                    if(os.path.basename(argval)==argval): continue
-#                    new_argval = os.path.abspath(os.path.relpath(argval, working_dir))
-#                    setattr(args, argname, new_argval)
-#                except(AttributeError):
-#                    pass
         elif(args.main_task == 'pre-unfold'):
             subparser = self.bandup_pre_unf_parser
 

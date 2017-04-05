@@ -298,15 +298,6 @@ def create_bandup_plot_input(args):
         fpath = fpath.strip()
         origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
 
-#    if(args.positional_args):
-#        fpath = args.positional_args[0].strip()
-#        fpath = os.path.abspath(os.path.relpath(fpath, working_dir))
-#        new_fpath = None
-#    else:
-#        fpath = os.path.join(args.results_dir, args.default_values['input_file'])
-#        new_fpath = os.path.join(args.plotdir, args.default_values['input_file'])
-#    origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
-
     # Creating/verifying files
     # Wavefunction files will not be copied. Symlinks will be made in this case
     for source, dest_properties in origin2dest.iteritems():
