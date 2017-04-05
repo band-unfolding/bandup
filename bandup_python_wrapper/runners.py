@@ -3,6 +3,16 @@ import os
 import sys
 # Imports from within the package
 from .environ import BandUp_exe
+from .files import (
+    mkdir,
+    create_bandup_input,
+    create_bandup_plot_input,
+)
+from .plot import (
+    print_opening_message,
+    BandUpPlot, 
+    produce_figure,
+)
 
 def run_bandup(args):
     start_dir = os.getcwd()
@@ -15,3 +25,23 @@ def run_bandup(args):
             sys.stdout.write(line)
             f.write(line)
     os.chdir(start_dir)
+
+def make_plot(args):
+    print_opening_message()
+    os.chdir(args.plotdir)
+    plot = BandUpPlot(args)
+    produce_figure(plot)
+
+def run_requested_task(args):
+    if(args.main_task=='unfold'):
+        mkdir(args.results_dir, ignore_existing=True)
+        create_bandup_input(args)
+        run_bandup(args)
+    elif(args.main_task=='plot'):
+        mkdir(args.plotdir, ignore_existing=True)
+        create_bandup_plot_input(args)
+        make_plot(args)
+    elif(args.main_task=='pre-unfold'):
+       pass
+    else:
+        print 'Task "%s" not available.'%(args.main_task)
