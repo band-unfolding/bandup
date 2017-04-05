@@ -58,6 +58,6 @@ defaults['out_sckpts_file'] = 'KPOINTS_supercell.out'
 defaults['pc_file'] = 'prim_cell_lattice.in'
 defaults['sc_file'] = 'supercell_lattice.in'
 
-for k,v in defaults.iteritems():
-    if(v is None):
-        warnings.warn('Could not set a valid default for "%s".'%(k))
+#for k,v in defaults.iteritems():
+#    if(v is None):
+#        warnings.warn('Could not set a valid default for "%s".'%(k))

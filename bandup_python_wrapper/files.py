@@ -24,8 +24,15 @@ from scipy.constants import physical_constants
 from .defaults import defaults
 from .warnings_wrapper import warnings
 from .environ import working_dir
+from .sysargv import arg_passed
 
 
+def valid_path(arg):
+    arg = os.path.abspath(os.path.relpath(arg, working_dir))
+    if not os.path.exists(arg):
+        raise argparse.ArgumentTypeError('"%s" is not a valid path.'%(arg))
+    else:
+        return arg
 def mkdir(path, ignore_existing=False):
     try:
         os.makedirs(path)
@@ -130,9 +137,7 @@ def create_bandup_input(args):
     if(args.dE is None):
         # The other related options will have been garanteed to be None when
         # parsing the arguments
-        efile_passed = (
-            len(set(['-efile', '--energy_info_file']).intersection(sys.argv[1:]))>0
-        )
+        efile_passed = arg_passed('-efile') or arg_passed('--energy_info_file')
         if(efile_passed):
             fpath = getattr(args, 'energy_file')
             new_fpath = None
@@ -158,9 +163,7 @@ def create_bandup_input(args):
     # PC, SC and PC-KPT files
     input_file_args_var_names = ['pc_file', 'sc_file', 'pckpts_file']
     for arg_name in input_file_args_var_names:
-        using_default = False
-        if(not '-%s'%(arg_name) in sys.argv[1:]):
-            using_default = True
+        using_default = not arg_passed('-%s'%(arg_name))
         if(not using_default):
             fpath = getattr(args, arg_name)
             new_fpath = None
@@ -178,7 +181,7 @@ def create_bandup_input(args):
     wf_file = None
     if(args.castep):
         wf_fname = "%s.orbitals"%(args.seed)
-    elif(args.abinit and (not '-wf_file' in sys.argv[1:])):
+    elif(args.abinit and (not arg_passed('-wf_file'))):
         with open(args.files_file, 'r') as f:
             flines = f.readlines()
         try:
@@ -187,7 +190,7 @@ def create_bandup_input(args):
             pass
     elif(args.qe):
         raise Exception('Not yet implemmented!')
-    elif(not '-wf_file' in sys.argv[1:]):
+    elif(not arg_passed('-wf_file')):
         wf_fname = args.default_values['wf_file']
     if(wf_fname is not None): 
         wf_file = os.path.join(args.wavefunc_calc_dir, wf_fname).strip()
@@ -236,11 +239,8 @@ def create_bandup_plot_input(args):
     if(args.dE is None):
         # The other related options will have been garanteed to be None when
         # parsing the arguments
-        efile_passed = (
-            len(set(['-efile', '--energy_info_file','-energy_file']
-                   ).intersection(sys.argv[1:])
-               )>0
-        )
+        efile_passed = (arg_passed('-efile') or arg_passed('--energy_info_file') or
+                        arg_passed('-energy_file'))
         if(efile_passed):
             fpath = getattr(args, 'energy_file')
             new_fpath = None

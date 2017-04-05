@@ -25,13 +25,15 @@ from .environ import (
     working_dir,
 )
 from .defaults import defaults
-from .files import continuation_lines, get_efermi
+from .files import continuation_lines, get_efermi, valid_path
 from .figs import (
     get_matplotlib_color_names,
     get_available_cmaps,
     set_default_fig_format,
 )
 from .warnings_wrapper import warnings
+from .sysargv import arg_passed
+
 
 def get_bandup_registered_clas(bandup_path=bandup_dir):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
@@ -185,7 +187,7 @@ class BandUpArgumentParser(argparse.ArgumentParser):
         argv = []
         for cla_dict in self.bandup_registered_clas:
             arg_name = '%s'%(cla_dict['key'])
-            if(arg_name in sys.argv):
+            if(arg_passed(arg_name)):
                 argv.append(arg_name)
                 if(cla_dict['kkind'] in
                    ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
@@ -476,20 +478,20 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                                      'Options available'+
                                      ' only through this Python interface')
         bandup_plot_extra_opts.add_argument('-plotdir', 
-            default=defaults['plot_dir'],
-            help='Directory where plot will be saved')
-        bandup_plot_extra_opts.add_argument('-results_dir', 
+                                            default=defaults['plot_dir'],
+                                            help='Directory where plot will be saved')
+        bandup_plot_extra_opts.add_argument('-results_dir', type=valid_path, 
                                             default=defaults['results_dir'],
-            help='Dir where BandUP was run.')
+                                            help='Dir where BandUP was run.')
         bandup_plot_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
         # BandUP subparser
         bandup_extra_opts = self.bandup_subparser.add_argument_group('Options available'+
                                                  ' only through this Python interface')
-        bandup_extra_opts.add_argument('-wavefunc_calc_dir', 
+        bandup_extra_opts.add_argument('-wavefunc_calc_dir', type=valid_path, 
                                        default=defaults['wavefunc_calc_dir'],
             help='Directory where the WFs to be unfolded are stored.')
-        bandup_extra_opts.add_argument('-self_consist_calc_dir', 
+        bandup_extra_opts.add_argument('-self_consist_calc_dir', type=valid_path, 
                                        default=defaults['self_consist_calc_dir'],
             help='Dir containing the self-consistent calc files.')
         bandup_extra_opts.add_argument('-results_dir', default=defaults['results_dir'],
@@ -524,8 +526,10 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             first_positional_arg = positional_args[0]
             i_first_pos_arg = iarg
 
-        # To allow abbreviations in the task names:
-        if(first_positional_arg is not None):
+        task_defined = first_positional_arg is not None
+        help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
+        if(task_defined):
+            # To allow abbreviations in the task names:
             n_compat_choices = 0
             compatible_task = None
             for allowed_task in self.allowed_tasks:
@@ -536,11 +540,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             if(compatible_task is not None): 
                 first_positional_arg = compatible_task
                 sys.argv[i_first_pos_arg] = first_positional_arg
-
-        # Defining 'unfold' as default task
-        task_defined = first_positional_arg in self.allowed_tasks
-        help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
-        if(not task_defined and not help_requested):
+        elif(not help_requested):
+            # Defining 'unfold' as default task
             sys.argv.insert(1, self.default_main_task) 
 
         # Making sure arguments are compatible
@@ -548,9 +549,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         # EFermi will be read from file if not passed
         individual_energy_opts = needed_energy_opts + ['-efermi']
 
-        efile_passed = (
-            len(set(['-efile', '--energy_info_file']).intersection(sys.argv[1:]))>0
-        )
+        efile_passed = arg_passed('-efile') or arg_passed('--energy_info_file')
         individual_energy_opts_passed = (
             len(set(individual_energy_opts).intersection(sys.argv[1:]))>0
         )
