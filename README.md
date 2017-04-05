@@ -1,7 +1,7 @@
 ############################################################################
 ###     BandUP: Band Unfolding code for Plane-wave based calculations             
 ############################################################################
-###### Copyright (C) 2013-2016 Paulo V. C. Medeiros - pvm20@cam.ac.uk
+###### Copyright (C) 2013-2017 Paulo V. C. Medeiros - pvm20@cam.ac.uk
 ##### Please visit http://www.ifm.liu.se/theomod/compphys/band-unfolding
 
 BandUP is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
         * VASP
         * Quantum ESPRESSO
         * ABINIT
+        * CASTEP
     * Feel free to contact me if you use another plane-wave code and would like to have 
       support to it added in BandUP
         * As usual, I'll do my best to help you out.
@@ -49,12 +50,20 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
     * Fortran 95 and C compilers
         * Preferably Intel compilers (ifort and icc), version 12.1.4 (or higher)
         * Should also work with GNU compilers (gfortran and gcc), version 5.2 (or higher)
-    * Python 2.7 (or higher) for the post-processing utilities
+    * Python 2.X (X>=7) for the post-processing utilities
         * You will need to have the following packages installed 
-          (you probably already have most of them):
+          (you probably already have most of them; try running the code before worrying):
+            * argparse
             * numpy 
             * scipy
             * matplotlib
+            * os
+            * sys
+            * subprocess
+            * fractions
+            * json
+            * shutil
+            * collections
         * Please let me know if I've forgotten to list any other package!
     * Optional: PyQt4
             * PyQt4 is needed only if you want to use the graphical user interface 
@@ -82,8 +91,8 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 <!-- ============================================================================= -->
 #### Tips:
 --------------------------------------------------------------------------------------
-    * BandUP accepts some optional command line arguments and flags. To find out more
-      about them, run the code with the flag '-help'.
+    * BandUP accepts some *optional command line arguments and flags*. To find out more
+      about them, run the code with the *flag '-help'*.
     * Since the plotting tool has a lot of different options, I've given it a GUI:
           utils/post_unfolding/plot/plotting_tool_GUI/BandUP_plot_GUI.pyw
       You'll find a symlink to it (bandup_plot) in the BandUP_bin directory.
