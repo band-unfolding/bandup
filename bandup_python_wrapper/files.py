@@ -28,12 +28,6 @@ from .environ import working_dir
 from .sysargv import arg_passed
 
 
-def valid_path(arg):
-    arg = os.path.abspath(os.path.relpath(arg, working_dir))
-    if not os.path.exists(arg):
-        raise argparse.ArgumentTypeError('"%s" is not a valid path.'%(arg))
-    else:
-        return arg
 def mkdir(path, ignore_existing=False):
     try:
         os.makedirs(path)
@@ -53,6 +47,12 @@ def rmfile(path):
         if(os.path.isfile(path)):
             raise
 
+def valid_path(arg):
+    arg = os.path.abspath(os.path.relpath(arg, working_dir))
+    if not os.path.exists(arg):
+        raise argparse.ArgumentTypeError('"%s" is not a valid path.'%(arg))
+    else:
+        return arg
 def assert_valid_path(path):
     try:
         path_stat = os.stat(path)
