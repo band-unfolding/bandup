@@ -20,7 +20,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 from matplotlib import pyplot as plt
 # Imports from within the package
-from .environ import plot_path
+from .constants import PACKAGE_DIR
 
 
 def get_matplotlib_color_names():
@@ -32,7 +32,7 @@ def get_available_cmaps():
                      colormap_names])
     # Custom colormaps
     try:
-        custom_cm_folder = os.path.join(plot_path, 'custom_colormaps')
+        custom_cm_folder = os.path.join(PACKAGE_DIR, 'custom_colormaps')
         os_listdir_full_custom_cm_folder = (
             [os.path.abspath(os.path.join(custom_cm_folder, cmap_file)) for 
              cmap_file in os.listdir(custom_cm_folder)]

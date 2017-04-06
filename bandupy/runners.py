@@ -2,7 +2,7 @@ from subprocess import Popen, PIPE, STDOUT
 import os
 import sys
 # Imports from within the package
-from .environ import BandUp_exe
+from .constants import BANDUP_BIN
 from .files import (
     mkdir,
     create_bandup_input,
@@ -18,7 +18,7 @@ def run_bandup(args):
     start_dir = os.getcwd()
     # Running BandUP
     os.chdir(args.results_dir)
-    bandup_run_options = [BandUp_exe] + args.argv
+    bandup_run_options = [BANDUP_BIN] + args.argv
     with open("out_BandUP.dat", 'w') as f:
         bandup_run = Popen(bandup_run_options, stdout=PIPE, stderr=STDOUT)
         for line in iter(bandup_run.stdout.readline, ''):

@@ -20,9 +20,9 @@ from fractions import Fraction
 from collections import OrderedDict
 import sys
 # Imports from within the package
-from .environ import (
-    bandup_dir,
-    working_dir,
+from .constants import (
+    BANDUP_DIR,
+    WORKING_DIR,
 )
 from .defaults import defaults
 from .files import continuation_lines, get_efermi, valid_path, guess_castep_seed
@@ -35,7 +35,7 @@ from .warnings_wrapper import warnings
 from .sysargv import arg_passed
 
 
-def store_abs_path_action_gen(assert_existence=False, rel_path_start=working_dir):
+def store_abs_path_action_gen(assert_existence=False, rel_path_start=WORKING_DIR):
     class StoreAbsPath(argparse.Action):
         """ Action to store an absolute path derived from the passed relative path. 
 
@@ -47,7 +47,7 @@ def store_abs_path_action_gen(assert_existence=False, rel_path_start=working_dir
             super(StoreAbsPath, self).__init__(option_strings, dest, **kwargs)
         def __call__(self, parser, namespace, values, option_string=None):
             # If the path argument is explicitly passed, then it is assumed
-            # to be relative to working_dir
+            # to be relative to WORKING_DIR
             new_path = values
             if(values is not None):
                 new_path = os.path.abspath(os.path.relpath(values, rel_path_start))
@@ -80,7 +80,7 @@ def obsolete_arg_action_gen(alternative_option=None):
     return RefuseObsoleteArgs
     
 
-def get_bandup_registered_clas(bandup_path=bandup_dir):
+def get_bandup_registered_clas(bandup_path=BANDUP_DIR):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
     cla_register_args = ['key', 'description', 'kkind', 'default']
     bandup_registered_clas = []

@@ -24,7 +24,7 @@ import argparse
 # Imports from within the package
 from .defaults import defaults
 from .warnings_wrapper import warnings
-from .environ import working_dir
+from .constants import WORKING_DIR
 from .sysargv import arg_passed
 
 
@@ -48,7 +48,7 @@ def rmfile(path):
             raise
 
 def valid_path(arg):
-    arg = os.path.abspath(os.path.relpath(arg, working_dir))
+    arg = os.path.abspath(os.path.relpath(arg, WORKING_DIR))
     if not os.path.exists(arg):
         raise argparse.ArgumentTypeError('"%s" is not a valid path.'%(arg))
     else:
@@ -159,7 +159,7 @@ def create_bandup_input(args):
             new_fpath = os.path.join(args.results_dir, 'energy_info.in').strip()
             fpath = os.path.join(args.results_dir, 'energy_info.in')
             if(not os.path.isfile(fpath)):
-                fpath = os.path.join(working_dir, 'energy_info.in')
+                fpath = os.path.join(WORKING_DIR, 'energy_info.in')
         fpath = fpath.strip()
         origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
     else:
@@ -262,7 +262,7 @@ def create_bandup_plot_input(args):
             new_fpath = os.path.join(args.plotdir, 'energy_info.in').strip()
             fpath = os.path.join(args.results_dir, 'energy_info.in')
             if(not os.path.isfile(fpath)):
-                fpath = os.path.join(working_dir, 'energy_info.in')
+                fpath = os.path.join(WORKING_DIR, 'energy_info.in')
         fpath = fpath.strip()
         origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
     else:
@@ -286,7 +286,7 @@ def create_bandup_plot_input(args):
         default = args.default_values[var_names[arg_name]].strip()
         using_default = argval==default
         if(not using_default):
-            fpath = os.path.abspath(os.path.relpath(argval, working_dir))
+            fpath = os.path.abspath(os.path.relpath(argval, WORKING_DIR))
             new_fpath = None
         else:
             if(not os.path.exists(args.results_dir)):

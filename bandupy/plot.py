@@ -28,7 +28,7 @@ import json
 from fractions import Fraction
 from subprocess import Popen, PIPE
 
-from .environ import original_matplotlib_backend
+from .constants import ORIGINAL_MATPLOTLIB_BACKEND
 
 
 class BandUpPlot():
@@ -538,7 +538,7 @@ def produce_figure(plot):
     args = plot.args
     # Creating the plot
     # Switching backends only here speeds up the code for everything else
-    plt.switch_backend(original_matplotlib_backend) 
+    plt.switch_backend(ORIGINAL_MATPLOTLIB_BACKEND) 
     print ('Generating the plot...')
     fig = plt.figure(figsize=(plot.fig_width_inches,plot.fig_height_inches))
     ax = fig.add_subplot(111)

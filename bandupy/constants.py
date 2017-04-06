@@ -16,16 +16,19 @@
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import matplotlib as mpl
-from .warnings_wrapper import warnings
+
+def __get_parent_dir(path, level=1):
+    parent = path
+    for ilevel in range(level):
+        parent = os.path.dirname(parent)
+    return parent
 
 
-_package_dir = os.path.dirname(os.path.realpath(__file__))
-_package_parent_dir = os.path.dirname(package_dir)
-_bandup_src_dir = os.path.dirname(package_parent_dir)
-BANDUP_DIR = os.path.dirname(ideal_bandup_src_dir)
+PACKAGE_DIR = os.path.dirname(os.path.realpath(__file__))
+BANDUP_DIR = __get_parent_dir(PACKAGE_DIR, 3)
 
-_bandup_bin_dir = os.path.join(BANDUP_DIR, 'BandUP_bin')
-BANDUP_BIN = os.path.join(_bandup_bin_dir, 'BandUP.x')
+BANDUP_BIN_DIR = os.path.join(BANDUP_DIR, 'BandUP_bin')
+BANDUP_BIN = os.path.join(BANDUP_BIN_DIR, 'BandUP.x')
 
 ORIGINAL_MATPLOTLIB_BACKEND = mpl.get_backend()
 
