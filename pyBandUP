@@ -15,6 +15,54 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+import os
+import sys
+# Making sure the bandupy module can be found
+bandup_dir = None
+config_file = os.path.join(os.path.expanduser('~'), '.bandup', 'config')
+try:
+    # (i) Has the user set the BANDUPPATH environment variable?
+    #     If yes, then the config file will be ignored for this.
+    bandup_dir = os.environ['BANDUPDIR']
+except(KeyError):
+    # (ii) BANDUPDIR not set. Try the config file then.
+    try:
+        with open(config_file, 'r') as f:
+            flines = f.readlines()
+        for line in flines:
+            if('BANDUPDIR' in line):
+                bandup_dir = line.split('=')[1].strip()
+                break
+    except(IOError):
+        pass
+try:
+    bandupy_path = os.path.join(bandup_dir, 'src', 'python_interface', 'bandupy')
+    valid_bandupy_path = os.access(bandupy_path, os.R_OK)
+except(AttributeError):
+    bandupy_path = None
+    valid_bandupy_path = False
+
+if(not valid_bandupy_path):
+    msg  = "ERROR: Could not find BandUP's python interface module 'bandupy'.\n"
+    msg += '       This module comes with BandUP, and this error most likely\n'
+    msg += "       means that either (i) BandUP's directory has been moved\n"
+    msg += "       from where the install was originally made, or (ii) the\n"
+    msg += '       environment variable BANDUPDIR points to an invalid path. \n'
+    msg += '       Please either:\n'
+    msg += '           (i)  Edit the file "%s"\n'%(config_file)
+    msg += "                to include a line of the form\n"
+    msg += '                        BANDUPDIR=${BANDUPDIR}\n'
+    msg += "                where ${BANDUPDIR} is the full path to BandUP's\n"
+    msg += '                current main directory, (the one containing the\n'
+    msg += '                "build.sh" script), or\n'
+    msg += '           (ii) Set the environment variable "BANDUPDIR" also to \n'
+    msg += "                BandUP's current main directory.\n"
+    msg += "       Then try again.\n"
+    msg += "Stopping now."
+    print msg
+    sys.exit(0)
+sys.path.insert(0, os.path.dirname(bandupy_path))
+# Now proceed normally
 from bandupy.argparse_wrapper import BandUpPythonArgumentParser
 from bandupy.runners import run_requested_task
 
