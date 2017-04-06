@@ -61,7 +61,7 @@ if(not valid_bandupy_path):
     msg += "Stopping now."
     print msg
     sys.exit(0)
-sys.path.insert(0, os.path.dirname(bandupy_path))
+sys.path.insert(1, os.path.dirname(bandupy_path))
 # Now proceed normally
 from bandupy.argparse_wrapper import BandUpPythonArgumentParser
 from bandupy.runners import run_requested_task
