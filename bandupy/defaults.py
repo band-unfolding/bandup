@@ -42,22 +42,15 @@ for step, d in step2dir.iteritems():
             tentative_dir=glob.glob(os.path.join(WORKING_DIR,'%s*'%(step)))
             tentative_dir = tentative_dir[0]
         except(IndexError):
-            tentative_dir = None
+            # Defaulting to WORKING_DIR is nothing else works 
+            # (user not adopting suggested file tree -- he/she has the right not to!)
+            tentative_dir = WORKING_DIR
     defaults['%s_dir'%(d)] = tentative_dir
 
-defaults['pre_unfolding_inputs_dir'] = None
-if(defaults['pre_unfolding_dir'] is not None):
-    defaults['pre_unfolding_inputs_dir'] = (
-        os.path.join(defaults['pre_unfolding_dir'], 'input_files')
-    )
-
+defaults['pre_unfolding_inputs_dir'] = defaults['pre_unfolding_dir']
 defaults['results_dir'] = WORKING_DIR
 defaults['plot_dir'] = WORKING_DIR
 defaults['pckpts_file'] = 'KPOINTS_prim_cell.in'
 defaults['out_sckpts_file'] = 'KPOINTS_supercell.out'
 defaults['pc_file'] = 'prim_cell_lattice.in'
 defaults['sc_file'] = 'supercell_lattice.in'
-
-#for k,v in defaults.iteritems():
-#    if(v is None):
-#        warnings.warn('Could not set a valid default for "%s".'%(k))
