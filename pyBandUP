@@ -15,8 +15,8 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
-from bandup_python_wrapper.argparse_wrapper import BandUpPythonArgumentParser
-from bandup_python_wrapper.runners import run_requested_task
+from bandupy.argparse_wrapper import BandUpPythonArgumentParser
+from bandupy.runners import run_requested_task
 
 if(__name__ == '__main__'):
     parser = BandUpPythonArgumentParser()
