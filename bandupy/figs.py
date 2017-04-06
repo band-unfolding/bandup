@@ -15,6 +15,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import os
+import json
 import matplotlib as mpl
 # Below: To be able to create mpl figures without running an X server
 #        mpl.use must be called before importing pyplot
@@ -49,7 +50,7 @@ def get_available_cmaps():
             colormaps[cmap_name] = (
                 plt.cm.colors.LinearSegmentedColormap(cmap_name, color_dict, 2048)
             )
-    except(NameError, TypeError):
+    except(TypeError):
         pass
     return sorted(colormap_names), colormaps
 
