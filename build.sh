@@ -103,10 +103,16 @@ ln -s ${BANDUPPLOTPATH}/plotting_tool_GUI/BandUP_plot_GUI.pyw ${BANDUPBINPATH}/'
 ln -s ${BANDUPPLOTPATH}/plotting_tool_GUI/BandUP_plot_GUI.ui ${BANDUPBINPATH}/'BandUP_plot_GUI.ui'
 ln -s ${BANDUPPLOTPATH}/plot_unfolded_EBS_BandUP.py ${BANDUPBINPATH}/'plot_unfolded_EBS_BandUP.py'
 
+now="$(date +'%Y_%m_%d-%T')"
+BANDUPCONFIGDIR="${HOME}/.bandup"
+BANDUPCONFIGFILE="${BANDUPCONFIGDIR}/config"
+mkdir -p ${BANDUPCONFIGDIR}
+echo "# Created by BandUP in ${now}" >| ${BANDUPCONFIGFILE}
+echo "BANDUPDIR=${BANDUPDIR}" >> ${BANDUPCONFIGFILE}
+
 # Comment the next line if you want BandUP to set some environment vars
 exit 
 
-now="$(date +'%Y_%m_%d-%T')"
 for var_name in 'BANDUP' 'BANDUPBINPATH' 'BANDUPPLOTPATH' 'bandup_folder' 'BANDUPDIR'
 do
     export_statement="export $var_name=${!var_name}"
