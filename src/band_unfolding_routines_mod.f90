@@ -888,14 +888,17 @@ integer, dimension(:), intent(in) :: selected_coeff_indices
 real(kind=dp), dimension(:), intent(in) :: energy_grid
 
 integer :: n_WF_components, n_bands_SC_calculation, i_spinor, iener, nener, iener2, &
-           alloc_stat, i, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, i_SCKPT
+           alloc_stat, i, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, i_SCKPT, &
+           m1, m2, unf_dens_file_unit
 real(kind=dp), dimension(:), allocatable :: spectral_weight
 real(kind=dp) :: selected_pc_ener, delta_e, dN, unf_spin_proj_perp, unf_spin_proj_para
-real(kind=dp), dimension(1:3) :: symmetrized_unf_pc_kpt, unf_pauli_vec, projection_origin
-complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable :: rho
+real(kind=dp), dimension(1:3) :: symmetrized_unf_pc_kpt, true_unf_pc_kpt, &
+                                 unf_pauli_vec, projection_origin
+type(UnfoldDensityOpContainer), dimension(:), allocatable :: rho
 complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: SC_pauli_matrix_elmnts
 integer, dimension(:), allocatable :: pc_energies_to_calc_eigenvalues
 logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
+character(len=127) :: fmt_str
 
 
     i_SCKPT = GUR%current_index%i_SCKPT
@@ -905,6 +908,9 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
     ! In cartesion coors!
     symmetrized_unf_pc_kpt(:) = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
                                     needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%Scoords(:)
+    ! In cartesion coors!
+    true_unf_pc_kpt(:) = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                             needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%coords(:)
 
     n_WF_components = size(wf%pw_coeffs, dim=1) ! 1 for a regular WF, and 2 for a spinor WF
     n_bands_SC_calculation = size(wf%pw_coeffs, dim=3)
@@ -940,17 +946,11 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
                                     add_elapsed_time_to=times%calc_SF)
     endif
 
-    if(n_WF_components==2)then
+    if(args%write_unf_dens_op .or. n_WF_components==2)then
+        ! Points in the PC energy grid at which the unfolding-density op will be calcd.
         nener = size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                              needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN)
-        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(1:nener))
-        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(1:nener))
-        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(1:nener,1:3))
         delta_e = energy_grid(2) - energy_grid(1) ! uniform energy grid
-
         !$omp parallel do &
         !$omp schedule(guided) default(none) &
         !$omp shared(nener, delta_N, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt, &
@@ -959,19 +959,79 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         do iener=1, nener
             dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                          needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
-            if(dN < 1E-3_dp)then ! Can hardly be considered a band; no point calculating rho
-                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(iener) = 0.0_dp 
-                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(iener) = 0.0_dp 
-                delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                        needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(iener,:) = 0.0_dp
-            else
+            if(dN >= 1E-3_dp)then 
+                ! Can hardly be considered a band otherwise; no point calculating rho
                 !$omp critical
                 call append(list=pc_energies_to_calc_eigenvalues, item=iener)
                 !$omp end critical
             endif
         enddo
+
+        ! Calculating the unfolding-density operator at the selected energies
+        allocate(rho(1:size(pc_energies_to_calc_eigenvalues)))
+        do iener2=1, size(pc_energies_to_calc_eigenvalues)
+            iener = pc_energies_to_calc_eigenvalues(iener2)
+            selected_pc_ener = energy_grid(iener)
+            dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
+            call calc_rho(rho(iener2)%rho, dN, energy_grid(iener), delta_e, wf, &
+                          selected_coeff_indices, &
+                          add_elapsed_time_to=times%calc_rho)
+        enddo
+        if(args%write_unf_dens_op)then
+            unf_dens_file_unit = available_io_unit()
+            open(unit=unf_dens_file_unit, file=args%unf_dens_op_out_file, &
+                 action='write',position='append')
+                if(i_selec_pcbz_dir*i_needed_dirs*ipc_kpt==1)then
+                    if(i_SCKPT>1)then
+                        write(unf_dens_file_unit,'(A)')
+                        write(unf_dens_file_unit,'(A)')
+                    endif
+                    fmt_str = '(A,X,A,X,I0,X,A,3(2X,f0.9),A)'
+                    write(unf_dens_file_unit, fmt_str)'#','i_SCKPT=',i_SCKPT,'Coords=',&
+                                                      GUR%list_of_SCKPTS(i_SCKPT),&
+                                                      ' # Cart. coords. (A^{-1})' 
+                endif
+                fmt_str = '(A,X,A,3(2X,f0.9),A)'
+                write(unf_dens_file_unit, fmt_str)'#','UnfoldngPcKptCoords=', &
+                                                  true_unf_pc_kpt(:), &
+                                                  ' # Cart. coords. (A^{-1})' 
+                do iener2=1, size(pc_energies_to_calc_eigenvalues)
+                    iener = pc_energies_to_calc_eigenvalues(iener2)
+                    selected_pc_ener = energy_grid(iener)
+                    fmt_str = '(A,X,A,X,f0.9,X,A)'
+                    write(unf_dens_file_unit, fmt_str)'#','PC grid energy=', &
+                                                      selected_pc_ener, 'eV'
+                    fmt_str = '(A,X,3A)'
+                    write(unf_dens_file_unit, fmt_str)&
+                          "#","   m1   ","   m2   ","    UnfDensOp_{m1m2}"
+                    fmt_str = '(2X,I5,"   ",I5,6X,"(",f0.5,",",X,f0.5,")",)'
+                    do m1=1,n_bands_SC_calculation
+                        do m2=1,n_bands_SC_calculation
+                            if(abs(rho(iener2)%rho(m1,m2))<1E-5) cycle
+                            write(unf_dens_file_unit, fmt_str) m1, m2, &
+                                                               rho(iener2)%rho(m1,m2)
+                        enddo
+                    enddo
+                enddo
+            close(unf_dens_file_unit)
+        endif
+    endif
+
+
+    if(n_WF_components==2)then
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(1:nener))
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(1:nener))
+        allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                         needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(1:nener,1:3))
+        delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_perp(:) = 0.0_dp 
+        delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%spin_proj_para(:) = 0.0_dp 
+        delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(:,:) = 0.0_dp
 
         deallocate(pauli_mtx_elmts_already_calc, SC_pauli_matrix_elmnts, stat=alloc_stat)
         do iener2=1, size(pc_energies_to_calc_eigenvalues)
@@ -979,14 +1039,13 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
             selected_pc_ener = energy_grid(iener)
             dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                          needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
-            call calc_rho(rho, dN, energy_grid(iener), delta_e, wf, selected_coeff_indices, &
-                          add_elapsed_time_to=times%calc_rho)
 
             call get_SC_pauli_matrix_elmnts(SC_pauli_matrix_elmnts, pauli_mtx_elmts_already_calc, &
                                             wf, selected_pc_ener, delta_e, &
                                             add_elapsed_time_to=times%calc_pauli_vec)
             do i=1,3
-                unf_pauli_vec(i) = real(trace_AB(A=rho, B=SC_pauli_matrix_elmnts(i,:,:)), kind=dp)
+                unf_pauli_vec(i) = real(trace_AB(A=rho(iener2)%rho, &
+                                        B=SC_pauli_matrix_elmnts(i,:,:)), kind=dp)
             enddo
             delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                     needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%sigma(iener,:) = unf_pauli_vec(:)
@@ -1003,7 +1062,9 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
             delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                     needed_dir(i_needed_dirs)% &
                     pckpt(ipc_kpt)%spin_proj_para(iener) = unf_spin_proj_para
-            deallocate(rho, stat=alloc_stat) !! rho is allocated in the calc_rho routine
+            !! rho is allocated in the calc_rho routine
+            !! rho(iener2) is no longer needed
+            deallocate(rho(iener2)%rho, stat=alloc_stat) 
         enddo
         deallocate(pauli_mtx_elmts_already_calc, SC_pauli_matrix_elmnts, stat=alloc_stat)
     endif

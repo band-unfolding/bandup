@@ -44,7 +44,8 @@ PUBLIC :: calc_spec_func_explicitly, stop_if_pckpt_cannot_be_parsed, &
 PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_point_properties, &
           star, bz_direction, eqv_bz_directions, irr_bz_directions, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, UnfoldedQuantities, & 
-          UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction
+          UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction, &
+          UnfoldDensityOpContainer
 
 
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
@@ -85,7 +86,7 @@ type :: comm_line_args
     logical :: stop_if_not_commensurate, write_attempted_pc_corresp_to_input_pc, &
                write_attempted_pc_corresp_to_SC, no_symm_avg, no_symm_sckpts, &
                perform_unfold, origin_for_spin_proj_passed_in_rec, &
-               continue_if_npw_smaller_than_expected
+               continue_if_npw_smaller_than_expected, write_unf_dens_op
 end type comm_line_args
 
 type :: timekeeping 
@@ -210,7 +211,11 @@ type :: unfolded_quantities_for_given_pckpt
     real(kind=dp), dimension(:), allocatable :: dN, SF, &  !! delta_Ns and spectral functions at each point of the energy grid
                                                 spin_proj_perp, spin_proj_para
     ! sigma(1:nener,1:3) holds the expected values of the Pauli matrices sigma_i; i=x, y, z (used if spinor WF)
-    real(kind=dp), dimension(:,:), allocatable :: sigma 
+    real(kind=dp), dimension(:,:), allocatable :: sigma
+    ! rho will hold the unfolding density operator, if needed
+    ! The dimension(:) statement is needed because there is one such operator for
+    ! each energy E in the PC energy grid such that delta_N(k,E)>0.
+    type(UnfoldDensityOpContainer), dimension(:), allocatable :: rho 
 end type unfolded_quantities_for_given_pckpt
 
 type :: list_of_pckpts_for_unfolded_quantities
@@ -233,5 +238,8 @@ type :: UnfoldedQuantitiesForOutput
     type(list_of_pckpts_for_unfolded_quantities), dimension(:), allocatable :: pcbz_dir
 end type UnfoldedQuantitiesForOutput
 
+type :: UnfoldDensityOpContainer
+    complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable :: rho
+end type UnfoldDensityOpContainer
 
 end module constants_and_types
