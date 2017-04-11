@@ -192,10 +192,13 @@ class BandUpArgumentParser(argparse.ArgumentParser):
                 egrid_args.add_argument(arg_name, help=arg_help, metavar='FILE',
                     action=store_abs_path_action_gen(assert_existence=True), 
                     **parser_remaining_kwargs)
-            elif('-out' in arg_name):
+            elif('-out' in arg_name or '_out_' in arg_name):
                 if('out_sckpts_file' in arg_name): continue # Pre-unf utility only
                 output_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
                     action=store_abs_path_action_gen(assert_existence=False), 
+                    **parser_remaining_kwargs)
+            elif('-write' in arg_name):
+                output_files_args.add_argument(arg_name, help=arg_help, 
                     **parser_remaining_kwargs)
             elif('file' in arg_name):
                 input_files_args.add_argument(arg_name, help=arg_help, metavar='FILE',
