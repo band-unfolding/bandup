@@ -78,7 +78,8 @@ type :: comm_line_args
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &
                           output_file_symm_averaged_EBS, &
                           output_file_only_user_selec_direcs, &
-                          unf_dens_op_out_file, &
+                          output_file_symm_averaged_unf_dens_op, &
+                          output_file_only_user_selec_direcs_unf_dens_op, &
                           pw_code, qe_outdir, qe_prefix, abinit_files_file, castep_seed 
     integer :: spin_channel, n_sckpts_to_skip
     real(kind=dp), dimension(1:3) :: saxis, normal_to_proj_plane, &
@@ -202,6 +203,7 @@ type :: geom_unfolding_relations_for_each_SCKPT
     integer :: n_pckpts,n_folding_pckpts
     type(vec3d), dimension(:), allocatable :: list_of_SCKPTS
     type(GUR_indices) :: current_index
+    real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC, b_matrix_pc
 end type geom_unfolding_relations_for_each_SCKPT
 
 

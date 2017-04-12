@@ -1298,13 +1298,18 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
         endif
         
         if(args%write_unf_dens_op)then
-            call write_unf_dens_op(args%unf_dens_op_out_file, &
+            call write_unf_dens_op(args%output_file_only_user_selec_direcs_unf_dens_op, &
                                    pckpts_to_be_checked, energy_grid, &
-                                   GUR, delta_N_symm_avrgd_for_EBS)
+                                   GUR, delta_N_only_selected_dirs)
+            if(.not. args%no_symm_avg)then
+                call write_unf_dens_op(args%output_file_symm_averaged_unf_dens_op, &
+                                       pckpts_to_be_checked, energy_grid, &
+                                       GUR, delta_N_symm_avrgd_for_EBS)
+            endif
         endif
 
     else
-        write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to the output file.'
+        write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to output files.'
     endif
 
 end subroutine say_goodbye_and_save_results
@@ -1322,7 +1327,7 @@ integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
            n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener, n_bands_SC_calculation
 logical :: folds
 character(len=127) :: fmt_str
-real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt
+real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt, aux_coords
 type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
 real(kind=dp), dimension(:), pointer :: dN
 
@@ -1330,16 +1335,43 @@ real(kind=dp), dimension(:), pointer :: dN
     n_pc_direcs = size(GUR%SCKPT(1)%selec_pcbz_dir)
     unf_dens_file_unit = available_io_unit()
     open(unit=unf_dens_file_unit, file=out_file, action='write')
+        write(unf_dens_file_unit, '(A)')'############################################&
+                                         ############################################'
+        write(unf_dens_file_unit, '(A)')'# Non-zero matrix elements of the unfolding-&
+                                           density operator evaluated between &
+                                           SC states'
+        write(unf_dens_file_unit, '(A)')'# m1 and m2 refer to SC band indices'
+        write(unf_dens_file_unit, '(A,I0)')'# n_SC_bands=',&
+                                            size(delta_N%pcbz_dir(1)%pckpt(1)%&
+                                                 rhos(1)%rho, 1)
+        write(unf_dens_file_unit, '(A)')'# The operator is introduced and discussed in &
+                                           Phys. Rev. B. 91, 041116(R) (2015)'
+        write(unf_dens_file_unit, '(A)')'# Mind that, if symmetry has been used for the &
+                                           unfolding, then the folding/unfolding'
+        write(unf_dens_file_unit, '(A)')'# relation between SCKPTs and PcKpts shown &
+                                           here might not be obvious.'
+        write(unf_dens_file_unit, '(A)')'# For details about the geometric unfolding &
+                                           relations, please see the main output'
+        write(unf_dens_file_unit, '(A)')'# produced by BandUP.'
+        write(unf_dens_file_unit, '(A)')'############################################&
+                                         ############################################'
+        write(unf_dens_file_unit, '(A)')
         do i_SCKPT=1, n_SCKPTS
             if(.not. GUR%SCKPT_used_for_unfolding(i_SCKPT)) cycle
             if(i_SCKPT>1)then
                 write(unf_dens_file_unit,'(A)')
-                write(unf_dens_file_unit,'(A)')
             endif
-            fmt_str = '(A,X,A,X,I0,X,A,3(2X,f0.9),A)'
-            write(unf_dens_file_unit, fmt_str)'#','i_SCKPT=',i_SCKPT,'Coords=',&
-                                              GUR%list_of_SCKPTS(i_SCKPT),&
-                                                  ' # Cart. coords. (A^{-1})' 
+            write(unf_dens_file_unit, '(A,X,I0)')'# i_SCKPT=',i_SCKPT
+            fmt_str = '(A,3(2X,f0.8),2X,A)'
+            write(unf_dens_file_unit, fmt_str)'# CartesianCoords=',&
+                                              GUR%list_of_SCKPTS(i_SCKPT),'(A^{-1})'
+            fmt_str = '(A,3(2X,f0.8),2X,A)'
+            aux_coords=coords_cart_vec_in_new_basis(&
+                           cart_vec=GUR%list_of_SCKPTS(i_SCKPT)%coord, &
+                                    new_basis=GUR%B_matrix_SC)
+            write(unf_dens_file_unit, fmt_str)'# FractionalCoords=',&
+                                               aux_coords,'(w.r.t. SC basis)'
+            write(unf_dens_file_unit,'(A)')'#'
             do idir=1, n_pc_direcs
                 n_pc_kpts = size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(idir)% &
                                  needed_dir(1)%pckpt)
@@ -1354,10 +1386,24 @@ real(kind=dp), dimension(:), pointer :: dN
                                                needed_dir(1)% &
                                                pckpt(ipc_kpt)% &
                                                Scoords(:)
-                    fmt_str = '(A,X,A,3(2X,f0.9),A)'
-                    write(unf_dens_file_unit, fmt_str)'#','UnfoldingPcKptCoords=', &
-                                                      pckpt(:), &
-                                                      ' # Cart. coords. (A^{-1})'
+                    write(unf_dens_file_unit,'(A)')'#'
+                    fmt_str = '(2(A,X,I0,2X))'
+                     write(unf_dens_file_unit, fmt_str)'# UnfoldingPcKpt Direction=',&
+                                                        idir,'PcKptNumber=',ipc_kpt
+                    fmt_str = '(A,3(2X,f0.8),2X,A)'
+                    write(unf_dens_file_unit, fmt_str)'# CartesianCoords=',&
+                                                      pckpt,'(A^{-1})'
+                    fmt_str = '(A,3(2X,f0.8),2X,A)'
+                    aux_coords=coords_cart_vec_in_new_basis(cart_vec=pckpt, &
+                                                            new_basis=GUR%B_matrix_SC)
+                    write(unf_dens_file_unit, fmt_str)'# FractionalCoords=',&
+                                                       aux_coords,'(w.r.t. SC basis)'
+                    fmt_str = '(A,3(2X,f0.8),2X,A)'
+                    aux_coords=coords_cart_vec_in_new_basis(cart_vec=pckpt, &
+                                                            new_basis=GUR%b_matrix_pc)
+                    write(unf_dens_file_unit, fmt_str)'# FractionalCoords=',&
+                                                       aux_coords,'(w.r.t. PC basis)'
+                    write(unf_dens_file_unit, '(A)')'#'
  
                     rhos => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%rhos
                     dN => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%dN
@@ -1370,7 +1416,7 @@ real(kind=dp), dimension(:), pointer :: dN
                                                            energy_grid(iener), 'eV'
                         fmt_str = '(A,X,3A)'
                         write(unf_dens_file_unit, fmt_str)&
-                              "#","   m1   ","   m2   ","    UnfDensOp_{m1m2}"
+                              "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}"
                         fmt_str = '(2X,I5,"   ",I5,6X,"(",f0.5,",",X,f0.5,")",)'
                         do m1=1,n_bands_SC_calculation
                             do m2=1,n_bands_SC_calculation
@@ -1380,7 +1426,7 @@ real(kind=dp), dimension(:), pointer :: dN
                             enddo
                         enddo
                     enddo
-                    !nullify(rhos, dN)
+                    nullify(rhos, dN)
                 enddo
             enddo
         enddo
@@ -1441,7 +1487,7 @@ real(kind=dp) :: elapsed_time
     call print_time(times%calc_dN, &
         'Time spent calculating the delta_Ns:                              ', elapsed_time)
     call print_time(times%calc_rho, &
-        'Time spent calculating unfolding-density matrices:                ', elapsed_time)
+        'Time spent calculating unfolding-density operators:               ', elapsed_time)
     call print_time(times%calc_pauli_vec, &
         'Time spent calculating SC matrix elements of Pauli spin matrices: ', elapsed_time)
 

@@ -140,7 +140,8 @@ logical :: main_code
     args%input_file_energies = ''
     args%output_file_symm_averaged_EBS = ''
     args%output_file_only_user_selec_direcs = ''
-    args%unf_dens_op_out_file = ''
+    args%output_file_symm_averaged_unf_dens_op = ''
+    args%output_file_only_user_selec_direcs_unf_dens_op = ''
     args%out_file_SC_kpts = ''
     args%origin_for_spin_proj_passed_in_rec = .TRUE.
     ! Optional command line arguments.
@@ -197,10 +198,16 @@ logical :: main_code
     call cla_register(key='-write_unf_dens_op', &
                       description='Write the unfolding-density operator to a file.',&
                       kkind=cla_flag, default='F')
-    call cla_register(key='-unf_dens_op_out_file', &
-                      description='File where the unfolding-density operator will be &
-                                   saved (if requested).', &
-                      kkind=cla_char, default='unfolding_density_operator.dat')
+    call cla_register(key='-output_file_symm_averaged_unf_dens_op', &
+                      description='File where the symmetry-averaged unfolding-density'//&
+                                  ' operator will be saved (if requested).', &
+                      kkind=cla_char, &
+                      default='unfolding_density_operator_symm_avgd.dat')
+    call cla_register(key='-output_file_only_user_selec_direcs_unf_dens_op', &
+                      description='File where the non-symm avgd unfolding-density '//&
+                                  'operator will be saved (if requested).', &
+                      kkind=cla_char, &
+                      default='unfolding_density_operator_not-symm_avgd.dat')
     call cla_register(key='-spin_channel', &
                       description='Either 1 or 2 &
                                    (if the wavefunction has a 2nd spin channel).', &
@@ -312,7 +319,10 @@ logical :: main_code
     call cla_get('-energy_file', args%input_file_energies)
     call cla_get('-out_file_symm', args%output_file_symm_averaged_EBS)
     call cla_get('-out_file_nosymm', args%output_file_only_user_selec_direcs)
-    call cla_get('-unf_dens_op_out_file', args%unf_dens_op_out_file)
+    call cla_get('-output_file_symm_averaged_unf_dens_op', &
+                  args%output_file_symm_averaged_unf_dens_op)
+    call cla_get('-output_file_only_user_selec_direcs_unf_dens_op', &
+                  args%output_file_only_user_selec_direcs_unf_dens_op)
     call cla_get('-out_sckpts_file', args%out_file_SC_kpts)
     call cla_get('-n_sckpts_to_skip', args%n_sckpts_to_skip)
 

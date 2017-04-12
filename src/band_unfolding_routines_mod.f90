@@ -71,14 +71,14 @@ end subroutine verify_commens
 
 
 subroutine get_GUR_not_public(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
-                                        input_crystal_SC, vec_in_latt_tol_for_vec_eq, &
-                                        verbose)
+                              input_crystal_pc, input_crystal_SC, &
+                              vec_in_latt_tol_for_vec_eq, verbose)
 !! Copyright (C) 2013-2016 Paulo V. C. Medeiros
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
-type(crystal_3D), intent(in) :: input_crystal_SC
+type(crystal_3D), intent(in) :: input_crystal_pc, input_crystal_SC
 real(kind=dp), intent(in), optional :: vec_in_latt_tol_for_vec_eq
 logical, intent(in), optional :: verbose
 integer :: nkpts, n_selec_pcbz_dirs, i_SCKPT,ipc_kpt,ieqv_SCKPT,isym, &
@@ -91,9 +91,10 @@ real(kind=dp), dimension(1:3) :: pc_kpt, current_SCKPT, SCKPT_eqv_to_current_SCK
 real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
 type(star), dimension(:), allocatable :: SKPTS_eqv_to_SKPT
 logical :: print_stuff
-type(crystal_3D) :: crystal_SC
+type(crystal_3D) :: crystal_pc, crystal_SC
 
     crystal_SC = input_crystal_SC
+    crystal_pc = input_crystal_pc
     print_stuff = .FALSE.
     if(present(verbose))then
         print_stuff = verbose
@@ -110,6 +111,8 @@ type(crystal_3D) :: crystal_SC
     endif
 
     B_matrix_SC = crystal_SC%rec_latt_vecs
+    GUR%B_matrix_SC = B_matrix_SC
+    GUR%b_matrix_pc = crystal_pc%rec_latt_vecs
     if(args%origin_for_spin_proj_passed_in_rec)then
         args%origin_for_spin_proj_cartesian(:) = 0.0_dp
         do i=1,3
@@ -285,7 +288,7 @@ end subroutine get_GUR_not_public
 
 
 subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
-                                        input_crystal_SC, verbose)
+                                        input_crystal_pc, input_crystal_SC, verbose)
 !! Copyright (C) 2013-2016 Paulo V. C. Medeiros
 !! This routine is a wrapper for the internal routine get_GUR_not_public, which
 !! determines the GUR between PC and SC. If get_GUR_not_public fails in the
@@ -298,7 +301,7 @@ implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
-type(crystal_3D), intent(in) :: input_crystal_SC
+type(crystal_3D), intent(in) :: input_crystal_pc, input_crystal_SC
 logical, intent(in), optional :: verbose
 ! Local vars
 integer :: n_attempts
@@ -312,7 +315,8 @@ logical :: GUR_successfully_determined
     do while((.not. GUR_successfully_determined) .and. &
               vec_in_latt_tol_for_vec_eq <= abs(max_tol_for_vec_equality))
         call get_GUR_not_public(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
-                                input_crystal_SC, vec_in_latt_tol_for_vec_eq, verbose)
+                                input_crystal_pc, input_crystal_SC, &
+                                vec_in_latt_tol_for_vec_eq, verbose)
         GUR_successfully_determined = GUR%n_pckpts == GUR%n_folding_pckpts
         vec_in_latt_tol_for_vec_eq = vec_in_latt_tol_for_vec_eq + &
                                      0.05_dp * abs(default_tol_for_vec_equality)

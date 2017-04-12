@@ -74,7 +74,8 @@ call define_pckpts_to_be_checked(pckpts_to_be_checked, all_dirs_used_for_EBS_alo
                                  n_pckpts_dirs(:))
 
 call get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
-call get_geom_unfolding_relations(GUR, list_of_SCKPTS, pckpts_to_be_checked, crystal_SC)
+call get_geom_unfolding_relations(GUR, list_of_SCKPTS, pckpts_to_be_checked, &
+                                  crystal_pc, crystal_SC)
 call print_message_success_determining_GUR(GUR, stop_if_GUR_fails, is_main_code=.TRUE.) 
 if((GUR%n_pckpts /= GUR%n_folding_pckpts) .and. stop_if_GUR_fails) stop
 call print_geom_unfolding_relations(GUR, list_of_SCKPTS, crystal_pc, crystal_SC)
