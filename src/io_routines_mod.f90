@@ -1242,13 +1242,16 @@ logical, intent(in) :: stop_if_GUR_fails, is_main_code
 end subroutine print_message_success_determining_GUR
 
 
-subroutine say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
+subroutine say_goodbye_and_save_results(delta_N_only_selected_dirs, &
+                                        delta_N_symm_avrgd_for_EBS, &
+                                        GUR, &
                                         pckpts_to_be_checked, energy_grid, &
                                         e_fermi, zero_of_kpts_scale, &
                                         n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed)
 implicit none
 type(UnfoldedQuantitiesForOutput),  intent(in) :: delta_N_only_selected_dirs, &
                                                   delta_N_symm_avrgd_for_EBS
+type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 real(kind=dp), dimension(:), intent(in) :: energy_grid
 real(kind=dp), intent(in) :: e_fermi, zero_of_kpts_scale
@@ -1293,11 +1296,97 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
             write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', &
                                  zero_of_kpts_scale,'.'
         endif
+        
+        if(args%write_unf_dens_op)then
+            call write_unf_dens_op(args%unf_dens_op_out_file, &
+                                   pckpts_to_be_checked, energy_grid, &
+                                   GUR, delta_N_symm_avrgd_for_EBS)
+        endif
+
     else
         write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to the output file.'
     endif
 
 end subroutine say_goodbye_and_save_results
+
+
+subroutine write_unf_dens_op(out_file, pckpts, energy_grid, GUR, delta_N)
+implicit none
+character(len=*), intent(in) :: out_file
+type(selected_pcbz_directions), intent(in) :: pckpts
+real(kind=dp), dimension(:), intent(in) :: energy_grid
+type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
+type(UnfoldedQuantitiesForOutput),  intent(in), target :: delta_N
+! Internal variables
+integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
+           n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener, n_bands_SC_calculation
+logical :: folds
+character(len=127) :: fmt_str
+real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt
+type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
+real(kind=dp), dimension(:), pointer :: dN
+
+    n_SCKPTS = size(GUR%SCKPT)
+    n_pc_direcs = size(GUR%SCKPT(1)%selec_pcbz_dir)
+    unf_dens_file_unit = available_io_unit()
+    open(unit=unf_dens_file_unit, file=out_file, action='write')
+        do i_SCKPT=1, n_SCKPTS
+            if(.not. GUR%SCKPT_used_for_unfolding(i_SCKPT)) cycle
+            if(i_SCKPT>1)then
+                write(unf_dens_file_unit,'(A)')
+                write(unf_dens_file_unit,'(A)')
+            endif
+            fmt_str = '(A,X,A,X,I0,X,A,3(2X,f0.9),A)'
+            write(unf_dens_file_unit, fmt_str)'#','i_SCKPT=',i_SCKPT,'Coords=',&
+                                              GUR%list_of_SCKPTS(i_SCKPT),&
+                                                  ' # Cart. coords. (A^{-1})' 
+            do idir=1, n_pc_direcs
+                n_pc_kpts = size(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(idir)% &
+                                 needed_dir(1)%pckpt)
+                do ipc_kpt=1,n_pc_kpts
+                    folds = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(idir)% &
+                                needed_dir(1)%pckpt(ipc_kpt)%folds
+                    if(.not. folds) cycle
+                    pckpt(:) = pckpts%selec_pcbz_dir(idir)% &
+                                      needed_dir(1)%pckpt(ipc_kpt)%coords(:)
+                    actual_folding_pckpt = GUR%SCKPT(i_SCKPT)%&
+                                               selec_pcbz_dir(idir)%&
+                                               needed_dir(1)% &
+                                               pckpt(ipc_kpt)% &
+                                               Scoords(:)
+                    fmt_str = '(A,X,A,3(2X,f0.9),A)'
+                    write(unf_dens_file_unit, fmt_str)'#','UnfoldingPcKptCoords=', &
+                                                      pckpt(:), &
+                                                      ' # Cart. coords. (A^{-1})'
+ 
+                    rhos => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%rhos
+                    dN => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%dN
+                    n_bands_SC_calculation = size(rhos(1)%rho, 1)
+                    do i_rho=1, size(rhos)
+                        iener = rhos(i_rho)%iener_in_full_pc_egrid
+                        if(dN(iener) < 1E-3_dp) cycle
+                        fmt_str = '(A,X,A,X,f0.9,X,A)'
+                        write(unf_dens_file_unit, fmt_str)'#','PC grid energy=', &
+                                                           energy_grid(iener), 'eV'
+                        fmt_str = '(A,X,3A)'
+                        write(unf_dens_file_unit, fmt_str)&
+                              "#","   m1   ","   m2   ","    UnfDensOp_{m1m2}"
+                        fmt_str = '(2X,I5,"   ",I5,6X,"(",f0.5,",",X,f0.5,")",)'
+                        do m1=1,n_bands_SC_calculation
+                            do m2=1,n_bands_SC_calculation
+                                if(abs(rhos(i_rho)%rho(m1,m2))<1E-5) cycle
+                                write(unf_dens_file_unit, fmt_str) m1, m2, &
+                                                            rhos(i_rho)%rho(m1,m2)
+                            enddo
+                        enddo
+                    enddo
+                    !nullify(rhos, dN)
+                enddo
+            enddo
+        enddo
+    close(unf_dens_file_unit)
+
+end subroutine write_unf_dens_op
 
 
 subroutine print_time(t_in_sec, message, ref_time)

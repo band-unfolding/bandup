@@ -175,6 +175,7 @@ type :: trial_folding_pckpt
     ! calculate the spectral weights associated with a SC wavefunction psi(K,n),
     ! where K' = SK and S is a symmetry operation of the crystal's point group.
     real(kind=dp), dimension(1:3) :: coords_actual_unfolding_K, coords, &
+                                     coords_SCKPT_used_for_coeffs, &
                                      Scoords, Sfolding_vec, Sorigin_for_spin_proj
     logical :: folds
 end type trial_folding_pckpt
@@ -205,6 +206,11 @@ end type geom_unfolding_relations_for_each_SCKPT
 
 
 !! Defining derived types to support a "UnfoldedQuantities" type.
+type :: UnfoldDensityOpContainer
+    complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable :: rho
+    integer :: iener_in_full_pc_egrid
+end type UnfoldDensityOpContainer
+
 type :: unfolded_quantities_for_given_pckpt
     !! This type holds the unfolded quantities, for a given pc-kpt, 
     !! at ever point of the energy grid
@@ -215,7 +221,7 @@ type :: unfolded_quantities_for_given_pckpt
     ! rho will hold the unfolding density operator, if needed
     ! The dimension(:) statement is needed because there is one such operator for
     ! each energy E in the PC energy grid such that delta_N(k,E)>0.
-    type(UnfoldDensityOpContainer), dimension(:), allocatable :: rho 
+    type(UnfoldDensityOpContainer), dimension(:), allocatable :: rhos 
 end type unfolded_quantities_for_given_pckpt
 
 type :: list_of_pckpts_for_unfolded_quantities
@@ -237,9 +243,5 @@ end type UnfoldedQuantities
 type :: UnfoldedQuantitiesForOutput
     type(list_of_pckpts_for_unfolded_quantities), dimension(:), allocatable :: pcbz_dir
 end type UnfoldedQuantitiesForOutput
-
-type :: UnfoldDensityOpContainer
-    complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable :: rho
-end type UnfoldDensityOpContainer
 
 end module constants_and_types
