@@ -45,7 +45,7 @@ PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_po
           star, bz_direction, eqv_bz_directions, irr_bz_directions, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, UnfoldedQuantities, & 
           UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction, &
-          UnfoldDensityOpContainer
+          UnfoldDensityOpContainer, MatrixIndices
 
 
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
@@ -103,6 +103,10 @@ end type vec3d
 type :: vec3d_int
   integer, dimension(1:3) :: coord
 end type vec3d_int
+
+type :: MatrixIndices
+    integer, dimension(1:2) :: indices
+end type MatrixIndices
 
 type :: pw_wavefunction
     integer :: i_spin, n_pw, n_spin, n_bands, n_spinor, &
@@ -210,8 +214,9 @@ end type geom_unfolding_relations_for_each_SCKPT
 
 !! Defining derived types to support a "UnfoldedQuantities" type.
 type :: UnfoldDensityOpContainer
-    complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable :: rho
-    integer :: iener_in_full_pc_egrid
+    complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: rho
+    type(MatrixIndices), dimension(:), allocatable :: band_indices
+    integer :: iener_in_full_pc_egrid, nbands
 end type UnfoldDensityOpContainer
 
 type :: unfolded_quantities_for_given_pckpt
@@ -240,10 +245,12 @@ end type UnfoldedQuantities_info_for_needed_pcbz_dirs
 !! The structure of a variable unf of type(UnfoldedQuantities) is:
 !! unf%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%PROPERTY(iener)
 type :: UnfoldedQuantities
+    integer :: n_SC_bands
     type(UnfoldedQuantities_info_for_needed_pcbz_dirs), dimension(:), allocatable :: selec_pcbz_dir
 end type UnfoldedQuantities
 
 type :: UnfoldedQuantitiesForOutput
+    integer :: n_SC_bands
     type(list_of_pckpts_for_unfolded_quantities), dimension(:), allocatable :: pcbz_dir
 end type UnfoldedQuantitiesForOutput
 

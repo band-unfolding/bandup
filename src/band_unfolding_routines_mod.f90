@@ -600,18 +600,21 @@ subroutine get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrg
                                    pckpts_to_be_checked, times)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
-type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N_only_selected_dirs, &
-                                                  delta_N_symm_avrgd_for_EBS
-type(UnfoldedQuantities), intent(in) :: delta_N
+type(UnfoldedQuantitiesForOutput), target, intent(out) :: delta_N_only_selected_dirs, &
+                                                          delta_N_symm_avrgd_for_EBS
+type(UnfoldedQuantities), target, intent(in) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(irr_bz_directions), dimension(:), intent(in) :: all_dirs_used_for_EBS_along_pcbz_dir
 type(timekeeping), intent(inout), optional :: times
-integer :: nener, i_selec_pcbz_dir, ipc_kpt, i_needed_dirs, iener, i_rho, nbands, n_rhos
+integer :: nener, i_selec_pcbz_dir, ipc_kpt, i_needed_dirs, iener, i_rho, &
+           n_rhos, m1, m2, not_avgd_unf_dens_el_1D_index, avgd_unf_dens_el_1D_index
 real(kind=dp), dimension(:), allocatable :: avrgd_dNs, avrgd_spin_proj, avrgd_parallel_proj
 real(kind=dp), dimension(:,:), allocatable :: avrgd_sigma
 real(kind=dp) :: weight, stime, ftime
 logical :: output_spin_info
-type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
+real(kind=dp), dimension(:), pointer :: symm_avg_dNs
+type(UnfoldDensityOpContainer), pointer :: avgd_rho, not_avgd_rho
+type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
 
 
     stime = time()
@@ -620,6 +623,8 @@ type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
     call allocate_UnfoldedQuantitiesForOutput(delta_N_only_selected_dirs, pckpts_to_be_checked)
     call allocate_UnfoldedQuantitiesForOutput(delta_N_symm_avrgd_for_EBS, pckpts_to_be_checked)
 
+    delta_N_only_selected_dirs%n_SC_bands = delta_N%n_SC_bands
+    delta_N_symm_avrgd_for_EBS%n_SC_bands = delta_N%n_SC_bands
     do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
         delta_N_only_selected_dirs%pcbz_dir(i_selec_pcbz_dir) = &
             delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)
@@ -645,30 +650,16 @@ type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
     if(args%write_unf_dens_op)then
         stime = time()
         ! Symmetry-averaging the unfolding density operator
-        allocate(avrgd_rhos(1:nener))
-        nbands = size(delta_N%selec_pcbz_dir(1)% &
-                              needed_dir(1)%pckpt(1)%&
-                              rhos(1)%rho, 1)
-        do iener=1,nener
-            allocate(avrgd_rhos(iener)%rho(1:nbands, 1:nbands))
-        enddo
         do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
             do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%&
                                                                         pckpt(:))
-                allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
-                                                    pckpt(ipc_kpt)%rhos(1:nener))
-                do iener=1,nener
-                    allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)% &
-                                                        pckpt(ipc_kpt)%rhos(iener)%&
-                                                        rho(1:nbands, 1:nbands))
-                    avrgd_rhos(iener)%rho(:,:) = 0.0_dp
-                    delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%&
-                                               pckpt(ipc_kpt)%&
-                                               rhos(iener)%rho = 0.0_dp
-                    delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%&
-                                               pckpt(ipc_kpt)%&
-                                               rhos(iener)%iener_in_full_pc_egrid = 0
-                enddo
+                symm_avg_dNs => delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%&
+                                                          pckpt(ipc_kpt)%dN
+                allocate(delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%&
+                                                            pckpt(ipc_kpt)%rhos(1:nener))
+                symm_avg_rhos => delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%&
+                                                            pckpt(ipc_kpt)%rhos
+
                 do i_needed_dirs=1,size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%&
                                                 needed_dir(:))
                     weight = all_dirs_used_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)% &
@@ -685,19 +676,50 @@ type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
                                                        needed_dir(i_needed_dirs)% &
                                                        pckpt(ipc_kpt)%rhos(i_rho)%&
                                                        iener_in_full_pc_egrid
-                        avrgd_rhos(iener)%rho = avrgd_rhos(iener)%rho + &
-                            weight * &
-                            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                            needed_dir(i_needed_dirs)% &
-                            pckpt(ipc_kpt)%rhos(i_rho)%rho
-                        avrgd_rhos(iener)%iener_in_full_pc_egrid = iener
-                    enddo
-                enddo
-                delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%&
-                                           rhos = avrgd_rhos
-            enddo     
-        enddo
-        deallocate(avrgd_rhos)
+                        if(symm_avg_dNs(iener) < 1E-3) cycle
+                        not_avgd_rho => delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                                needed_dir(i_needed_dirs)% &
+                                                pckpt(ipc_kpt)%rhos(i_rho)
+                        avgd_rho => symm_avg_rhos(iener)
+                        avgd_rho%iener_in_full_pc_egrid = iener
+                        avgd_rho%nbands = delta_N%n_SC_bands
+                        do m1=1,delta_N%n_SC_bands
+                            do m2=1,delta_N%n_SC_bands
+                                not_avgd_unf_dens_el_1D_index = &
+                                    list_index([m1,m2], not_avgd_rho%band_indices)
+                                ! Nothing to add if no "non-avgd" operator exists
+                                if(not_avgd_unf_dens_el_1D_index<1) cycle
+                                avgd_unf_dens_el_1D_index = &
+                                    list_index(item=[m1,m2], list=avgd_rho%band_indices)
+                                if(avgd_unf_dens_el_1D_index<1)then
+                                    ! Non-avgd op exists, but no corresponding entry 
+                                    ! (matrix element) for the averaged op has been 
+                                    ! calculated
+                                    ! The "append" subroutine allocates argument arrays
+                                    ! if not already allocated
+                                    call append(item=cmplx(&
+                                                     weight*not_avgd_rho%&
+                                                     rho(not_avgd_unf_dens_el_1D_index),&
+                                                     kind=kind_cplx_coeffs), &
+                                                list=avgd_rho%rho &
+                                               )
+                                    call append(item=[m1,m2], &
+                                                list=avgd_rho%band_indices &
+                                               )
+                                else
+                                    ! Avgd op matrix el. [m1, m2] already started to be
+                                    ! calcd, but will generally have a different linear
+                                    ! index in the symm-avgd and no symm-avgd ops
+                                    avgd_rho%rho(avgd_unf_dens_el_1D_index) = &
+                                        avgd_rho%rho(avgd_unf_dens_el_1D_index)+weight*&
+                                        not_avgd_rho%rho(not_avgd_unf_dens_el_1D_index)
+                                endif
+                            enddo ! SC band index m2
+                        enddo ! SC band index m2
+                    enddo ! i_rho index
+                enddo ! i_needed_dirs index
+            enddo ! i_pc_kpt
+        enddo ! i_selec_pcbz_dir index
         ftime = time()
         if(present(times))then
             times%calc_rho = times%calc_rho + (ftime - stime)
@@ -962,7 +984,7 @@ end subroutine calc_spin_projections
 subroutine perform_unfolding(delta_N, times, GUR, wf, selected_coeff_indices, energy_grid)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none 
-type(UnfoldedQuantities), intent(inout) :: delta_N
+type(UnfoldedQuantities), target, intent(inout) :: delta_N
 type(timekeeping), intent(inout) :: times
 type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
 type(pw_wavefunction), intent(in) :: wf
@@ -976,7 +998,8 @@ real(kind=dp), dimension(:), allocatable :: spectral_weight
 real(kind=dp) :: selected_pc_ener, delta_e, dN, unf_spin_proj_perp, unf_spin_proj_para
 real(kind=dp), dimension(1:3) :: symmetrized_unf_pc_kpt, true_unf_pc_kpt, &
                                  unf_pauli_vec, projection_origin
-type(UnfoldDensityOpContainer), dimension(:), allocatable :: rho
+complex(kind=kind_cplx_coeffs), dimension(:,:), allocatable :: temp_rho_matrix
+type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
 complex(kind=kind_cplx_coeffs), dimension(:,:,:), allocatable :: SC_pauli_matrix_elmnts
 integer, dimension(:), allocatable :: pc_energies_to_calc_eigenvalues
 logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
@@ -1014,6 +1037,7 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
     endif
     
     ! Calculating the delta_Ns
+    delta_N%n_SC_bands = n_bands_SC_calculation
     call get_delta_Ns_for_EBS(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                                       needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN, &
                               energy_grid, wf%band_energies, spectral_weight, &
@@ -1052,20 +1076,28 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
         allocate(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                               needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%&
                               rhos(1:size(pc_energies_to_calc_eigenvalues)))
+        rhos => delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
+                                       needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%&
+                                       rhos
         do iener2=1, size(pc_energies_to_calc_eigenvalues)
             iener = pc_energies_to_calc_eigenvalues(iener2)
             selected_pc_ener = energy_grid(iener)
             dN = delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                          needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%dN(iener)
-            call calc_rho(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                              needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%&
-                              rhos(iener2)%rho,&
+            call calc_rho(temp_rho_matrix, &
                           dN, energy_grid(iener), delta_e, wf, &
                           selected_coeff_indices, &
                           add_elapsed_time_to=times%calc_rho)
-            delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
-                              needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%&
-                              rhos(iener2)%iener_in_full_pc_egrid = iener
+            rhos(iener2)%iener_in_full_pc_egrid = iener
+            rhos(iener2)%nbands = n_bands_SC_calculation
+            do m1=1,n_bands_SC_calculation
+                do m2=1,n_bands_SC_calculation
+                    if(abs(temp_rho_matrix(m1,m2)) < 1E-5) cycle
+                    call append(item=temp_rho_matrix(m1,m2), list=rhos(iener2)%rho)
+                    call append(item=[m1,m2], list=rhos(iener2)%band_indices)
+                enddo
+            enddo
+            deallocate(temp_rho_matrix)
         enddo
     endif
 
@@ -1095,7 +1127,7 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
                                             wf, selected_pc_ener, delta_e, &
                                             add_elapsed_time_to=times%calc_pauli_vec)
             do i=1,3
-                unf_pauli_vec(i) = real(trace_AB(A=rho(iener2)%rho, &
+                unf_pauli_vec(i) = real(trace_AB(A=rhos(iener2), &
                                         B=SC_pauli_matrix_elmnts(i,:,:)), kind=dp)
             enddo
             delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
@@ -1115,7 +1147,7 @@ logical, dimension(:,:), allocatable :: pauli_mtx_elmts_already_calc
                     pckpt(ipc_kpt)%spin_proj_para(iener) = unf_spin_proj_para
             !! rho is allocated in the calc_rho routine
             !! rho(iener2) is no longer needed
-            deallocate(rho(iener2)%rho, stat=alloc_stat) 
+            !!deallocate(rho(iener2)%rho, stat=alloc_stat) 
         enddo
         deallocate(pauli_mtx_elmts_already_calc, SC_pauli_matrix_elmnts, stat=alloc_stat)
     endif

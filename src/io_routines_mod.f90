@@ -1311,24 +1311,24 @@ type(timekeeping), intent(inout) :: times
         
         if(args%write_unf_dens_op)then
             if(.not. args%no_symm_avg)then
-                write(*,'(A)')'>>> The symmetry-averaged unfolding-density operators &
-                                   have been saved to the file listed below:'
-                write(*,'(2A)')'    * ', &
-                               trim(adjustl(args%output_file_symm_averaged_unf_dens_op))
                 call write_unf_dens_op(args%output_file_symm_averaged_unf_dens_op, &
                                        pckpts_to_be_checked, energy_grid, &
                                        GUR, delta_N_symm_avrgd_for_EBS, &
                                        add_elapsed_time_to=times%write_unf_dens_op_files)
+                write(*,'(A)')'>>> The symmetry-averaged unfolding-density operators &
+                                   have been saved to the file listed below:'
+                write(*,'(2A)')'    * ', &
+                               trim(adjustl(args%output_file_symm_averaged_unf_dens_op))
             endif
+            call write_unf_dens_op(args%output_file_only_user_selec_direcs_unf_dens_op, &
+                                   pckpts_to_be_checked, energy_grid, &
+                                   GUR, delta_N_only_selected_dirs, &
+                                   add_elapsed_time_to=times%write_unf_dens_op_files)
             write(*,'(A)')'>>> The unfolding-density operators strictly along the &
                                direction(s) you requested have been saved to the &
                                file listed below:'
             write(*,'(2A)')'    * ', &
                 trim(adjustl(args%output_file_only_user_selec_direcs_unf_dens_op))
-            call write_unf_dens_op(args%output_file_only_user_selec_direcs_unf_dens_op, &
-                                   pckpts_to_be_checked, energy_grid, &
-                                   GUR, delta_N_only_selected_dirs, &
-                                   add_elapsed_time_to=times%write_unf_dens_op_files)
         endif
 
     else
@@ -1349,8 +1349,8 @@ type(UnfoldedQuantitiesForOutput),  intent(in), target :: delta_N
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 ! Internal variables
 integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
-           n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener, n_bands_SC_calculation, &
-           ipc_kpt_general
+           n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener,  &
+           ipc_kpt_general, linearized_band_index
 logical :: folds
 character(len=127) :: fmt_str
 real(kind=dp) :: stime, ftime
@@ -1391,9 +1391,7 @@ real(kind=dp), dimension(:), pointer :: dN
         write(unf_dens_file_unit, '(A)')'# produced by BandUP when you run &
                                            the code (normally printed to stdout).'
         write(unf_dens_file_unit, '(A)')'#'
-        write(unf_dens_file_unit, '(A,X,I0)')'# nScBands =',&
-                                            size(delta_N%pcbz_dir(1)%pckpt(1)%&
-                                                 rhos(1)%rho, 1)
+        write(unf_dens_file_unit, '(A,X,I0)')'# nScBands =', delta_N%n_SC_bands
         write(unf_dens_file_unit, '(A)')'############################################&
                                          ############################################'
 
@@ -1448,7 +1446,6 @@ real(kind=dp), dimension(:), pointer :: dN
 
                 rhos => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%rhos
                 dN => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%dN
-                n_bands_SC_calculation = size(rhos(1)%rho, 1)
                 do i_rho=1, size(rhos)
                     iener = rhos(i_rho)%iener_in_full_pc_egrid
                     if(dN(iener) < 1E-3_dp) cycle
@@ -1461,11 +1458,14 @@ real(kind=dp), dimension(:), pointer :: dN
                     write(unf_dens_file_unit, fmt_str)&
                           "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}"
                     fmt_str = '(6X,I5,"   ",I5,6X,"(",f0.5,",",X,f0.5,")",)'
-                    do m1=1,n_bands_SC_calculation
-                        do m2=m1,n_bands_SC_calculation
-                            if(abs(rhos(i_rho)%rho(m1,m2))<1E-5) cycle
+                    do m1=1,rhos(i_rho)%nbands
+                        do m2=m1,rhos(i_rho)%nbands
+                            linearized_band_index = &
+                                list_index(item=[m1,m2], &
+                                           list=rhos(i_rho)%band_indices)
+                            if(abs(rhos(i_rho)%rho(linearized_band_index))<1E-5) cycle
                             write(unf_dens_file_unit, fmt_str) m1, m2, &
-                                                        rhos(i_rho)%rho(m1,m2)
+                                rhos(i_rho)%rho(linearized_band_index)
                         enddo
                     enddo
                 enddo
