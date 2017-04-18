@@ -92,7 +92,8 @@ end type comm_line_args
 
 type :: timekeeping 
     real(kind=dp) :: start, end, read_wf, calc_spec_weights, calc_SF, calc_dN, &
-                     calc_rho, calc_pauli_vec
+                     calc_rho, calc_pauli_vec, calc_pauli_vec_projs, &
+                     write_dN_files, write_unf_dens_op_files
 end type timekeeping 
 
 type :: vec3d

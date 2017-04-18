@@ -77,13 +77,16 @@ implicit none
 type(timekeeping), intent(out) :: times
 
     times%start=time()
-    times%end = times%start
     times%read_wf=0.0_dp
     times%calc_spec_weights=0.0_dp
     times%calc_SF=0.0_dp
     times%calc_dN=0.0_dp
     times%calc_rho=0.0_dp
     times%calc_pauli_vec=0.0_dp
+    times%calc_pauli_vec_projs=0.0_dp
+    times%write_dN_files=0.0_dp
+    times%write_unf_dens_op_files=0.0_dp
+    times%end = time()
 
 end subroutine initialize
 

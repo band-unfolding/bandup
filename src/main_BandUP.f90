@@ -125,13 +125,19 @@ enddo
 !! >> delta_N_symm_avrgd_for_EBS: Symmetry-averaged unfolded EBS. 
 !!                                This is the type of EBS you'll see in my paper 
 !!                                [Phys. Rev. B 89, 041407(R) (2014)].
-call get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, delta_N, &
-                             all_dirs_used_for_EBS_along_pcbz_dir, pckpts_to_be_checked)
+write(*,'(A)')'Gathering results...'
+call get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
+                             delta_N, &
+                             all_dirs_used_for_EBS_along_pcbz_dir, pckpts_to_be_checked,&
+                             times=times)
+write(*,'(A)')'Writing output files...'
 call say_goodbye_and_save_results(delta_N_only_selected_dirs, &
                                   delta_N_symm_avrgd_for_EBS, &
                                   GUR, & 
-                                  pckpts_to_be_checked,energy_grid, e_fermi, zero_of_kpts_scale, &
-                                  GUR%n_pckpts, GUR%n_folding_pckpts, n_folding_pckpts_parsed)
+                                  pckpts_to_be_checked,energy_grid, e_fermi, &
+                                  zero_of_kpts_scale, &
+                                  GUR%n_pckpts, GUR%n_folding_pckpts, &
+                                  n_folding_pckpts_parsed, times=times)
 call print_final_times(times)
 !!*************************************************************************************
 end program BandUP_main

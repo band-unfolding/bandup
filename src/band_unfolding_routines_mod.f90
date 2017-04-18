@@ -597,7 +597,7 @@ end subroutine get_delta_Ns_for_EBS
 
 subroutine get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
                                    delta_N, all_dirs_used_for_EBS_along_pcbz_dir, &
-                                   pckpts_to_be_checked)
+                                   pckpts_to_be_checked, times)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 implicit none
 type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N_only_selected_dirs, &
@@ -605,14 +605,16 @@ type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N_only_selected_dirs, &
 type(UnfoldedQuantities), intent(in) :: delta_N
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(irr_bz_directions), dimension(:), intent(in) :: all_dirs_used_for_EBS_along_pcbz_dir
+type(timekeeping), intent(inout), optional :: times
 integer :: nener, i_selec_pcbz_dir, ipc_kpt, i_needed_dirs, iener, i_rho, nbands, n_rhos
 real(kind=dp), dimension(:), allocatable :: avrgd_dNs, avrgd_spin_proj, avrgd_parallel_proj
 real(kind=dp), dimension(:,:), allocatable :: avrgd_sigma
-real(kind=dp) :: weight
+real(kind=dp) :: weight, stime, ftime
 logical :: output_spin_info
 type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
 
 
+    stime = time()
     nener = size(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%dN(:))
     allocate(avrgd_dNs(1:nener))
     call allocate_UnfoldedQuantitiesForOutput(delta_N_only_selected_dirs, pckpts_to_be_checked)
@@ -635,8 +637,13 @@ type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
             delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs
        enddo     
     enddo
+    ftime = time()
+    if(present(times))then
+        times%calc_dN = times%calc_dN + (ftime - stime)
+    endif
 
     if(args%write_unf_dens_op)then
+        stime = time()
         ! Symmetry-averaging the unfolding density operator
         allocate(avrgd_rhos(1:nener))
         nbands = size(delta_N%selec_pcbz_dir(1)% &
@@ -690,10 +697,16 @@ type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
                                            rhos = avrgd_rhos
             enddo     
         enddo
+        deallocate(avrgd_rhos)
+        ftime = time()
+        if(present(times))then
+            times%calc_rho = times%calc_rho + (ftime - stime)
+        endif
     endif
 
     output_spin_info = allocated(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%spin_proj_perp)
     if(.not. output_spin_info) return
+    stime = time()
     allocate(avrgd_spin_proj(1:nener))
     allocate(avrgd_parallel_proj(1:nener))
     allocate(avrgd_sigma(1:nener,1:3))
@@ -733,7 +746,10 @@ type(UnfoldDensityOpContainer), dimension(:), allocatable :: avrgd_rhos
                                        pckpt(ipc_kpt)%sigma(:,:) = avrgd_sigma(:,:)
        enddo     
     enddo
-  
+    ftime = time()
+    if(present(times))then
+        times%calc_pauli_vec_projs = times%calc_pauli_vec_projs + (ftime - stime)
+    endif
 
 end subroutine get_delta_Ns_for_output
 
