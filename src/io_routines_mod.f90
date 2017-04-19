@@ -442,7 +442,7 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     write(*,'(3(A,f0.5),A)')'Working within the energy interval ',E_start-e_fermi, &
                             ' < E-EF < ',E_end-e_fermi,' in increments of ',delta_e,' eV'
     write(*,'(A,f0.5,A)')'The Fermi energy EF = ',e_fermi, &
-                         ' will be set to the zero of the energy scale in the output file.'
+                         ' will be set to the zero of the energy scale.'
 
     select case (trim(adjustl(upper_case(args%pw_code))))
         case default
@@ -457,10 +457,12 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     write(*,*)
     !$ using_omp = .TRUE.
     if(print_using_omp_msg)then
-    !$  write(*,'(2A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will ', &
-    !$                      'be running using a maximum of ',omp_get_max_threads(),' thread(s).'
+    !$  write(*,'(A)')'Some parts of BandUP have been parallelized with OpenMP &
+    !$  and will be running using a'
+    !$  write(*,'(A,I0,A)')'maximum of ',omp_get_max_threads(),' thread(s).'
     !$  write(*,'(A)')"You can choose the maximum number of threads by setting the &
-    !$                 environment variable 'OMP_NUM_THREADS'"
+    !$                 environment variable"
+    !$  write(*,'(A)')'"OMP_NUM_THREADS". Ex.: export OMP_NUM_THREADS=4'
         continue
     endif
     if(.not. using_omp .and. warn_lack_omp)then
@@ -486,11 +488,19 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
 "       │ http://dx.doi.org/10.1103/PhysRevB.89.041407          |                 ", & 
 "        -------------------------------------------------------                  ", &
 "        and the appropriate references therein.                                  "
-    if(spinor_wf)then
+    if(spinor_wf .or. args%write_unf_dens_op)then
         write(*,*)
-        write(*,'(7(A,/),A)') &
+        if(spinor_wf)then
+            write(*,'(3(A,/))') &
 "        Additionally, since you are working with spinor eigenstates (noncollinear ",&
-"        magnetism, spin-orbit coupling), you should as well read and cite         ", &
+"        magnetism, spin-orbit coupling), and unfolding in such cases require using", &
+"        the unfolding-density operator formalism, you should as well read and cite "
+        elseif(args%write_unf_dens_op)then
+            write(*,'(2(A,/))') &
+"        Additionally, since you have requested the unfolding-density operators to be",&
+"        calculated and written out, you should as well read and cite"
+        endif
+        write(*,'(5(A,/),A)') &
 "        --------------------------------------------------------------------------", &
 "  >>>  | Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, |", &
 "       | Phys. Rev. B 91, 041116(R) (2015)                                        |", &
@@ -1175,7 +1185,8 @@ else
             n_irr_compl_dirs = all_dirs_used_for_EBS_along_pcbz_dir(idir)%n_irr_compl_dirs
             write(*,"(A,I0,A)")"        * ",ncompl_dirs, &
                                " complementary pcbz directions will be considered &
-                                 in order to get a symmetry-averaged EBS."
+                                 in order to get"
+            write(*,"(A)")"               a symmetry-averaged EBS."
             if(ncompl_dirs /= n_irr_compl_dirs)then
                 write(*,"(A,I0,A)")"        * The number of irreducible complementary &
                                     directions is ",n_irr_compl_dirs,"." 
@@ -1287,7 +1298,6 @@ type(timekeeping), intent(inout) :: times
 
 
     write(*,*)
-    write(*,*)
     write(*,'(A)')'Band unfolding process finished. &
                    The output files will now be written.'
     write(*,'(2(A,I0),A)')'A total of ',n_folding_pckpts, &
@@ -1302,26 +1312,30 @@ type(timekeeping), intent(inout) :: times
             write(*,"(A)")'>>> No symmetry-averaged EBS has been &
                                calculated ("-no_symm_avg" flag used).'
         else
-            !! Writing the delta_N_symm_avrgd_for_EBS
+            write(*,'(A)')'>>> Writing the symm-averaged unfolded N(k,E) for the EBS...'
             call write_band_struc(args%output_file_symm_averaged_EBS, &
                                   pckpts_to_be_checked, energy_grid, &
                                   delta_N_symm_avrgd_for_EBS, &
                                   EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale, &
                                   add_elapsed_time_to=times%write_dN_files)
-            write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS &
-                               have been saved to the file listed below:'
-            write(*,'(2A)')'    * ', trim(adjustl(args%output_file_symm_averaged_EBS))
+            write(*,'(A)')'    Done. The symmetry-averaged unfolded N(k,E) were stored &
+                               in the file listed below:'
+            write(*,'(2A)')'          * ', &
+                           trim(adjustl(args%output_file_symm_averaged_EBS))
         endif
 
         !! Writing delta_N_only_selected_dirs
+        write(*,'(A)')'>>> Writing the not-symm-averaged unfolded N(k,E) for the EBS...'
         call write_band_struc(args%output_file_only_user_selec_direcs, &
                               pckpts_to_be_checked, energy_grid, &
                               delta_N_only_selected_dirs, &
                               EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale, &
                               add_elapsed_time_to=times%write_dN_files)
-        write(*,'(A)')'>>> The delta_Ns for the unfolding strictly along the direction(s) &
-                           you requested have been saved to the file listed below:'
-        write(*,'(2A)')'    * ', trim(adjustl(args%output_file_only_user_selec_direcs))
+        write(*,'(A)')'    Done. The unfolded N(k,E) calculated strictly along the &
+                           direction(s) you'
+        write(*,'(A)')'          requested were stored in the file listed below:'
+        write(*,'(2A)')'          * ', &
+                       trim(adjustl(args%output_file_only_user_selec_direcs))
          
         if(zero_of_kpts_scale > 1E-4_dp)then
             write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', &
@@ -1330,29 +1344,37 @@ type(timekeeping), intent(inout) :: times
         
         if(args%write_unf_dens_op)then
             if(.not. args%no_symm_avg)then
+                write(*,'(A)')'>>> Writing the symm-averaged unfolding-density &
+                                   operators...'
                 call write_unf_dens_op(args%output_file_symm_averaged_unf_dens_op, &
                                        pckpts_to_be_checked, energy_grid, &
                                        GUR, delta_N_symm_avrgd_for_EBS, &
                                        add_elapsed_time_to=times%write_unf_dens_op_files)
-                write(*,'(A)')'>>> The symmetry-averaged unfolding-density operators &
-                                   have been saved to the file listed below:'
-                write(*,'(2A)')'    * ', &
+                write(*,'(A)')'    Done. The symmetry-averaged unfolding-density &
+                                   operators were stored in the file'
+                write(*,'(A)')'          listed below:'
+                write(*,'(2A)')'          * ', &
                                trim(adjustl(args%output_file_symm_averaged_unf_dens_op))
             endif
+            write(*,'(A)')'>>> Writing the not-symm-averaged unfolding-density &
+                               operators...'
             call write_unf_dens_op(args%output_file_only_user_selec_direcs_unf_dens_op, &
                                    pckpts_to_be_checked, energy_grid, &
                                    GUR, delta_N_only_selected_dirs, &
                                    add_elapsed_time_to=times%write_unf_dens_op_files)
-            write(*,'(A)')'>>> The unfolding-density operators strictly along the &
-                               direction(s) you requested have been saved to the &
-                               file listed below:'
-            write(*,'(2A)')'    * ', &
+            write(*,'(A)')'    Done. The unfolding-density operators calculated &
+                               strictly along the directions'
+            write(*,'(A)')'          you requested have been saved to the file &
+                                     listed below:'
+            write(*,'(2A)')'          * ', &
                 trim(adjustl(args%output_file_only_user_selec_direcs_unf_dens_op))
         endif
-
+        write(*,'(A)')'Done writing output files.'
     else
         write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to output files.'
     endif
+    write(*,*)
+    write(*,'(A)')'BandUP has now finished running. Good bye.'
 
 end subroutine say_goodbye_and_save_results
 
@@ -1573,7 +1595,6 @@ real(kind=dp) :: elapsed_time
 
     times%end = time()
     elapsed_time = times%end - times%start
-    write(*,*)
     call print_time(elapsed_time, &
         'Total elapsed time:                                               ', elapsed_time)
     call print_time(times%read_wf, &
@@ -1583,7 +1604,8 @@ real(kind=dp) :: elapsed_time
     call print_time(times%calc_SF, &
         'Time spent calculating spectral functions:                        ', elapsed_time)
     call print_time(times%calc_dN, &
-        'Time spent calculating the delta_Ns:                              ', elapsed_time)
+             'Time spent calculating the unfolded N(k,E):                       ', &
+             elapsed_time)
     call print_time(times%calc_rho, &
         'Time spent calculating unfolding-density operators:               ', elapsed_time)
     call print_time(times%calc_pauli_vec, &
