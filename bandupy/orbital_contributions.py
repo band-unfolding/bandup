@@ -23,12 +23,13 @@ def formatted_orb_choice(orb_choices):
     return orblist
 
 class KptInfo():
-    def __init__(self, number, frac_coords, weight, nbands, nions):
+    def __init__(self, number, frac_coords, weight, nbands, nions, nkpts_in_parent_file):
         self.number = number
         self.frac_coords = frac_coords
         self.weight = weight
         self.nbands = nbands
         self.nions = nions
+        self.nkpts_in_parent_file = nkpts_in_parent_file
         self.orbitals = SUPPORTED_ORBS + ['tot']
         __general_proj_info = {}
         for orb in self.orbitals:
@@ -60,7 +61,8 @@ def write_orbital_contribution_matrix_file(
     kpts_info_list, 
     picked_orbitals='all',
     out_file='orbital_contribution_matrix.dat',
-    open_mode='w'
+    open_mode='w',
+    ignore_off_diag=False
 ): 
 
     if(type(kpts_info_list)==list):
@@ -80,9 +82,13 @@ def write_orbital_contribution_matrix_file(
     '# m1 and m2 refer to SC band indices, and the matrix elements ME are in the form \n'
     '#                         ME = (Re{ME}, Im{ME})                                  \n'
     '#                                                                                \n'
-    '# Included orbitals: %s \n'%(' '.join(picked_orbitals))+
+    '# OrbitalProjector = %s \n'%('+'.join(picked_orbitals))+
     '# nScBands = %d                                                                  \n'
     %(kpts_info[0].nbands)+
+    '# nAtoms = %d                                                                  \n'
+    %(kpts_info[0].nions)+
+    '# TotalNumberOfKpts = %d                                                    \n'
+    %(kpts_info[0].nkpts_in_parent_file)+
     '#################################################################################\n'
     )
 
@@ -91,27 +97,36 @@ def write_orbital_contribution_matrix_file(
             f.write(msg)
             f.write('\n')
         for sc_kpt_info in kpts_info:
-            f.write('# ScKptNumber = %d \n'%(sc_kpt_info.number))
-            #f.write('#     ScKptCartesianCoords = %.8f  %.8f  %.8f'%(
+            f.write('# KptNumber = %d \n'%(sc_kpt_info.number))
+            #f.write('#     KptCartesianCoords = %.8f  %.8f  %.8f'%(
             #         sc_kpt_info.cart_coords))
             coords = sc_kpt_info.frac_coords
-            f.write('#     ScKptFractionalCoords = %.8f  %.8f  %.8f \n'%(
+            f.write('#     KptFractionalCoords = %.8f  %.8f  %.8f \n'%(
                      coords[0], coords[1], coords[2]))
-            f.write('#        m1      m2       ME{m1,m2} \n')
+            f.write('#        m1      m2      ME{m1,m2} \n')
             for iband1 in range(sc_kpt_info.nbands):
                 for iband2 in range(iband1,sc_kpt_info.nbands):
+                    if(ignore_off_diag and (iband2!=iband1)): continue
                     contr = complex(0.0, 0.0)
                     for orb in picked_orbitals:
                         this_orb_contr = sc_kpt_info.contrib_matrix_element(
                                              iband1, iband2, orb, force_hermitian=True
                                          )
+                        if(iband1==iband2):
+                            # No orbital should contribute with values outside this 
+                            # interval
+                            this_orb_contr = np.clip(np.real(this_orb_contr), 0.0, 1.0)
+                            this_orb_contr += 0.0j
                         contr += this_orb_contr
-                        if((abs(this_orb_contr)>1.009) and (iband1==iband2)): 
-                            warnings.warn(
-                                '|<ik=%d,m=%d|Proj[%s]|ik=%d,m=%d>| = %.2f > 1'%(
-                                   sc_kpt_info.number, iband1, orb, 
-                                   sc_kpt_info.number, iband2, abs(contr)))
-                    if(abs(contr) < 1E-3): continue
-                    fline = 10*' ' + '%d       %d    (%.5f, %.5f) \n'%(iband1+1,iband2+1,
+                    if(abs(contr) < 1E-2): continue
+                    if(iband1==iband2):
+                        clipped_contr = np.clip(np.real(contr), 0.0, 1.0) + 0.0j
+                        if((np.real(contr)<-0.009) or (np.real(contr)>1.009)):
+                            msg = '|<ik=%d,m=%d|OrbProj|ik=%d,m=%d>|'%(
+                                  sc_kpt_info.number,iband1,sc_kpt_info.number,iband2)
+                            msg += ' clipped from %.2f to %.2f'%(
+                                   np.real(contr), np.real(clipped_contr))
+                        contr = clipped_contr
+                    fline = 10*' ' + '%d       %d    (%.2f, %.2f) \n'%(iband1+1,iband2+1,
                             np.real(contr), np.imag(contr))
                     f.write(fline)
