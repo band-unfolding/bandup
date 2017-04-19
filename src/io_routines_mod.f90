@@ -1186,7 +1186,7 @@ else
             write(*,"(A,I0,A)")"        * ",ncompl_dirs, &
                                " complementary pcbz directions will be considered &
                                  in order to get"
-            write(*,"(A)")"               a symmetry-averaged EBS."
+            write(*,"(A)")"          a symmetry-averaged EBS."
             if(ncompl_dirs /= n_irr_compl_dirs)then
                 write(*,"(A,I0,A)")"        * The number of irreducible complementary &
                                     directions is ",n_irr_compl_dirs,"." 
