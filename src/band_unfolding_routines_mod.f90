@@ -680,6 +680,7 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
                         not_avgd_rho => delta_N%selec_pcbz_dir(i_selec_pcbz_dir)% &
                                                 needed_dir(i_needed_dirs)% &
                                                 pckpt(ipc_kpt)%rhos(i_rho)
+                        if(.not. allocated(not_avgd_rho%band_indices)) cycle 
                         avgd_rho => symm_avg_rhos(iener)
                         avgd_rho%iener_in_full_pc_egrid = iener
                         avgd_rho%nbands = delta_N%n_SC_bands
@@ -687,10 +688,16 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
                             do m2=1,delta_N%n_SC_bands
                                 not_avgd_unf_dens_el_1D_index = &
                                     list_index([m1,m2], not_avgd_rho%band_indices)
-                                ! Nothing to add if no "non-avgd" operator exists
+                                ! Nothing to add if the [m1,m2] matrix element of the 
+                                ! "non-avgd" operator does not exist (meaning it's zero)
                                 if(not_avgd_unf_dens_el_1D_index<1) cycle
-                                avgd_unf_dens_el_1D_index = &
-                                    list_index(item=[m1,m2], list=avgd_rho%band_indices)
+                                if(.not. allocated(avgd_rho%band_indices))then
+                                    avgd_unf_dens_el_1D_index = 0
+                                else
+                                    avgd_unf_dens_el_1D_index = &
+                                        list_index(item=[m1,m2], &
+                                                   list=avgd_rho%band_indices)
+                                endif
                                 if(avgd_unf_dens_el_1D_index<1)then
                                     ! Non-avgd op exists, but no corresponding entry 
                                     ! (matrix element) for the averaged op has been 

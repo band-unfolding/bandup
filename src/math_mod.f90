@@ -246,14 +246,16 @@ integer :: i
 logical :: found
     
     rtn = 0
-    found = .FALSE.
-    do i=1,size(list)
-        if(list(i) == item)then
-            found = .TRUE.
-            exit
-        endif
-    enddo
-    if(found) rtn = i
+    if(lbound(list,1)>0 .and. ubound(list,1)>=lbound(list,1))then
+        found = .FALSE.
+        do i=1,size(list)
+            if(list(i) == item)then
+                found = .TRUE.
+                exit
+            endif
+        enddo
+        if(found) rtn = i
+    endif
 
 end function list_index_integer
 
@@ -267,14 +269,16 @@ integer :: i
 logical :: found
     
     rtn = 0
-    found = .FALSE.
-    do i=1,size(list)
-        if(all(list(i)%indices==item))then
-            found = .TRUE.
-            exit
-        endif
-    enddo
-    if(found) rtn = i
+    if(lbound(list,1)>0 .and. ubound(list,1)>=lbound(list,1))then
+        found = .FALSE.
+        do i=1,size(list)
+            if(all(list(i)%indices==item))then
+                found = .TRUE.
+                exit
+            endif
+        enddo
+        if(found) rtn = i
+    endif
 
 end function list_index_matrix_indices
 

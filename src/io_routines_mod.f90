@@ -56,17 +56,35 @@ CONTAINS
 subroutine print_welcome_messages(package_version)
 implicit none
 character(len=*), intent(in), optional :: package_version
+character(len=127) :: git_hash, git_branch, aux_source_info_str
+
+git_hash = get_git_info_compiled_files('hash_latest_commit')
+git_branch = get_git_info_compiled_files('branch_name')
+
 write(*,'(A,/,A)') &
-    '=====================================================================================', &
-    '             BandUP: Band Unfolding code for Plane-wave based calculations           '
+'=====================================================================================',&
+'             BandUP: Band Unfolding code for Plane-wave based calculations           '
 if(present(package_version))then
     write(*,'(A)') &
-    "                            V. "//trim(adjustl(package_version))
+"                            V. "//trim(adjustl(package_version))
 endif
     write(*,'(A)') &
-    "                     Compiled using "//trim(adjustl(compiler_version()))
+"        Compiled using "//trim(adjustl(compiler_version()))//&
+" on "//trim(adjustl(compilation_time()))
+if(len(trim(adjustl(git_branch)))>0 .or. len(trim(adjustl(git_hash)))>0)then
+    aux_source_info_str = &
+"        From source"
+    if(len(trim(adjustl(git_branch)))>0)then
+        aux_source_info_str = trim(aux_source_info_str)//' '//&
+                              '"'//trim(adjustl(git_branch))//'"'
+    endif
+    if(len(trim(adjustl(git_hash)))>0)then
+        aux_source_info_str = trim(aux_source_info_str)//' '//trim(adjustl(git_hash))
+    endif
+    write(*,'(A)') trim(aux_source_info_str)
+endif 
 write(*,'(17(A,/),A)') &
-    '=====================================================================================', &
+'=====================================================================================',&
     'Copyright (C) 2013-2017 Paulo V. C. Medeiros                                         ', &
     '                                                                                     ', & 
     '                        Computational Physics Division                               ', &
@@ -1270,7 +1288,8 @@ type(timekeeping), intent(inout) :: times
 
     write(*,*)
     write(*,*)
-    write(*,'(A)')'Band unfolding process finished.'
+    write(*,'(A)')'Band unfolding process finished. &
+                   The output files will now be written.'
     write(*,'(2(A,I0),A)')'A total of ',n_folding_pckpts, &
                           ' pc-kpts (out of the ',n_input_pc_kpts, &
                           ' checked) satisfied the folding condition.'
@@ -1353,8 +1372,9 @@ integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
            ipc_kpt_general, linearized_band_index
 logical :: folds
 character(len=127) :: fmt_str
-real(kind=dp) :: stime, ftime
-real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt, sckpt, aux_coords
+real(kind=dp) :: stime, ftime, coord_first_k_in_dir, coord_k, trace
+real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt, sckpt, aux_coords, &
+                                 first_pckpt_dir
 type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
 real(kind=dp), dimension(:), pointer :: dN
 
@@ -1396,7 +1416,10 @@ real(kind=dp), dimension(:), pointer :: dN
                                          ############################################'
 
         ipc_kpt_general = 0
+        coord_first_k_in_dir = 0.0_dp
         do idir=1, n_pc_direcs
+            first_pckpt_dir(:) = pckpts%selec_pcbz_dir(idir)%needed_dir(1)%&
+                                        pckpt(1)%coords(:)
             n_pc_kpts = size(pckpts%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(:))
             do ipc_kpt=1,n_pc_kpts
                 ipc_kpt_general = ipc_kpt_general + 1
@@ -1417,6 +1440,7 @@ real(kind=dp), dimension(:), pointer :: dN
                                            needed_dir(1)% &
                                            pckpt(ipc_kpt)% &
                                            Scoords(:)
+                coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
                 write(unf_dens_file_unit,'(A)')
                 write(unf_dens_file_unit, '(A,X,I0)')'# PcKptNumber =',ipc_kpt_general
                 fmt_str = '(A,3(2X,f0.8),2X,A)'
@@ -1432,6 +1456,9 @@ real(kind=dp), dimension(:), pointer :: dN
                                                         new_basis=GUR%b_matrix_pc)
                 write(unf_dens_file_unit, fmt_str)'#     PcKptFractionalCoords =',&
                                                    aux_coords,'(w.r.t. PCRL basis)'
+                fmt_str = '(A,X,f0.4,2X,A)'
+                write(unf_dens_file_unit, fmt_str)'#     PcKptLinearCoordsInBandPlot =',&
+                                                   coord_k,'(A^{-1})'
                 write(unf_dens_file_unit, '(A,X,I0)')'#     Folds into ScKptNumber =',&
                                                      i_SCKPT
                 fmt_str = '(A,3(2X,f0.8),2X,A)'
@@ -1447,23 +1474,45 @@ real(kind=dp), dimension(:), pointer :: dN
                 rhos => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%rhos
                 dN => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%dN
                 do i_rho=1, size(rhos)
+                    if(.not. allocated(rhos(i_rho)%band_indices)) cycle
                     iener = rhos(i_rho)%iener_in_full_pc_egrid
                     if(dN(iener) < 1E-3_dp) cycle
-                    fmt_str = '(A,5X,A,X,I0,3X,A,X,f0.9,X,A,3X,A,X,f0.3)'
+                    fmt_str = '(A,5X,A,X,I0,3X,A,X,f0.4,X,A,3X,A,X,ES10.3)'
                     write(unf_dens_file_unit, fmt_str)'#','PcEnergyGridPtNumber =', &
                                                        iener,'Energy =', &
                                                        energy_grid(iener),'eV', &
                                                        'N(k,E) =',dN(iener)
-                    fmt_str = '(A,5X,3A)'
-                    write(unf_dens_file_unit, fmt_str)&
-                          "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}"
-                    fmt_str = '(6X,I5,"   ",I5,6X,"(",f0.5,",",X,f0.5,")",)'
+
+                    trace = 0.0_dp
+                    do m1=1,rhos(i_rho)%nbands
+                        linearized_band_index = list_index(item=[m1,m1], &
+                                                           list=rhos(i_rho)%band_indices)
+                        if(linearized_band_index<1) cycle
+                        trace = trace + real(rhos(i_rho)%rho(linearized_band_index), &
+                                             kind=dp)
+                    enddo
+
+                    if(abs(trace-1.0_dp)>1E-2)then
+                        ! The trace of the unfolding-density operator should equal 1,
+                        ! as discussed in Phys. Rev. B 91, 041116(R) (2015)
+                        fmt_str = '(A,5X,3A,7X,A,X,f0.1,X,A)'
+                        write(unf_dens_file_unit, fmt_str)&
+                              "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}",&
+                              'Trace{UnfDensOp} =',trace,'(WARNING: Tr!=1)'
+                    else
+                        fmt_str = '(A,5X,3A,8X,A,X,f0.2)'
+                        write(unf_dens_file_unit, fmt_str)&
+                              "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}",&
+                              'Trace{UnfDensOp} =',trace
+                    endif
+                    fmt_str = '(6X,I5,"   ",I5,6X,"(",ES10.3,",",X,ES10.3,")",)'
                     do m1=1,rhos(i_rho)%nbands
                         do m2=m1,rhos(i_rho)%nbands
                             linearized_band_index = &
                                 list_index(item=[m1,m2], &
                                            list=rhos(i_rho)%band_indices)
-                            if(abs(rhos(i_rho)%rho(linearized_band_index))<1E-5) cycle
+                            if(linearized_band_index<1) cycle
+                            if(abs(rhos(i_rho)%rho(linearized_band_index))<1E-4) cycle
                             write(unf_dens_file_unit, fmt_str) m1, m2, &
                                 rhos(i_rho)%rho(linearized_band_index)
                         enddo
@@ -1471,6 +1520,7 @@ real(kind=dp), dimension(:), pointer :: dN
                 enddo
                 nullify(rhos, dN)
             enddo
+            coord_first_k_in_dir = coord_k
         enddo
 
     close(unf_dens_file_unit)
