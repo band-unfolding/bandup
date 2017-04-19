@@ -130,7 +130,6 @@ call get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_
                              delta_N, &
                              all_dirs_used_for_EBS_along_pcbz_dir, pckpts_to_be_checked,&
                              times=times)
-write(*,'(A)')'Writing output files...'
 call say_goodbye_and_save_results(delta_N_only_selected_dirs, &
                                   delta_N_symm_avrgd_for_EBS, &
                                   GUR, & 
