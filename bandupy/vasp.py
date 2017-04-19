@@ -18,10 +18,17 @@ import os
 import numpy as np
 # Imports from within the package
 from .constants import WORKING_DIR
-from .orbital_contributions import KptInfo
+from .orbital_contributions import KptInfo, write_orbital_contribution_matrix_file
 
 
-def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR')):
+def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
+                mode='accumulate', 
+                picked_orbitals='all', out_file='orbital_contribution_matrix.dat'):
+
+    allowed_modes = ['accumulate', 'convert_for_bandup']
+    if(mode not in allowed_modes):
+        raise ValueError('mode: Allowed values are %s'%(', '.join(allowed_modes)))
+
     kpts_info = []
     with open(fpath, 'r') as f:
         # Will not use readlines here because PROCAR files can often be very big
@@ -103,8 +110,17 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR')):
                                 (kpt.bands[iband]['tot_orb_projs'][orb]
                                           ['phase_dual'].append(
                                     dual_proj_matrix[iband,alpha]))
-                    kpts_info.append(kpt)
-    return kpts_info
-
-
+                    if(mode=='accumulate'):
+                        kpts_info.append(kpt)
+                    elif(mode=='convert_for_bandup'):
+                        open_mode = 'append'
+                        if(kpt.number==1): open_mode = 'write'
+                        print 'Writing info for Kpt #%d...'%(kpt.number) # TEST
+                        write_orbital_contribution_matrix_file(kpt, picked_orbitals,
+                                                               out_file, 
+                                                               open_mode=open_mode)
+    if(mode=='accumulate'):
+        return kpts_info
+    elif(mode=='convert_for_bandup'):
+        return None
 

@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+import time
 # Imports from within the package
 from .warnings_wrapper import warnings
   
@@ -10,6 +11,8 @@ def formatted_orb_choice(orb_choices):
         return orb_choices
     orb = orb_choices.lower().strip()
     if(orb in ['all', 'spd']): orblist = SUPPORTED_ORBS
+    elif(orb in ['p']): orblist = ['px', 'py', 'pz']   
+    elif(orb in ['d']): orblist = ['dxy', 'dyz', 'dz2', 'dxz', 'dx2']   
     elif(orb in ['sp3', 'sp']): orblist = ['s', 'px', 'py', 'pz']   
     elif(orb in ['sp2', 'spxy', 'spyx']): orblist = ['s', 'px', 'py']   
     elif(orb in ['spxz', 'spzx']): orblist = ['s', 'px', 'pz']   
@@ -56,17 +59,19 @@ class KptInfo():
 def write_orbital_contribution_matrix_file(
     kpts_info_list, 
     picked_orbitals='all',
-    out_file='orbital_contribution_matrix.dat'
+    out_file='orbital_contribution_matrix.dat',
+    open_mode='w'
 ): 
 
     if(type(kpts_info_list)==list):
         kpts_info = kpts_info_list
     else:
         kpts_info = [kpts_info_list]
+    picked_orbitals = formatted_orb_choice(picked_orbitals)
 
     msg = (
     '#################################################################################\n'
-    '# File produced by BandUP                                                        \n'
+    '# File produced by BandUP at %s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))+
     '# Copyright (C) 2017 Paulo V. C. Medeiros                                        \n'
     '#################################################################################\n'
     '# Non-zero upper-triangular matrix elements of the orbital contribution matrix   \n'
@@ -75,21 +80,21 @@ def write_orbital_contribution_matrix_file(
     '# m1 and m2 refer to SC band indices, and the matrix elements ME are in the form \n'
     '#                         ME = (Re{ME}, Im{ME})                                  \n'
     '#                                                                                \n'
+    '# Included orbitals: %s \n'%(' '.join(picked_orbitals))+
     '# nScBands = %d                                                                  \n'
     %(kpts_info[0].nbands)+
     '#################################################################################\n'
     )
 
-    picked_orbitals = formatted_orb_choice(picked_orbitals)
-    with open(out_file, 'w') as f:
-        f.write(msg)
-        f.write('\n')
-        for iSC_kpt_minus_one, sc_kpt_info in enumerate(kpts_info):
-            iSC_kpt = iSC_kpt_minus_one + 1
-            f.write('# ScKptNumber = %d \n'%(iSC_kpt))
+    with open(out_file, open_mode[0].lower()) as f:
+        if(open_mode[0].lower()=='w'):
+            f.write(msg)
+            f.write('\n')
+        for sc_kpt_info in kpts_info:
+            f.write('# ScKptNumber = %d \n'%(sc_kpt_info.number))
             #f.write('#     ScKptCartesianCoords = %.8f  %.8f  %.8f'%(
-            #         kpts_info[iSC_kpt-1].cart_coords))
-            coords = kpts_info[iSC_kpt-1].frac_coords
+            #         sc_kpt_info.cart_coords))
+            coords = sc_kpt_info.frac_coords
             f.write('#     ScKptFractionalCoords = %.8f  %.8f  %.8f \n'%(
                      coords[0], coords[1], coords[2]))
             f.write('#        m1      m2       ME{m1,m2} \n')
