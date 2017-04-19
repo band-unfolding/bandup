@@ -34,7 +34,8 @@ PRIVATE
 PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           get_file_size_in_bytes, str_len, package_version, file_header_BandUP, &
           file_header_BandUP_short, file_for_pc_reduced_to_prim_cell, &
-          file_for_SC_reduced_to_prim_cell, compiler_version
+          file_for_SC_reduced_to_prim_cell, compiler_version, compilation_time, &
+          get_git_info_compiled_files
 
 integer, parameter :: str_len=256
 character(len=30), parameter :: package_version="2.10.0, 2017-MM-DD"
@@ -70,6 +71,44 @@ integer :: compiler_major, compiler_minor, compiler_patch
 #endif
 
 end function compiler_version
+
+function compilation_time() result(timestamp)
+implicit none
+character(len=30) :: timestamp
+
+#if defined (__INTEL_COMPILER)
+    write(timestamp, '(A)') __TIMESTAMP__
+#elif defined (__GFORTRAN__)
+    write(timestamp, '(A,X,A)') __DATE__, __TIME__
+#else
+    timestamp = 'unknown date and time'
+#endif
+
+end function compilation_time
+
+function get_git_info_compiled_files(requested_info) result(req_info_val)
+implicit none
+character(len=*), intent(in) :: requested_info
+character(len=127) :: req_info_val
+
+    select case (trim(adjustl(requested_info)))
+        case ('hash_latest_commit')
+#           if defined (__COMMIT_HASH__)
+                write(req_info_val, '(A)') __COMMIT_HASH__
+#           else
+                req_info_val = 'unknown hash from latest git commit'
+#           endif
+        case ('branch_name')
+#           if defined (__USED_BRANCH__)
+                write(req_info_val, '(A)') __USED_BRANCH__
+#           else
+                req_info_val = 'unknown git branch name'
+#           endif
+        case default
+            req_info_val = ''
+    end select
+
+end function get_git_info_compiled_files
 
 
 function available_io_unit(min_unit,max_unit) result(unit_num)

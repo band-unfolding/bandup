@@ -8,6 +8,8 @@
 # ======================================================================
 # Declarations
 # ======================================================================
+GIT_HASH_LATEST_COMMIT := $(shell git log --format='%H' -n 1)
+GIT_USED_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 # The compiler
 FC = ifort
 # Required flags: 
@@ -25,14 +27,18 @@ FCFLAGS_for_gfortran += -O2
 FCFLAGS_for_ifort += -diag-disable remark
 FCFLAGS_for_gfortran += -w
 # Enable preprocessor
-FCFLAGS_for_ifort += -fpp
-FCFLAGS_for_gfortran += -cpp
+FPPFLAGS_for_ifort += -fpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
+FPPFLAGS_for_ifort += -fpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
+FPPFLAGS_for_gfortran += -cpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
+FPPFLAGS_for_gfortran += -cpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
 
 # Setting correct compiler options
 ifeq ($(FC),ifort)
   FCFLAGS=$(FCFLAGS_for_ifort)
+  FPPFLAGS=$(FPPFLAGS_for_ifort)
 else ifeq ($(FC),gfortran)
   FCFLAGS=$(FCFLAGS_for_gfortran)
+  FPPFLAGS=$(FPPFLAGS_for_gfortran)
 endif
 
 # Aliases
@@ -117,10 +123,10 @@ $(EXE): $(SRC_OBJ) $(OBJ)
 	$(FC) $(FCFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.f90
-	$(FC) $(FCFLAGS) -c $<
+	$(FC) $(FCFLAGS) $(FPPFLAGS) -c $<
 
 %.o: %.F90
-	$(FC) $(FCFLAGS) -c $<
+	$(FC) $(FCFLAGS) $(FPPFLAGS) -c $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -c $<
