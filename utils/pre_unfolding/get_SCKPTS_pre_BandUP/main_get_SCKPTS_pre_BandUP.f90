@@ -87,7 +87,8 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
     call get_irr_SC_kpts(n_irr_kpts=aux_n_irr_unfolding_SCKPTS,irr_kpts_list=aux_irr_unfolding_SCKPTS, &
                          irr_kpts_list_frac_coords=aux_irr_unfolding_SCKPTS_frac_coords, &
                          kpts_list=considered_kpts_list,crystal=crystal_SC,args=args,reduce_to_bz=.TRUE.)
-    call get_geom_unfolding_relations(GUR,aux_irr_unfolding_SCKPTS,pckpts_to_be_checked,crystal_SC)
+    call get_geom_unfolding_relations(GUR, aux_irr_unfolding_SCKPTS, &
+                                      pckpts_to_be_checked, crystal_pc, crystal_SC)
     
     n_irr_unfolding_SCKPTS = count(GUR%SCKPT_used_for_unfolding(:))
     allocate(irr_unfolding_SCKPTS(1:n_irr_unfolding_SCKPTS), &
@@ -101,7 +102,8 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
         endif
     enddo
 
-    call get_geom_unfolding_relations(GUR,irr_unfolding_SCKPTS,pckpts_to_be_checked,crystal_SC)
+    call get_geom_unfolding_relations(GUR, irr_unfolding_SCKPTS, &
+                                      pckpts_to_be_checked,crystal_pc,crystal_SC)
     call print_message_success_determining_GUR(GUR, stop_if_GUR_fails, is_main_code=.FALSE.) 
     if((GUR%n_pckpts /= GUR%n_folding_pckpts) .and. stop_if_GUR_fails) stop
 
