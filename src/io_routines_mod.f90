@@ -1349,6 +1349,7 @@ type(timekeeping), intent(inout) :: times
                 call write_unf_dens_op(args%output_file_symm_averaged_unf_dens_op, &
                                        pckpts_to_be_checked, energy_grid, &
                                        GUR, delta_N_symm_avrgd_for_EBS, &
+                                       EF=e_fermi, &
                                        add_elapsed_time_to=times%write_unf_dens_op_files)
                 write(*,'(A)')'    Done. The symmetry-averaged unfolding-density &
                                    operators were stored in the file'
@@ -1361,6 +1362,7 @@ type(timekeeping), intent(inout) :: times
             call write_unf_dens_op(args%output_file_only_user_selec_direcs_unf_dens_op, &
                                    pckpts_to_be_checked, energy_grid, &
                                    GUR, delta_N_only_selected_dirs, &
+                                   EF=e_fermi, &
                                    add_elapsed_time_to=times%write_unf_dens_op_files)
             write(*,'(A)')'    Done. The unfolding-density operators calculated &
                                strictly along the directions'
@@ -1380,7 +1382,7 @@ end subroutine say_goodbye_and_save_results
 
 
 subroutine write_unf_dens_op(out_file, pckpts, energy_grid, GUR, delta_N, &
-                             add_elapsed_time_to)
+                             EF, add_elapsed_time_to)
 implicit none
 character(len=*), intent(in) :: out_file
 type(selected_pcbz_directions), intent(in) :: pckpts
@@ -1388,19 +1390,25 @@ real(kind=dp), dimension(:), intent(in) :: energy_grid
 type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
 type(UnfoldedQuantitiesForOutput),  intent(in), target :: delta_N
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
+real(kind=dp), intent(in), optional :: EF
 ! Internal variables
 integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
            n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener,  &
            ipc_kpt_general, linearized_band_index
 logical :: folds
 character(len=127) :: fmt_str
-real(kind=dp) :: stime, ftime, coord_first_k_in_dir, coord_k, trace
+real(kind=dp) :: stime, ftime, coord_first_k_in_dir, coord_k, trace, e_fermi
 real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt, sckpt, aux_coords, &
                                  first_pckpt_dir
 type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
 real(kind=dp), dimension(:), pointer :: dN
 
     stime = time()
+
+    e_fermi = 0.0_dp
+    if(present(EF))then
+         e_fermi = EF
+    endif
 
     n_SCKPTS = size(GUR%SCKPT)
     n_pc_direcs = size(GUR%SCKPT(1)%selec_pcbz_dir)
@@ -1434,6 +1442,14 @@ real(kind=dp), dimension(:), pointer :: dN
                                            the code (normally printed to stdout).'
         write(unf_dens_file_unit, '(A)')'#'
         write(unf_dens_file_unit, '(A,X,I0)')'# nScBands =', delta_N%n_SC_bands
+        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emin =', &
+                                                   minval(energy_grid)-e_fermi,'eV'
+        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emax =', &
+                                                   maxval(energy_grid)-e_fermi,'eV'
+        write(unf_dens_file_unit, '(A,X,I0)')'# nEner =', size(energy_grid)
+        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# OriginalEfermi =',e_fermi,'eV'
+        write(unf_dens_file_unit, '(A)')'# The energies were shifted so that the Fermi &
+                                        level is at 0 eV.'
         write(unf_dens_file_unit, '(A)')'############################################&
                                          ############################################'
 
