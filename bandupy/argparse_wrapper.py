@@ -291,14 +291,14 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         # Obsolete options
         # These are no longer accepted, but were kept here to warn those that 
         # normally use them and, when applicable, offer alternatives
-        obsolete_args.add_argument('positional_input_file',
-            default=argparse.SUPPRESS, 
-            action=obsolete_arg_action_gen('-input_file'), 
-            nargs='?', help=argparse.SUPPRESS)
-        obsolete_args.add_argument('positional_output_file',
-            default=argparse.SUPPRESS, 
-            action=obsolete_arg_action_gen('-output_file'), 
-            nargs='?', help=argparse.SUPPRESS)
+        #obsolete_args.add_argument('positional_input_file',
+        #    default=argparse.SUPPRESS, 
+        #    action=obsolete_arg_action_gen('-input_file'), 
+        #    nargs='?', help=argparse.SUPPRESS)
+        #obsolete_args.add_argument('positional_output_file',
+        #    default=argparse.SUPPRESS, 
+        #    action=obsolete_arg_action_gen('-output_file'), 
+        #    nargs='?', help=argparse.SUPPRESS)
 
         # Input files
         input_files_args.add_argument('-input_file', 
