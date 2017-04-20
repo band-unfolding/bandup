@@ -73,6 +73,9 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                            weight = float((lsplit[8])),
                            nbands=nbands, nions=nions,
                            nkpts_in_parent_file=nkps)
+                proj_matrix = np.zeros([kpt.nions*len(kpt.orbitals[:-1]), 
+                                        kpt.nbands],
+                                       dtype=complex)
             elif(("# energy" in line) and ('# occ' in line)):
                 iband += 1
                 kpt.bands[iband-1]['number'] = iband
@@ -94,33 +97,28 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 for i, orb in enumerate(kpt.orbitals):
                     kpt.bands[iband-1]['tot_orb_projs'][orb]['norm'] = float(lsplit[i+1])
             elif(start_phase <= iline <= end_phase):
-                iline_from_start = iline - start_phase
-                if(not iline_from_start%2):
+                # Constructing orbital projection matrices
+                #iline_from_start = iline - start_phase
+                #if(not iline_from_start%2):
+                if(iline==start_phase): reading_real_part = True
+                alpha_orb_zero = iatom*len(kpt.orbitals[:-1])
+                if(reading_real_part):
                     for i, orb in enumerate(kpt.orbitals[:-1]):
                         fline_value = float(lsplit[i+1])
-                        if(abs(fline_value) < 1E-3): fline_value = 0.0
-                        kpt.bands[iband-1]['ion_projs'][iatom][orb]['phase'] = (
-                            fline_value + 0.0j
-                        )
+                        #if(abs(fline_value) < 1E-3): fline_value = 0.0
+                        alpha = alpha_orb_zero + i
+                        proj_matrix[alpha,iband-1] = fline_value
                 else:
                     for i, orb in enumerate(kpt.orbitals[:-1]):
                         fline_value = float(lsplit[i+1])
-                        if(abs(fline_value) < 1E-3): fline_value = 0.0
-                        kpt.bands[iband-1]['ion_projs'][iatom][orb]['phase'] += (
-                            1.0j * fline_value
-                        )
+                        #if(abs(fline_value) < 1E-3): fline_value = 0.0
+                        alpha = alpha_orb_zero + i
+                        proj_matrix[alpha,iband-1] += 1.0j * fline_value
                     iatom += 1
+                reading_real_part = not reading_real_part
                 if(iline==end_phase and iband==nbands):
-                    # Constructing orbital projection matrices and getting duals of projs
-                    proj_matrix = np.zeros([kpt.nions*len(kpt.orbitals[:-1]), 
-                                            kpt.nbands],
-                                           dtype=complex)
-                    for iband in range(kpt.nbands):
-                        for iorb, orb in enumerate(kpt.orbitals[:-1]):
-                            for iatom2 in range(kpt.nions):
-                                alpha = iatom2*len(kpt.orbitals[:-1]) + iorb
-                                proj_matrix[alpha,iband]=(kpt.bands[iband]['ion_projs']
-                                                          [iatom2][orb]['phase'])
+                    # Getting dual of projection matrix
+                    print '    * Calculating dual to projections...'
                     dual_proj_matrix = np.linalg.pinv(proj_matrix)
                     for iband in range(kpt.nbands):
                         for iorb, orb in enumerate(kpt.orbitals[:-1]):

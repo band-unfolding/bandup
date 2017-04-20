@@ -22,7 +22,7 @@ def formatted_orb_choice(orb_choices):
         orblist = [orb_choices]
     return orblist
 
-class KptInfo():
+class KptInfo(object):
     def __init__(self, number, frac_coords, weight, nbands, nions, nkpts_in_parent_file):
         self.number = number
         self.frac_coords = frac_coords
@@ -31,14 +31,12 @@ class KptInfo():
         self.nions = nions
         self.nkpts_in_parent_file = nkpts_in_parent_file
         self.orbitals = SUPPORTED_ORBS + ['tot']
-        __general_proj_info = {}
-        for orb in self.orbitals:
-            __general_proj_info[orb] = {'norm':None, 'phase':None, 'phase_dual':None}
-        __band_info = {'number':None, 'ener':None, 'occ':None,
-                       'ion_projs':[copy.deepcopy(__general_proj_info) for 
-                                    i in range(nions)],
-                       'tot_orb_projs':copy.deepcopy(__general_proj_info)}
-        self.bands = [copy.deepcopy(__band_info) for ib in range(nbands)]
+        self.bands = [{'number':None, 'ener':None, 'occ':None,
+                       'ion_projs':[{orb:{'norm':None} for orb in self.orbitals} for
+                                    i in range(self.nions)],
+                       'tot_orb_projs':{orb:{'phase':None,'phase_dual':None} for 
+                                        orb in self.orbitals}}
+                      for ib in range(self.nbands)]
 
     def contrib_matrix_element(self, iband1, iband2, orb,
                                use_dual=True, force_hermitian=False,
