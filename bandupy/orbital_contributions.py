@@ -41,13 +41,17 @@ class KptInfo():
         self.bands = [copy.deepcopy(__band_info) for ib in range(nbands)]
 
     def contrib_matrix_element(self, iband1, iband2, orb,
-                               use_dual=True, force_hermitian=False):
+                               use_dual=True, force_hermitian=False,
+                               max_band_dE=0.25):
+        if(abs(self.bands[iband2]['ener']-self.bands[iband1]['ener'])>max_band_dE):
+            return 0.0 + 0.0j
         proj1 = self.bands[iband2]['tot_orb_projs'][orb]['phase']
         if(use_dual):
             proj2 = self.bands[iband1]['tot_orb_projs'][orb]['phase_dual']
         else:
             proj2 = map(np.conj, self.bands[iband1]['tot_orb_projs'][orb]['phase'])
-        c_m_element = np.dot(proj2,proj1)
+        #c_m_element = np.dot(proj2,proj1)
+        c_m_element = sum(p2*p1 for p1,p2 in zip(proj1,proj2))
 
         if(force_hermitian):
             c_m_element += np.conj(self.contrib_matrix_element(iband2, iband1, orb,
