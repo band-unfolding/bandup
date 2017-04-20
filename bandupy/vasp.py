@@ -119,7 +119,7 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                         for iorb, orb in enumerate(kpt.orbitals[:-1]):
                             for iatom2 in range(kpt.nions):
                                 alpha = iatom2*len(kpt.orbitals[:-1]) + iorb
-                                proj_matrix[alpha,iband]+=(kpt.bands[iband]['ion_projs']
+                                proj_matrix[alpha,iband]=(kpt.bands[iband]['ion_projs']
                                                           [iatom2][orb]['phase'])
                     dual_proj_matrix = np.linalg.pinv(proj_matrix)
                     for iband in range(kpt.nbands):
