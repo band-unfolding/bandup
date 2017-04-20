@@ -20,13 +20,24 @@ import numpy as np
 from .constants import WORKING_DIR
 from .orbital_contributions import KptInfo, write_orbital_contribution_matrix_file
 
+def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
+                  out_file='orbital_contribution_matrix.dat',
+                  picked_orbitals='all',
+                  ignore_off_diag=False):
+    read_procar(
+        fpath=fpath,
+        mode='convert2bandup',
+        picked_orbitals=picked_orbitals,
+        out_file=out_file,
+        ignore_off_diag=ignore_off_diag,
+    )
 
 def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 mode='accumulate', 
                 picked_orbitals='all', out_file='orbital_contribution_matrix.dat',
                 ignore_off_diag=False):
 
-    allowed_modes = ['accumulate', 'convert_for_bandup']
+    allowed_modes = ['accumulate', 'convert2bandup']
     if(mode not in allowed_modes):
         raise ValueError('mode: Allowed values are %s'%(', '.join(allowed_modes)))
 
@@ -55,7 +66,7 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                         new_lsplit.append(item)
                 lsplit = new_lsplit
                 #if(int(lsplit[1])>1): break # TEST
-                print 'Reading info for Kpt #%d...'%(int(lsplit[1])) # TEST
+                print 'Reading info for Kpt #%d/%d...'%(int(lsplit[1]), nkps) # TEST
                 iband = 0
                 kpt  = KptInfo(number=int(lsplit[1]), 
                            frac_coords=np.array(map(float, lsplit[3:6])),
@@ -124,10 +135,11 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                                     dual_proj_matrix[iband,alpha]))
                     if(mode=='accumulate'):
                         kpts_info.append(kpt)
-                    elif(mode=='convert_for_bandup'):
+                    elif(mode=='convert2bandup'):
                         open_mode = 'append'
                         if(kpt.number==1): open_mode = 'write'
-                        print 'Writing info for Kpt #%d...'%(kpt.number) # TEST
+                        print 'Writing info for Kpt #%d/%d...'%(kpt.number, # TEST
+                              kpt.nkpts_in_parent_file) # TEST
                         write_orbital_contribution_matrix_file(
                             kpt, picked_orbitals,
                             out_file, 
@@ -135,6 +147,6 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                             ignore_off_diag=ignore_off_diag)
     if(mode=='accumulate'):
         return kpts_info
-    elif(mode=='convert_for_bandup'):
+    elif(mode=='convert2bandup'):
         return None
 
