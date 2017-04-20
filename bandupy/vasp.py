@@ -22,19 +22,22 @@ from .orbital_contributions import KptInfo, write_orbital_contribution_matrix_fi
 
 def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                   out_file='orbital_contribution_matrix.dat',
-                  picked_orbitals='all',
+                  picked_orbitals='all', selected_ion_indices=None,
                   ignore_off_diag=False):
     read_procar(
         fpath=fpath,
         mode='convert2bandup',
         picked_orbitals=picked_orbitals,
+        selected_ion_indices=selected_ion_indices,
         out_file=out_file,
         ignore_off_diag=ignore_off_diag,
     )
 
 def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 mode='accumulate', 
-                picked_orbitals='all', out_file='orbital_contribution_matrix.dat',
+                picked_orbitals='all', 
+                selected_ion_indices=None,
+                out_file='orbital_contribution_matrix.dat',
                 ignore_off_diag=False):
 
     allowed_modes = ['accumulate', 'convert2bandup']
@@ -139,8 +142,9 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                         print 'Writing info for Kpt #%d/%d...'%(kpt.number, # TEST
                               kpt.nkpts_in_parent_file) # TEST
                         write_orbital_contribution_matrix_file(
-                            kpt, picked_orbitals,
-                            out_file, 
+                            kpt, picked_orbitals=picked_orbitals,
+                            selected_ion_indices=selected_ion_indices,
+                            out_file=out_file, 
                             open_mode=open_mode,
                             ignore_off_diag=ignore_off_diag)
     if(mode=='accumulate'):

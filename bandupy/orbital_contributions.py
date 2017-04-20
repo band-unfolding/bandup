@@ -38,7 +38,7 @@ class KptInfo(object):
                                         orb in self.orbitals}}
                       for ib in range(self.nbands)]
 
-    def contrib_matrix_element(self, iband1, iband2, orb,
+    def contrib_matrix_element(self, iband1, iband2, orb, selected_ion_indices=None,
                                use_dual=True, force_hermitian=False,
                                max_band_dE=0.25):
         if(abs(self.bands[iband2]['ener']-self.bands[iband1]['ener'])>max_band_dE):
@@ -48,12 +48,18 @@ class KptInfo(object):
             proj2 = self.bands[iband1]['tot_orb_projs'][orb]['phase_dual']
         else:
             proj2 = map(np.conj, self.bands[iband1]['tot_orb_projs'][orb]['phase'])
+        if(selected_ion_indices is not None):
+            proj1 = [proj1[i] for i in selected_ion_indices]
+            proj2 = [proj2[i] for i in selected_ion_indices]
         #c_m_element = np.dot(proj2,proj1)
         c_m_element = sum(p2*p1 for p1,p2 in zip(proj1,proj2))
 
         if(force_hermitian):
             c_m_element += np.conj(self.contrib_matrix_element(iband2, iband1, orb,
-                                   use_dual, force_hermitian=False))
+                                       selected_ion_indices, use_dual, 
+                                       force_hermitian=False, max_band_dE=max_band_dE
+                                   )
+                           ) 
             c_m_element *= 0.5
 
         return c_m_element
@@ -62,6 +68,7 @@ class KptInfo(object):
 def write_orbital_contribution_matrix_file(
     kpts_info_list, 
     picked_orbitals='all',
+    selected_ion_indices=None,
     out_file='orbital_contribution_matrix.dat',
     open_mode='w',
     ignore_off_diag=False
@@ -112,7 +119,8 @@ def write_orbital_contribution_matrix_file(
                     contr = complex(0.0, 0.0)
                     for orb in picked_orbitals:
                         this_orb_contr = sc_kpt_info.contrib_matrix_element(
-                                             iband1, iband2, orb, force_hermitian=True
+                                             iband1, iband2, orb, force_hermitian=True,
+                                             selected_ion_indices=selected_ion_indices,
                                          )
                         if(iband1==iband2):
                             # No orbital should contribute with values outside this 
