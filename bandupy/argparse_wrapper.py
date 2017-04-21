@@ -270,9 +270,9 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         self.aux_settings['cmap_names'],self.aux_settings['cmaps']=get_available_cmaps() 
         # Change self.aux_settings['default_cmap'] if you want 
         # another colormap to be the default one. 
-        # I used 'gist_ncar' in my 2014 PRB(R) paper. 
-        self.aux_settings['default_cmap'] = 'gist_ncar' 
-        if('gist_ncar' not in self.aux_settings['cmap_names']):
+        # I used 'gist_ncar' and 'Greys' in my PRB(R) 2014 and 2015 papers, respectively 
+        self.aux_settings['default_cmap'] = 'jet' 
+        if('jet' not in self.aux_settings['cmap_names']):
             self.aux_settings['default_cmap'] = self.aux_settings['cmap_names'][0]
 
         # Argument groups
