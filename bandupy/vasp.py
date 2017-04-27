@@ -23,7 +23,7 @@ from .orbital_contributions import KptInfo, write_orbital_contribution_matrix_fi
 def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                   out_file='orbital_contribution_matrix.dat',
                   picked_orbitals='all', selected_ion_indices=None,
-                  ignore_off_diag=False):
+                  ignore_off_diag=False, force_hermitian=False, use_dual=True):
     read_procar(
         fpath=fpath,
         mode='convert2bandup',
@@ -31,6 +31,8 @@ def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
         selected_ion_indices=selected_ion_indices,
         out_file=out_file,
         ignore_off_diag=ignore_off_diag,
+        force_hermitian=force_hermitian,
+        use_dual=use_dual,
     )
 
 def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
@@ -38,7 +40,9 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 picked_orbitals='all', 
                 selected_ion_indices=None,
                 out_file='orbital_contribution_matrix.dat',
-                ignore_off_diag=False):
+                ignore_off_diag=False,
+                force_hermitian=False,
+                use_dual=True):
 
     allowed_modes = ['accumulate', 'convert2bandup']
     if(mode not in allowed_modes):
@@ -76,9 +80,6 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                            weight = float((lsplit[8])),
                            nbands=nbands, nions=nions,
                            nkpts_in_parent_file=nkps)
-                proj_matrix = np.zeros([kpt.nions*len(kpt.orbitals[:-1]), 
-                                        kpt.nbands],
-                                       dtype=complex)
             elif(("# energy" in line) and ('# occ' in line)):
                 iband += 1
                 kpt.bands[iband-1]['number'] = iband
@@ -101,39 +102,22 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                     kpt.bands[iband-1]['tot_orb_projs'][orb]['norm'] = float(lsplit[i+1])
             elif(start_phase <= iline <= end_phase):
                 # Constructing orbital projection matrices
-                #iline_from_start = iline - start_phase
-                #if(not iline_from_start%2):
                 if(iline==start_phase): reading_real_part = True
-                alpha_orb_zero = iatom*len(kpt.orbitals[:-1])
                 if(reading_real_part):
                     for i, orb in enumerate(kpt.orbitals[:-1]):
                         fline_value = float(lsplit[i+1])
                         #if(abs(fline_value) < 1E-3): fline_value = 0.0
-                        alpha = alpha_orb_zero + i
-                        proj_matrix[alpha,iband-1] = fline_value
+                        alpha = kpt.combined_atom_orb_index(iat=iatom, iorb=i)
+                        kpt.proj_matrix[alpha,iband-1] = fline_value
                 else:
                     for i, orb in enumerate(kpt.orbitals[:-1]):
                         fline_value = float(lsplit[i+1])
                         #if(abs(fline_value) < 1E-3): fline_value = 0.0
-                        alpha = alpha_orb_zero + i
-                        proj_matrix[alpha,iband-1] += 1.0j * fline_value
+                        alpha = kpt.combined_atom_orb_index(iat=iatom, iorb=i)
+                        kpt.proj_matrix[alpha,iband-1] += 1.0j * fline_value
                     iatom += 1
                 reading_real_part = not reading_real_part
                 if(iline==end_phase and iband==nbands):
-                    # Getting dual of projection matrix
-                    print '    * Calculating dual to projections...'
-                    dual_proj_matrix = np.linalg.pinv(proj_matrix)
-                    for iband in range(kpt.nbands):
-                        for iorb, orb in enumerate(kpt.orbitals[:-1]):
-                            kpt.bands[iband]['tot_orb_projs'][orb]['phase'] = []
-                            kpt.bands[iband]['tot_orb_projs'][orb]['phase_dual'] = []
-                            for iatom2 in range(kpt.nions):
-                                alpha = iatom2*len(kpt.orbitals[:-1]) + iorb
-                                kpt.bands[iband]['tot_orb_projs'][orb]['phase'].append(
-                                    proj_matrix[alpha,iband])
-                                (kpt.bands[iband]['tot_orb_projs'][orb]
-                                          ['phase_dual'].append(
-                                    dual_proj_matrix[iband,alpha]))
                     if(mode=='accumulate'):
                         kpts_info.append(kpt)
                     elif(mode=='convert2bandup'):
@@ -146,7 +130,10 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                             selected_ion_indices=selected_ion_indices,
                             out_file=out_file, 
                             open_mode=open_mode,
-                            ignore_off_diag=ignore_off_diag)
+                            ignore_off_diag=ignore_off_diag,
+                            force_hermitian=force_hermitian,
+                            use_dual=use_dual)
+                        del kpt
     if(mode=='accumulate'):
         return kpts_info
     elif(mode=='convert2bandup'):

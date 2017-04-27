@@ -3,6 +3,33 @@ import copy
 import time
 # Imports from within the package
 from .warnings_wrapper import warnings
+
+def str_range_from_list(lst):
+    lst = sorted(list(set(lst)))
+    diffs = np.diff(lst)
+    intervals = []
+    interval = [lst[0], lst[0]]
+    for idiff, diff in enumerate(diffs):
+        if(diff!=1):
+            interval[1] = lst[idiff]
+            intervals.append(tuple(interval))
+            interval[0] = lst[idiff+1] 
+        interval[1] = lst[idiff+1] 
+    intervals.append(tuple(interval))
+
+    to_join = []
+    for interval in intervals:
+        if(interval[0]==interval[1]):
+            to_join.append(str(interval[0]))
+        elif(interval[1]==interval[0]+1):
+            to_join.append(str(interval[0]))
+            to_join.append(str(interval[1]))
+        else:
+            to_join.append('%d-%d'%(interval[0], interval[1]))
+    str_intervals = ', '.join(to_join)
+    return str_intervals
+
+    
   
 SUPPORTED_ORBS = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2']
 
@@ -31,27 +58,71 @@ class KptInfo(object):
         self.nions = nions
         self.nkpts_in_parent_file = nkpts_in_parent_file
         self.orbitals = SUPPORTED_ORBS + ['tot']
+        self.n_orbs_per_atom = len(SUPPORTED_ORBS)
+        self.n_atomic_orbs = self.nions * self.n_orbs_per_atom
         self.bands = [{'number':None, 'ener':None, 'occ':None,
                        'ion_projs':[{orb:{'norm':None} for orb in self.orbitals} for
                                     i in range(self.nions)],
-                       'tot_orb_projs':{orb:{'phase':None,'phase_dual':None} for 
-                                        orb in self.orbitals}}
+                       'tot_orb_projs':{orb:{'norm':None} for orb in self.orbitals}}
                       for ib in range(self.nbands)]
-
-    def contrib_matrix_element(self, iband1, iband2, orb, selected_ion_indices=None,
+        self._proj_matrix = None
+        self._proj_matrix_dual = None
+    @property
+    def proj_matrix(self):
+        # The setter is not getting called -- I still don't quite know why
+        # This is a valid workaround, but I don't really like it
+        # See:
+        # http://stackoverflow.com/questions/12491834/numpy-arrays-and-python-properties
+        if(self._proj_matrix is None):
+            self._proj_matrix = np.zeros([self.n_atomic_orbs, self.nbands], 
+                                          dtype=complex)
+        return self._proj_matrix
+    @proj_matrix.setter
+    def proj_matrix(self, value):
+        if(self._proj_matrix is None):
+            self._proj_matrix = np.zeros([self.n_atomic_orbs, self.nbands], 
+                                          dtype=complex)
+        self._proj_matrix = value
+    @property
+    def proj_matrix_dual(self):
+        if(self.proj_matrix is None):
+            msg = 'Projection matrix has to be calculated in the first place!'
+            raise ValueError(msg)
+        elif(self._proj_matrix_dual is None):
+            self._proj_matrix_dual = np.linalg.pinv(self.proj_matrix)
+        return self._proj_matrix_dual
+    @proj_matrix_dual.setter
+    def proj_matrix_dual(self, value):
+        msg = 'The dual of the projection matrix cannot be set manually!'
+        raise AttributeError(msg)
+    def combined_atom_orb_index(self, iat, iorb):
+        # The "alpha" variables (these alpha vars are to be renamed)
+        return iat*self.n_orbs_per_atom + iorb
+    def individual_atom_orb_indices(self, comb_index):
+        iat = comb_index / self.n_orbs_per_atom
+        iorb = comb_index % self.n_orbs_per_atom
+        return iat, iorb
+    def orb2iorb(self, orb):
+        return self.orbitals.index(orb)
+    def contrib_matrix_element(self, iband1, iband2, orb, 
+                               selected_ion_indices=None,
                                use_dual=True, force_hermitian=False,
                                max_band_dE=0.25):
         if(abs(self.bands[iband2]['ener']-self.bands[iband1]['ener'])>max_band_dE):
             return 0.0 + 0.0j
-        proj1 = self.bands[iband2]['tot_orb_projs'][orb]['phase']
+        if(selected_ion_indices is None): 
+            selected_ion_indices = range(self.nions)
+        iorb = self.orb2iorb(orb)
+        proj1 = [self.proj_matrix[self.combined_atom_orb_index(iat, iorb), iband2] 
+                 for iat in selected_ion_indices]
         if(use_dual):
-            proj2 = self.bands[iband1]['tot_orb_projs'][orb]['phase_dual']
+            proj2 = [self.proj_matrix_dual[iband1,
+                                           self.combined_atom_orb_index(iat, iorb)] 
+                     for iat in selected_ion_indices]
         else:
-            proj2 = map(np.conj, self.bands[iband1]['tot_orb_projs'][orb]['phase'])
-        if(selected_ion_indices is not None):
-            proj1 = [proj1[i] for i in selected_ion_indices]
-            proj2 = [proj2[i] for i in selected_ion_indices]
-        #c_m_element = np.dot(proj2,proj1)
+            proj2 = [np.conj(self.proj_matrix[self.combined_atom_orb_index(iat, iorb), 
+                                              iband1])
+                     for iat in selected_ion_indices]
         c_m_element = sum(p2*p1 for p1,p2 in zip(proj1,proj2))
 
         if(force_hermitian):
@@ -65,13 +136,16 @@ class KptInfo(object):
         return c_m_element
 
 
+
 def write_orbital_contribution_matrix_file(
     kpts_info_list, 
     picked_orbitals='all',
     selected_ion_indices=None,
     out_file='orbital_contribution_matrix.dat',
     open_mode='w',
-    ignore_off_diag=False
+    ignore_off_diag=False,
+    force_hermitian=False,
+    use_dual=True
 ): 
 
     if(type(kpts_info_list)==list):
@@ -80,6 +154,10 @@ def write_orbital_contribution_matrix_file(
         kpts_info = [kpts_info_list]
     picked_orbitals = formatted_orb_choice(picked_orbitals)
 
+    str_selected_ion_indices = 'All'
+    if(selected_ion_indices is not None):
+        selec_at_indices_start_from_1 = [i+1 for i in selected_ion_indices]
+        str_selected_ion_indices = str_range_from_list(selec_at_indices_start_from_1)
     msg = (
     '#################################################################################\n'
     '# File produced by BandUP at %s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))+
@@ -87,7 +165,12 @@ def write_orbital_contribution_matrix_file(
     '#################################################################################\n'
     '# Non-zero upper-triangular matrix elements of the orbital contribution matrix   \n'
     '# evaluated between SC states                                                    \n'
+    )
+    if(force_hermitian): 
+        msg += (
     '# This operator is hermitian                                                     \n'
+        )
+    msg += (
     '# m1 and m2 refer to SC band indices, and the matrix elements ME are in the form \n'
     '#                         ME = (Re{ME}, Im{ME})                                  \n'
     '#                                                                                \n'
@@ -96,6 +179,8 @@ def write_orbital_contribution_matrix_file(
     %(kpts_info[0].nbands)+
     '# nAtoms = %d                                                                  \n'
     %(kpts_info[0].nions)+
+    '# PickedAtomIndices = %s                                                       \n'
+    %(str_selected_ion_indices)+
     '# TotalNumberOfKpts = %d                                                    \n'
     %(kpts_info[0].nkpts_in_parent_file)+
     '#################################################################################\n'
@@ -114,22 +199,28 @@ def write_orbital_contribution_matrix_file(
                      coords[0], coords[1], coords[2]))
             f.write('#        m1      m2      ME{m1,m2} \n')
             for iband1 in range(sc_kpt_info.nbands):
-                for iband2 in range(iband1,sc_kpt_info.nbands):
+                if(force_hermitian): 
+                    min_iband2 = iband1
+                else:
+                    min_iband2 = 0
+                for iband2 in range(min_iband2,sc_kpt_info.nbands):
                     if(ignore_off_diag and (iband2!=iband1)): continue
                     contr = complex(0.0, 0.0)
                     for orb in picked_orbitals:
                         this_orb_contr = sc_kpt_info.contrib_matrix_element(
-                                             iband1, iband2, orb, force_hermitian=True,
+                                             iband1, iband2, orb, 
+                                             force_hermitian=force_hermitian,
+                                             use_dual=use_dual,
                                              selected_ion_indices=selected_ion_indices,
                                          )
-                        if(iband1==iband2):
+                        if(force_hermitian and iband1==iband2):
                             # No orbital should contribute with values outside this 
                             # interval
                             this_orb_contr = np.clip(np.real(this_orb_contr), 0.0, 1.0)
                             this_orb_contr += 0.0j
                         contr += this_orb_contr
                     if(abs(contr) < 1E-2): continue
-                    if(iband1==iband2):
+                    if(force_hermitian and iband1==iband2):
                         clipped_contr = np.clip(np.real(contr), 0.0, 1.0) + 0.0j
                         if((np.real(contr)<-0.009) or (np.real(contr)>1.009)):
                             msg = '|<ik=%d,m=%d|OrbProj|ik=%d,m=%d>|'%(
