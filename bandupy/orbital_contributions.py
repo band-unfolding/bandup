@@ -1,5 +1,4 @@
 import numpy as np
-import copy
 import time
 # Imports from within the package
 from .warnings_wrapper import warnings
@@ -50,7 +49,8 @@ def formatted_orb_choice(orb_choices):
     return orblist
 
 class KptInfo(object):
-    def __init__(self, number, frac_coords, weight, nbands, nions, nkpts_in_parent_file):
+    def __init__(self, number, frac_coords, weight, nbands, nions, nkpts_in_parent_file,
+                 create_ion_proj_norms_dicts=True):
         self.number = number
         self.frac_coords = frac_coords
         self.weight = weight
@@ -60,13 +60,16 @@ class KptInfo(object):
         self.orbitals = SUPPORTED_ORBS + ['tot']
         self.n_orbs_per_atom = len(SUPPORTED_ORBS)
         self.n_atomic_orbs = self.nions * self.n_orbs_per_atom
-        self.bands = [{'number':None, 'ener':None, 'occ':None,
-                       'ion_projs':[{orb:{'norm':None} for orb in self.orbitals} for
-                                    i in range(self.nions)],
-                       'tot_orb_projs':{orb:{'norm':None} for orb in self.orbitals}}
-                      for ib in range(self.nbands)]
+        self.bands = [{'number':None, 'ener':None, 'occ':None} for 
+                      ib in xrange(self.nbands)]
+        if(create_ion_proj_norms_dicts):
+            for ib in xrange(self.nbands):
+                self.bands[ib]['ion_proj_norms']=[{orb:None for orb in self.orbitals} for
+                                                  i in range(self.nions)]
+                self.bands[ib]['tot_orb_proj_norms']={orb:None for orb in self.orbitals}
         self._proj_matrix = None
         self._proj_matrix_dual = None
+
     @property
     def proj_matrix(self):
         # The setter is not getting called -- I still don't quite know why
@@ -108,23 +111,74 @@ class KptInfo(object):
                                selected_ion_indices=None,
                                use_dual=True, force_hermitian=False,
                                max_band_dE=0.25):
+        """Returns sum_{a}[<iband1| Proj(a) |iband2>], a->combined_index(selec_ion,orb)
+
+        This routine calculates the matrix element of the following sum of projectors:
+         sum_{a}[Proj(a)]; a in [combined_index(iAt,orb) for iAt in selected_ion_indices]
+        evaluated between SC states with band numbers iband1 and iband2 at a given Kpt.
+        We refer to the matrix representation of sum of projectors defined above as the 
+        "orbital contribution matrix" for the selected atoms.
+
+        The diagonal element (m,m) of this matrix gives the total contribution of the 
+        selected atoms' "orb"-type orbitals to SC electronic band "m" at the given K.
+
+        The off-diagonal terms are normally not used in the SC calculation itself. 
+        They are needed, however, for the unfolding of this sum of projectors, which will
+        then give the contribution of the selected atoms' "orb"-type orbitals to the 
+        *unfolded* bands located at (k,E).
+
+        The reason why the off-diagonal terms are needed for unfolding is explained in:
+             Unfolding spinor wave functions and expectation values of general operators: 
+                             Introducing the unfolding-density operator
+              Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafstrom, and Jonas Bjork
+                                      Phys. Rev. B 91, 041116(R)
+
+        If use_dual is False, then the atomic orbital basis functions q(a) will be used
+        to define the (pseudo-)projectors (they will not generally add up to identity):
+                                   Proj(a) = |q(a)><q(a)|.
+        The orbital contribution matrix is hermitian is this case. This is not the proper
+        way of defining the projectors, and works reasonably only if the overlaps between
+        the atomic orbital basis functions are negligible. Therefore, please be careful 
+        when using this option.
+
+        If use_dual is True (which is the default), then the projectors are defined as:
+                     Proj(a) = |Q(a)><q(a)|; <Q(a)|q(b)> = delta_{a,b}
+        (i.e., {|Q(a)>} is the dual basis of {|q(a)>}). This is the proper way of doing 
+        the projections. 
+        Such a definition of the individual projectors will resuly in sums of projectors 
+        that are, by construction, projectors as well. Mind, however, that they are 
+        generally NOT hermitian. Only their sum over all values of "a" is guaranteed to
+        to be a hermitian operator (because it equals identity).
+
+        The option "force_hermitian", as the name suggests, forces the contribution 
+        matrix to be hermitian. This is done as 
+                       new_M[m1,m2] = 0.5*(old_M[m1,m2] + conj(old_M[m2,m1])).
+
+        Given that the unfolding-density operator is hermitian, this guarantees that the
+        unfolded contributions will be real numbers. On the other hand, however, mind
+        that forcing the SC contribution matrix to be hermitian when the projectors have
+        been calculated with "use_dual=True" means that the contribution matrix no longer
+        represents such projectors -- and neither is a projector itself in general.
+        It is easy to verify, for instance, that it will not generally be idempotent.
+        """
+
         if(abs(self.bands[iband2]['ener']-self.bands[iband1]['ener'])>max_band_dE):
             return 0.0 + 0.0j
         if(selected_ion_indices is None): 
-            selected_ion_indices = range(self.nions)
+            selected_ion_indices = xrange(self.nions)
         iorb = self.orb2iorb(orb)
-        proj1 = [self.proj_matrix[self.combined_atom_orb_index(iat, iorb), iband2] 
-                 for iat in selected_ion_indices]
+        combined_at_orb_indices = (self.combined_atom_orb_index(iat, iorb=iorb) for 
+                                   iat in selected_ion_indices)
+        c_m_element = 0.0 + 0.0j
         if(use_dual):
-            proj2 = [self.proj_matrix_dual[iband1,
-                                           self.combined_atom_orb_index(iat, iorb)] 
-                     for iat in selected_ion_indices]
+            for comb_iat_iorb in combined_at_orb_indices:
+                c_m_element += (self.proj_matrix_dual[iband1, comb_iat_iorb] *
+                                self.proj_matrix[comb_iat_iorb, iband2])
         else:
-            proj2 = [np.conj(self.proj_matrix[self.combined_atom_orb_index(iat, iorb), 
-                                              iband1])
-                     for iat in selected_ion_indices]
-        c_m_element = sum(p2*p1 for p1,p2 in zip(proj1,proj2))
-
+            for comb_iat_iorb in combined_at_orb_indices:
+                c_m_element += (np.conj(self.proj_matrix[comb_iat_iorb,iband1]) *
+                                self.proj_matrix[comb_iat_iorb, iband2])
+                
         if(force_hermitian):
             c_m_element += np.conj(self.contrib_matrix_element(iband2, iband1, orb,
                                        selected_ion_indices, use_dual, 
@@ -163,12 +217,17 @@ def write_orbital_contribution_matrix_file(
     '# File produced by BandUP at %s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))+
     '# Copyright (C) 2017 Paulo V. C. Medeiros                                        \n'
     '#################################################################################\n'
-    '# Non-zero upper-triangular matrix elements of the orbital contribution matrix   \n'
-    '# evaluated between SC states                                                    \n'
-    )
+        ) 
     if(force_hermitian): 
         msg += (
+    '# Non-zero upper-triangular matrix elements of the orbital contribution matrix   \n'
+    '# evaluated between SC states                                                    \n'
     '# This operator is hermitian                                                     \n'
+        )
+    else:
+        msg += (
+    '# Non-zero matrix elements of the orbital contribution matrix   \n'
+    '# evaluated between SC states                                                    \n'
         )
     msg += (
     '# m1 and m2 refer to SC band indices, and the matrix elements ME are in the form \n'

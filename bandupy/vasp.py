@@ -16,6 +16,7 @@
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import numpy as np
+import time
 # Imports from within the package
 from .constants import WORKING_DIR
 from .orbital_contributions import KptInfo, write_orbital_contribution_matrix_file
@@ -33,6 +34,7 @@ def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
         ignore_off_diag=ignore_off_diag,
         force_hermitian=force_hermitian,
         use_dual=use_dual,
+        only_phase=True,
     )
 
 def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
@@ -42,7 +44,8 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 out_file='orbital_contribution_matrix.dat',
                 ignore_off_diag=False,
                 force_hermitian=False,
-                use_dual=True):
+                use_dual=True,
+                only_phase=False):
 
     allowed_modes = ['accumulate', 'convert2bandup']
     if(mode not in allowed_modes):
@@ -76,10 +79,11 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 print 'Reading info for Kpt #%d/%d...'%(int(lsplit[1]), nkps) # TEST
                 iband = 0
                 kpt  = KptInfo(number=int(lsplit[1]), 
-                           frac_coords=np.array(map(float, lsplit[3:6])),
+                           frac_coords=map(float, lsplit[3:6]),
                            weight = float((lsplit[8])),
                            nbands=nbands, nions=nions,
-                           nkpts_in_parent_file=nkps)
+                           nkpts_in_parent_file=nkps,
+                           create_ion_proj_norms_dicts=not only_phase)
             elif(("# energy" in line) and ('# occ' in line)):
                 iband += 1
                 kpt.bands[iband-1]['number'] = iband
@@ -90,31 +94,31 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 start_phase = end_norm + 3
                 end_phase = start_phase + 2*nions - 1
                 iatom = 0
-            elif(start_norm <= iline <= end_norm):
-                for i, orb in enumerate(kpt.orbitals):
-                    kpt.bands[iband-1]['ion_projs'][iatom][orb]['norm'] = (
-                        float(lsplit[i+1])
-                    )
-                iatom += 1
-            elif(iline==end_norm+1):
-                iatom = 0
-                for i, orb in enumerate(kpt.orbitals):
-                    kpt.bands[iband-1]['tot_orb_projs'][orb]['norm'] = float(lsplit[i+1])
+            elif(not only_phase and (start_norm <= iline <= end_norm+1)):
+                if(iline==end_norm+1):
+                    for i, orb in enumerate(kpt.orbitals):
+                        kpt.bands[iband-1]['tot_orb_proj_norms'][orb]=float(lsplit[i+1])
+                else:
+                    for i, orb in enumerate(kpt.orbitals):
+                        kpt.bands[iband-1]['ion_proj_norms'][iatom][orb] = (
+                            float(lsplit[i+1])
+                        )
+                    iatom += 1
             elif(start_phase <= iline <= end_phase):
                 # Constructing orbital projection matrices
-                if(iline==start_phase): reading_real_part = True
+                if(iline==start_phase): 
+                    iatom = 0
+                    reading_real_part = True
+                comb_iat_iorbs = [kpt.combined_atom_orb_index(iat=iatom, iorb=i) for
+                                  i in xrange(kpt.n_orbs_per_atom)]
                 if(reading_real_part):
-                    for i, orb in enumerate(kpt.orbitals[:-1]):
+                    for i, comb_iat_iorb in enumerate(comb_iat_iorbs):
                         fline_value = float(lsplit[i+1])
-                        #if(abs(fline_value) < 1E-3): fline_value = 0.0
-                        alpha = kpt.combined_atom_orb_index(iat=iatom, iorb=i)
-                        kpt.proj_matrix[alpha,iband-1] = fline_value
+                        kpt.proj_matrix[comb_iat_iorb, iband-1] = fline_value
                 else:
-                    for i, orb in enumerate(kpt.orbitals[:-1]):
+                    for i, comb_iat_iorb in enumerate(comb_iat_iorbs):
                         fline_value = float(lsplit[i+1])
-                        #if(abs(fline_value) < 1E-3): fline_value = 0.0
-                        alpha = kpt.combined_atom_orb_index(iat=iatom, iorb=i)
-                        kpt.proj_matrix[alpha,iband-1] += 1.0j * fline_value
+                        kpt.proj_matrix[comb_iat_iorb, iband-1] += 1.0j * fline_value
                     iatom += 1
                 reading_real_part = not reading_real_part
                 if(iline==end_phase and iband==nbands):
