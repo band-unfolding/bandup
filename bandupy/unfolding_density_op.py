@@ -75,9 +75,12 @@ class UnfDensOp():
     def trace(self):
         return sum(self.csr_matrix.diagonal())
     def unfold(self, general_operator, multiply_by_N=False,
-               discard_imag=False, verbose=False):
+               discard_imag=False, clip_interval=None, verbose=False):
         if(np.shape(self.csr_matrix) != np.shape(general_operator)):
             raise ValueError('Incompatible matrix shapes!')
+        if((clip_interval is not None) and (not discard_imag)):
+            msg = 'clip_interval can only be used if discard_imag=True.'
+            raise ValueError(msg)
         temp_matrix = self.csr_matrix * general_operator
         unfolded_op_val = sum(temp_matrix.diagonal())
         if(multiply_by_N): 
@@ -88,6 +91,9 @@ class UnfDensOp():
                     msg = 'Ignoring imaginary part of unfolded value', unfolded_op_val
                     warnings.warn(msg)
             unfolded_op_val = np.real(unfolded_op_val)
+            if(clip_interval is not None):
+                unfolded_op_val = np.clip([unfolded_op_val], 
+                                          clip_interval[0], clip_interval[1])[0]
         return unfolded_op_val
 
 def read_unf_dens_ops(

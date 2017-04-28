@@ -22,7 +22,8 @@ with open(orb_contr_file, 'r') as orb_f:
         elif('nScBands' in line):
             nbands = int(line.split('=')[-1])
         elif('KptNumber' in line):
-            current_kpt_number = int(line.split('=')[-1])
+            current_kpt_number = int(line.split('=')[1].split()[0])
+            current_spin_channel = int(line.split('=')[2].split()[0])
             if(current_kpt_number>1):
                 # Appending data from previously parsed kpt
                 orb_contr_matrices.append(
@@ -65,7 +66,9 @@ for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
     for unf_dens_op in unf_dens_ops_at_a_pckpt:
         orb_contr_matrix = orb_contr_matrices[unf_dens_op.folding_sckpt_number-1]
         unfolded_op_val = unf_dens_op.unfold(orb_contr_matrix, discard_imag=True,
-                                             multiply_by_N=True, verbose=True)
+                                             multiply_by_N=True, 
+                                             clip_interval=(0, unf_dens_op.unfolded_N),
+                                             verbose=True)
         pkpt_indices.append(unf_dens_op.pckpt_number-1)
         energy_indices.append(unf_dens_op.iener-1)
         delta_N_times_orb_weights.append(unfolded_op_val)
