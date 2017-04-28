@@ -41,15 +41,16 @@ with open(orb_contr_file, 'r') as orb_f:
             lsplit = line.replace(')','').replace('(','').replace(',','').split()
             irow, icol = (i-1 for i in map(int, lsplit[:2]))
             val = float(lsplit[2]) + 1.0j * float(lsplit[3])
-            if(is_hermitian and (icol==irow)):
-                val = np.real(val)
+            if(is_hermitian):
+                if(icol==irow):
+                    val = np.real(val)
+                else:
+                    row_indices.append(icol)
+                    col_indices.append(irow)
+                    entries.append(np.conj(val))
             row_indices.append(irow)
             col_indices.append(icol)
             entries.append(val)
-            if(is_hermitian and (icol!=irow)):
-                row_indices.append(icol)
-                col_indices.append(irow)
-                entries.append(np.conj(val))
     # Appending last matrix read
     orb_contr_matrices.append(
         coo_matrix((entries, (row_indices, col_indices)), 
