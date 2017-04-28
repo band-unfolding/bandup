@@ -58,13 +58,18 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
         start_phase = float('Inf')
         end_norm = float('-Inf')
         end_phase = float('-Inf')
+        ispin = -1
         for iline, line in enumerate(f):
             lsplit = line.split()
             if('# of k-points' in line):
+                ispin += 1
                 nkps = int(lsplit[3])
                 nbands = int(lsplit[7])
                 nions = int(lsplit[11])
+                if(ispin==0 and mode=='accumulate'):
+                    kpts_info = [None for ik in range(nkps)]
             elif('k-point' in line and 'weight' in line): 
+                print 'Reading info for Kpt #%d/%d...'%(int(lsplit[1]), nkps) # TEST
                 # Some PROCAR files have a formatting problem in this line
                 new_lsplit = []
                 for i, item in enumerate(lsplit):
@@ -75,15 +80,21 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                     else:
                         new_lsplit.append(item)
                 lsplit = new_lsplit
-                #if(int(lsplit[1])>1): break # TEST
-                print 'Reading info for Kpt #%d/%d...'%(int(lsplit[1]), nkps) # TEST
+                kpt_number = int(lsplit[1])
+                if(mode=='convert2bandup' or ispin==0):
+                    kpt  = KptInfo(number=kpt_number, 
+                               frac_coords=map(float, lsplit[3:6]),
+                               weight = float((lsplit[8])),
+                               nbands=nbands, nions=nions,
+                               nkpts_in_parent_file=nkps,
+                               create_ion_proj_norms_dicts=not only_phase)
+                else:
+                    kpt = kpts_info[kpt_number-1]
+                    kpts_info[kpt_number-1] = None 
+                if(ispin==1): 
+                    kpt.nspins = 2
+                kpt.select_spin(ispin)
                 iband = 0
-                kpt  = KptInfo(number=int(lsplit[1]), 
-                           frac_coords=map(float, lsplit[3:6]),
-                           weight = float((lsplit[8])),
-                           nbands=nbands, nions=nions,
-                           nkpts_in_parent_file=nkps,
-                           create_ion_proj_norms_dicts=not only_phase)
             elif(("# energy" in line) and ('# occ' in line)):
                 iband += 1
                 kpt.bands[iband-1]['number'] = iband
@@ -122,9 +133,7 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                     iatom += 1
                 reading_real_part = not reading_real_part
                 if(iline==end_phase and iband==nbands):
-                    if(mode=='accumulate'):
-                        kpts_info.append(kpt)
-                    elif(mode=='convert2bandup'):
+                    if(mode=='convert2bandup'):
                         open_mode = 'append'
                         if(kpt.number==1): open_mode = 'write'
                         print 'Writing info for Kpt #%d/%d...'%(kpt.number, # TEST
@@ -137,9 +146,11 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                             ignore_off_diag=ignore_off_diag,
                             force_hermitian=force_hermitian,
                             use_dual=use_dual)
-                        del kpt
-    if(mode=='accumulate'):
-        return kpts_info
-    elif(mode=='convert2bandup'):
+                    elif(mode=='accumulate'):
+                        kpts_info[kpt.number-1] = kpt
+                    del kpt
+    if(mode=='convert2bandup'):
         return None
+    elif(mode=='accumulate'):
+        return kpts_info
 

@@ -50,7 +50,7 @@ def formatted_orb_choice(orb_choices):
 
 class KptInfo(object):
     def __init__(self, number, frac_coords, weight, nbands, nions, nkpts_in_parent_file,
-                 create_ion_proj_norms_dicts=True):
+                 nspins=1, create_ion_proj_norms_dicts=True):
         self.number = number
         self.frac_coords = frac_coords
         self.weight = weight
@@ -60,40 +60,89 @@ class KptInfo(object):
         self.orbitals = SUPPORTED_ORBS + ['tot']
         self.n_orbs_per_atom = len(SUPPORTED_ORBS)
         self.n_atomic_orbs = self.nions * self.n_orbs_per_atom
-        self.bands = [{'number':None, 'ener':None, 'occ':None} for 
-                      ib in xrange(self.nbands)]
-        if(create_ion_proj_norms_dicts):
-            for ib in xrange(self.nbands):
-                self.bands[ib]['ion_proj_norms']=[{orb:None for orb in self.orbitals} for
-                                                  i in range(self.nions)]
-                self.bands[ib]['tot_orb_proj_norms']={orb:None for orb in self.orbitals}
-        self._proj_matrix = None
-        self._proj_matrix_dual = None
-
+        self._nspins = nspins
+        self._current_ispin = 0
+        self._proj_matrix = [None, None]
+        self._proj_matrix_dual = [None, None]
+        self._bands = [None, None]
+        self._create_ion_proj_norms_dicts = create_ion_proj_norms_dicts
+    @property
+    def nspins(self):
+        return self._nspins
+    @nspins.setter
+    def nspins(self, nspins):
+        if(nspins in [1,2]):
+            self._nspins = nspins
+        else:
+            if(nspins < 1):
+                msg = 'Cannot chose nspins={0}<1! Setting nspins=1.'.format(nspins)
+                self._nspins = 1
+            else:
+                msg = 'Cannot chose nspins={0}>2! Setting nspins=2.'.format(nspins)
+                self._nspins = 2
+            warnings.warn(msg)
+    @property
+    def current_ispin(self):
+        return self._current_ispin
+    @current_ispin.setter
+    def current_ispin(self, ispin):
+        if(0 <= ispin < self._nspins):
+            self._current_ispin = ispin
+        else:
+            if(ispin < 0):
+                msg = 'Cannot chose ispin={0}<0! Setting ispin=0.'.format(ispin)
+                self._current_ispin = 0 
+            else:
+                msg = 'Cannot chose ispin={0}>{1}! Setting ispin={1}.'.format(
+                      ispin, self._nspins-1)
+                self._current_ispin = self._nspins-1 
+            warnings.warn(msg)
+    def select_spin(self, ispin):
+        self.current_ispin = ispin
+    def switch_spin_channel(self):
+        if(self._nspins==1):
+            warnings.warn('There is only 1 spin channel! Nothing has been changed.')
+            return
+        self._current_ispin = (self._current_ispin + 1) % self._nspins
+    @property
+    def bands(self):
+        if(self._bands[self._current_ispin] is None):
+            self._bands[self._current_ispin] = (
+                [{'number':None, 'ener':None, 'occ':None} for ib in xrange(self.nbands)]
+            )
+            if(self._create_ion_proj_norms_dicts):
+                for ib in xrange(self.nbands):
+                    self._bands[self._current_ispin][ib]['ion_proj_norms'] = (
+                        [{orb:None for orb in self.orbitals} for
+                         i in range(self.nions)]
+                    )
+                    self._bands[self._current_ispin][ib]['tot_orb_proj_norms'] = (
+                        {orb:None for orb in self.orbitals}
+                    )
+        return self._bands[self._current_ispin]
+    @bands.setter
+    def bands(self, value):
+        msg = 'Bands cannot be set manually!'
+        raise AttributeError(msg)
     @property
     def proj_matrix(self):
-        # The setter is not getting called -- I still don't quite know why
-        # This is a valid workaround, but I don't really like it
-        # See:
-        # http://stackoverflow.com/questions/12491834/numpy-arrays-and-python-properties
-        if(self._proj_matrix is None):
-            self._proj_matrix = np.zeros([self.n_atomic_orbs, self.nbands], 
-                                          dtype=complex)
-        return self._proj_matrix
+        if(self._proj_matrix[self._current_ispin] is None):
+            self._proj_matrix[self._current_ispin] = (
+                np.zeros([self.n_atomic_orbs, self.nbands], dtype=complex)
+            )
+        return self._proj_matrix[self._current_ispin]
     @proj_matrix.setter
     def proj_matrix(self, value):
-        if(self._proj_matrix is None):
-            self._proj_matrix = np.zeros([self.n_atomic_orbs, self.nbands], 
-                                          dtype=complex)
-        self._proj_matrix = value
+        msg = 'The projection matrix cannot be set manually!'
+        raise AttributeError(msg)
     @property
     def proj_matrix_dual(self):
-        if(self.proj_matrix is None):
+        if(self.proj_matrix[self._current_ispin] is None):
             msg = 'Projection matrix has to be calculated in the first place!'
             raise ValueError(msg)
-        elif(self._proj_matrix_dual is None):
-            self._proj_matrix_dual = np.linalg.pinv(self.proj_matrix)
-        return self._proj_matrix_dual
+        elif(self._proj_matrix_dual[self._current_ispin] is None):
+            self._proj_matrix_dual[self._current_ispin]=np.linalg.pinv(self.proj_matrix)
+        return self._proj_matrix_dual[self._current_ispin]
     @proj_matrix_dual.setter
     def proj_matrix_dual(self, value):
         msg = 'The dual of the projection matrix cannot be set manually!'
@@ -190,7 +239,6 @@ class KptInfo(object):
         return c_m_element
 
 
-
 def write_orbital_contribution_matrix_file(
     kpts_info_list, 
     picked_orbitals='all',
@@ -250,7 +298,8 @@ def write_orbital_contribution_matrix_file(
             f.write(msg)
             f.write('\n')
         for sc_kpt_info in kpts_info:
-            f.write('# KptNumber = %d \n'%(sc_kpt_info.number))
+            f.write('# KptNumber = %d   SpinChannel = %d \n'%(
+                     sc_kpt_info.number, sc_kpt_info.current_ispin+1))
             #f.write('#     KptCartesianCoords = %.8f  %.8f  %.8f'%(
             #         sc_kpt_info.cart_coords))
             coords = sc_kpt_info.frac_coords
