@@ -2,6 +2,7 @@
 from scipy.sparse import coo_matrix
 import numpy as np
 from bandupy.unfolding_density_op import read_unf_dens_ops
+from bandupy.orbital_contributions import read_orbital_contribution_matrix_file
 
 unf_dens_ops_file = 'unfolding_density_operator_symm_avgd.dat'
 print 'Reading unfolding-density operators...'
@@ -12,51 +13,7 @@ print 'Done.'
 orb_contr_file = 'orbital_contribution_matrix.dat'
 print 'Reading orbital contribution matrix...'
 print '    * File: %s'%(orb_contr_file)
-orb_contr_matrices = []
-with open(orb_contr_file, 'r') as orb_f:
-    istart_values = float('Inf')
-    is_hermitian = False
-    for iline, line in enumerate(orb_f):
-        if('hermitian' in line.lower()):
-            is_hermitian = True
-        elif('nScBands' in line):
-            nbands = int(line.split('=')[-1])
-        elif('KptNumber' in line):
-            current_kpt_number = int(line.split('=')[1].split()[0])
-            current_spin_channel = int(line.split('=')[2].split()[0])
-            if(current_kpt_number>1):
-                # Appending data from previously parsed kpt
-                orb_contr_matrices.append(
-                    coo_matrix((entries, (row_indices, col_indices)), 
-                               shape=(nbands, nbands)).tocsr()
-                )
-            istart_values = float('Inf')
-            row_indices = []
-            col_indices = []
-            entries = []
-        elif('KptFractionalCoords' in line):
-            current_kpt_frac_coords = map(float, line.split('=')[-1].split())
-        elif('m1      m2' in line):
-            istart_values = iline + 1
-        elif(iline >= istart_values):
-            lsplit = line.replace(')','').replace('(','').replace(',','').split()
-            irow, icol = (i-1 for i in map(int, lsplit[:2]))
-            val = float(lsplit[2]) + 1.0j * float(lsplit[3])
-            if(is_hermitian):
-                if(icol==irow):
-                    val = np.real(val)
-                else:
-                    row_indices.append(icol)
-                    col_indices.append(irow)
-                    entries.append(np.conj(val))
-            row_indices.append(irow)
-            col_indices.append(icol)
-            entries.append(val)
-    # Appending last matrix read
-    orb_contr_matrices.append(
-        coo_matrix((entries, (row_indices, col_indices)), 
-                   shape=(nbands, nbands)).tocsr()
-    )
+orb_contr_matrices = read_orbital_contribution_matrix_file(orb_contr_file)
 print 'Done.'
 
 delta_N_times_orb_weights = []
@@ -67,7 +24,7 @@ for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
         orb_contr_matrix = orb_contr_matrices[unf_dens_op.folding_sckpt_number-1]
         unfolded_op_val = unf_dens_op.unfold(orb_contr_matrix, discard_imag=True,
                                              multiply_by_N=True, 
-                                             clip_interval=(0, unf_dens_op.unfolded_N),
+                                             #clip_interval=(0, unf_dens_op.unfolded_N),
                                              verbose=True)
         pkpt_indices.append(unf_dens_op.pckpt_number-1)
         energy_indices.append(unf_dens_op.iener-1)

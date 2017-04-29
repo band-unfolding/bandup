@@ -40,8 +40,10 @@ class UnfDensOp():
         self.folding_sckpt_cart_coords = folding_sckpt_cart_coords
         self.folding_sckpt_frac_coords_scrl = folding_sckpt_frac_coords_scrl
         self.emin_parent_grid = emin_parent_grid
-        self.emax_parent_grig = emax_parent_grid
+        self.emax_parent_grid = emax_parent_grid
         self.nener_parent_grid = nener_parent_grid
+        self.dE_parent_grid = ((emax_parent_grid - emin_parent_grid) / 
+                               float(nener_parent_grid - 1))
         self.iener = iener
         self.energy = energy
         self.unfolded_N = unfolded_N
@@ -66,9 +68,7 @@ class UnfDensOp():
     def parent_energy_grid(self, iener):
         ener = None
         if(0<iener<=self.nener_parent_grid):
-            dE = ((self.emax_parent_grig - self.emin_parent_grid) / 
-                  float(self.nener_parent_grid - 1))
-            ener = self.emin_parent_grid + float(iener-1)*dE
+            ener = self.emin_parent_grid + float(iener-1)*self.dE_parent_grid
         return ener
 
     @property

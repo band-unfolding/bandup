@@ -51,6 +51,13 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
     if(mode not in allowed_modes):
         raise ValueError('mode: Allowed values are %s'%(', '.join(allowed_modes)))
 
+    # Getting orbitals present in file
+    available_orbs = []
+    with open(fpath, 'r') as f:
+        for line in f:
+            if('ion' in line and 'tot' in line):
+                available_orbs = line.split()[1:-1]
+                break
     kpts_info = []
     with open(fpath, 'r') as f:
         # Will not use readlines here because PROCAR files can often be very big
@@ -87,6 +94,7 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                                frac_coords=map(float, lsplit[3:6]),
                                weight = float((lsplit[8])),
                                nbands=nbands, nions=nions,
+                               orbitals=available_orbs,
                                nkpts_in_parent_file=nkps,
                                create_ion_proj_norms_dicts=not only_phase)
                 else:
