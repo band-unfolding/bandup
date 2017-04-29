@@ -69,7 +69,8 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 if(ispin==0 and mode=='accumulate'):
                     kpts_info = [None for ik in range(nkps)]
             elif('k-point' in line and 'weight' in line): 
-                print 'Reading info for Kpt #%d/%d...'%(int(lsplit[1]), nkps) # TEST
+                print 'Reading info for Kpt #%d/%d, spin_channel=%d...'%(#TEST
+                      int(lsplit[1]), nkps, ispin+1) # TEST
                 # Some PROCAR files have a formatting problem in this line
                 new_lsplit = []
                 for i, item in enumerate(lsplit):
@@ -135,9 +136,10 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 if(iline==end_phase and iband==nbands):
                     if(mode=='convert2bandup'):
                         open_mode = 'append'
-                        if(kpt.number==1): open_mode = 'write'
-                        print 'Writing info for Kpt #%d/%d...'%(kpt.number, # TEST
-                              kpt.nkpts_in_parent_file) # TEST
+                        if(kpt.number==1 and ispin==0): 
+                            open_mode = 'write'
+                        print 'Writing info for Kpt #%d/%d, spin_channel=%d...'%(#TEST
+                              kpt.number, kpt.nkpts_in_parent_file,ispin+1) # TEST
                         write_orbital_contribution_matrix_file(
                             kpt, picked_orbitals=picked_orbitals,
                             selected_ion_indices=selected_ion_indices,
