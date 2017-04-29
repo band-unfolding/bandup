@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import coo_matrix
 import time
 # Imports from within the package
 from .warnings_wrapper import warnings
@@ -28,13 +29,10 @@ def str_range_from_list(lst):
     str_intervals = ', '.join(to_join)
     return str_intervals
 
-    
-  
-SUPPORTED_ORBS = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2']
-
 def formatted_orb_choice(orb_choices):
     if(type(orb_choices)==list): 
         return orb_choices
+    SUPPORTED_ORBS = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2']
     orb = orb_choices.lower().strip()
     if(orb in ['all', 'spd']): orblist = SUPPORTED_ORBS
     elif(orb in ['p']): orblist = ['px', 'py', 'pz']   
@@ -49,7 +47,8 @@ def formatted_orb_choice(orb_choices):
     return orblist
 
 class KptInfo(object):
-    def __init__(self, number, frac_coords, weight, nbands, nions, nkpts_in_parent_file,
+    def __init__(self, number, frac_coords, weight, nbands, nions, orbitals,
+                 nkpts_in_parent_file,
                  nspins=1, create_ion_proj_norms_dicts=True):
         self.number = number
         self.frac_coords = frac_coords
@@ -57,8 +56,8 @@ class KptInfo(object):
         self.nbands = nbands
         self.nions = nions
         self.nkpts_in_parent_file = nkpts_in_parent_file
-        self.orbitals = SUPPORTED_ORBS + ['tot']
-        self.n_orbs_per_atom = len(SUPPORTED_ORBS)
+        self.orbitals = orbitals
+        self.n_orbs_per_atom = len(orbitals)
         self.n_atomic_orbs = self.nions * self.n_orbs_per_atom
         self._nspins = nspins
         self._current_ispin = 0
@@ -159,7 +158,7 @@ class KptInfo(object):
     def contrib_matrix_element(self, iband1, iband2, orb, 
                                selected_ion_indices=None,
                                use_dual=True, force_hermitian=False,
-                               max_band_dE=0.25):
+                              ):
         """Returns sum_{a}[<iband1| Proj(a) |iband2>], a->combined_index(selec_ion,orb)
 
         This routine calculates the matrix element of the following sum of projectors:
@@ -188,7 +187,7 @@ class KptInfo(object):
         The orbital contribution matrix is hermitian is this case. This is not the proper
         way of defining the projectors, and works reasonably only if the overlaps between
         the atomic orbital basis functions are negligible. Therefore, please be careful 
-        when using this option.
+        when setting this option to False.
 
         If use_dual is True (which is the default), then the projectors are defined as:
                      Proj(a) = |Q(a)><q(a)|; <Q(a)|q(b)> = delta_{a,b}
@@ -202,17 +201,14 @@ class KptInfo(object):
         The option "force_hermitian", as the name suggests, forces the contribution 
         matrix to be hermitian. This is done as 
                        new_M[m1,m2] = 0.5*(old_M[m1,m2] + conj(old_M[m2,m1])).
-
         Given that the unfolding-density operator is hermitian, this guarantees that the
         unfolded contributions will be real numbers. On the other hand, however, mind
         that forcing the SC contribution matrix to be hermitian when the projectors have
         been calculated with "use_dual=True" means that the contribution matrix no longer
-        represents such projectors -- and neither is a projector itself in general.
+        represents such projectors -- neither will it generally represent any projector.
         It is easy to verify, for instance, that it will not generally be idempotent.
         """
 
-        if(abs(self.bands[iband2]['ener']-self.bands[iband1]['ener'])>max_band_dE):
-            return 0.0 + 0.0j
         if(selected_ion_indices is None): 
             selected_ion_indices = xrange(self.nions)
         iorb = self.orb2iorb(orb)
@@ -231,7 +227,7 @@ class KptInfo(object):
         if(force_hermitian):
             c_m_element += np.conj(self.contrib_matrix_element(iband2, iband1, orb,
                                        selected_ion_indices, use_dual, 
-                                       force_hermitian=False, max_band_dE=max_band_dE
+                                       force_hermitian=False
                                    )
                            ) 
             c_m_element *= 0.5
@@ -247,7 +243,8 @@ def write_orbital_contribution_matrix_file(
     open_mode='w',
     ignore_off_diag=False,
     force_hermitian=False,
-    use_dual=True
+    use_dual=True,
+    max_band_dE=0.1
 ): 
 
     if(type(kpts_info_list)==list):
@@ -312,6 +309,9 @@ def write_orbital_contribution_matrix_file(
                 else:
                     min_iband2 = 0
                 for iband2 in range(min_iband2,sc_kpt_info.nbands):
+                    if(abs(sc_kpt_info.bands[iband2]['ener'] - 
+                       sc_kpt_info.bands[iband1]['ener']) > max_band_dE):
+                        continue
                     if(ignore_off_diag and (iband2!=iband1)): continue
                     contr = complex(0.0, 0.0)
                     for orb in picked_orbitals:
@@ -339,3 +339,56 @@ def write_orbital_contribution_matrix_file(
                     fline = 10*' ' + '%d       %d    (%.2f, %.2f) \n'%(iband1+1,iband2+1,
                             np.real(contr), np.imag(contr))
                     f.write(fline)
+
+
+def read_orbital_contribution_matrix_file(
+        orb_contr_file='orbital_contribution_matrix.dat'
+    ):
+
+    orb_contr_matrices = []
+    with open(orb_contr_file, 'r') as orb_f:
+        istart_values = float('Inf')
+        is_hermitian = False
+        for iline, line in enumerate(orb_f):
+            if('hermitian' in line.lower()):
+                is_hermitian = True
+            elif('nScBands' in line):
+                nbands = int(line.split('=')[-1])
+            elif('KptNumber' in line):
+                current_kpt_number = int(line.split('=')[1].split()[0])
+                current_spin_channel = int(line.split('=')[2].split()[0])
+                if(current_kpt_number>1):
+                    # Appending data from previously parsed kpt
+                    orb_contr_matrices.append(
+                        coo_matrix((entries, (row_indices, col_indices)), 
+                                   shape=(nbands, nbands)).tocsr()
+                    )
+                istart_values = float('Inf')
+                row_indices = []
+                col_indices = []
+                entries = []
+            elif('KptFractionalCoords' in line):
+                current_kpt_frac_coords = map(float, line.split('=')[-1].split())
+            elif('m1      m2' in line):
+                istart_values = iline + 1
+            elif(iline >= istart_values):
+                lsplit = line.replace(')','').replace('(','').replace(',','').split()
+                irow, icol = (i-1 for i in map(int, lsplit[:2]))
+                val = float(lsplit[2]) + 1.0j * float(lsplit[3])
+                if(is_hermitian):
+                    if(icol==irow):
+                        val = np.real(val)
+                    else:
+                        row_indices.append(icol)
+                        col_indices.append(irow)
+                        entries.append(np.conj(val))
+                row_indices.append(irow)
+                col_indices.append(icol)
+                entries.append(val)
+        # Appending last matrix read
+        orb_contr_matrices.append(
+            coo_matrix((entries, (row_indices, col_indices)), 
+                       shape=(nbands, nbands)).tocsr()
+        )
+
+    return orb_contr_matrices
