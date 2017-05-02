@@ -13,6 +13,8 @@ from .plot import (
     BandUpPlot, 
     produce_figure,
 )
+from .vasp import procar2bandup
+from .orbital_contributions import get_unfolded_orb_projs
 
 def run_bandup(args):
     start_dir = os.getcwd()
@@ -24,6 +26,8 @@ def run_bandup(args):
         for line in iter(bandup_run.stdout.readline, ''):
             sys.stdout.write(line)
             f.write(line)
+    if(args.orbitals):
+        get_orbital_projections_and_duals(args)
     os.chdir(start_dir)
 
 def make_plot(args):
@@ -43,5 +47,13 @@ def run_requested_task(args):
         make_plot(args)
     elif(args.main_task=='pre-unfold'):
        pass
+    if(args.main_task=='projected-unfold'):
+        get_unfolded_orb_projs(args, clip_contributions=True, verbose=True)
     else:
         print 'Task "%s" not available.'%(args.main_task)
+
+def get_orbital_projections_and_duals(args):
+    if(args.qe or args.castep or args.abinit):
+        raise ValueError('Orbital projections not yet implemented for current PW code!')
+    else:
+        procar2bandup(fpath=os.path.join(args.wavefunc_calc_dir, 'PROCAR'))

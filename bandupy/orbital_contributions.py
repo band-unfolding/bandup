@@ -1,37 +1,20 @@
 import numpy as np
 from scipy.sparse import coo_matrix
 import time
+import os
+import pickle
 # Imports from within the package
+from .files import mkdir
 from .warnings_wrapper import warnings
-
-def str_range_from_list(lst):
-    lst = sorted(list(set(lst)))
-    diffs = np.diff(lst)
-    intervals = []
-    interval = [lst[0], lst[0]]
-    for idiff, diff in enumerate(diffs):
-        if(diff!=1):
-            interval[1] = lst[idiff]
-            intervals.append(tuple(interval))
-            interval[0] = lst[idiff+1] 
-        interval[1] = lst[idiff+1] 
-    intervals.append(tuple(interval))
-
-    to_join = []
-    for interval in intervals:
-        if(interval[0]==interval[1]):
-            to_join.append(str(interval[0]))
-        elif(interval[1]==interval[0]+1):
-            to_join.append(str(interval[0]))
-            to_join.append(str(interval[1]))
-        else:
-            to_join.append('%d-%d'%(interval[0], interval[1]))
-    str_intervals = ', '.join(to_join)
-    return str_intervals
+from .lists import int_list_to_str_range 
+from .unfolding_density_op import read_unf_dens_ops
+from .files import pickle_load
 
 def formatted_orb_choice(orb_choices):
     if(type(orb_choices)==list): 
         return orb_choices
+    elif(orb_choices is None):
+        return formatted_orb_choice('all')
     SUPPORTED_ORBS = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2']
     orb = orb_choices.lower().strip()
     if(orb in ['all', 'spd']): orblist = SUPPORTED_ORBS
@@ -48,7 +31,7 @@ def formatted_orb_choice(orb_choices):
 
 class KptInfo(object):
     def __init__(self, number, frac_coords, weight, nbands, nions, orbitals,
-                 nkpts_in_parent_file,
+                 nkpts_in_parent_file=1,
                  nspins=1, create_ion_proj_norms_dicts=True):
         self.number = number
         self.frac_coords = frac_coords
@@ -63,8 +46,22 @@ class KptInfo(object):
         self._current_ispin = 0
         self._proj_matrix = [None, None]
         self._proj_matrix_dual = [None, None]
+        # orb_contr_matrices will be flexible to allow any combination of 
+        # atom/orbitals to be stored. As in the proj matrices, each list item 
+        # corresponds to a spin channel
+        self._orb_contr_matrices = [None, None] 
         self._bands = [None, None]
         self._create_ion_proj_norms_dicts = create_ion_proj_norms_dicts
+
+    def __getstate__(self):
+        stuff_to_be_dumped_by_pickle = self.__dict__.copy()
+        for key in self.__dict__:
+            if('_proj_matrix' in key):
+                stuff_to_be_dumped_by_pickle[key] = [None, None]
+        return stuff_to_be_dumped_by_pickle
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+
     @property
     def nspins(self):
         return self._nspins
@@ -130,10 +127,13 @@ class KptInfo(object):
                 np.zeros([self.n_atomic_orbs, self.nbands], dtype=complex)
             )
         return self._proj_matrix[self._current_ispin]
+    #@proj_matrix.setter
+    #def proj_matrix(self, value):
+    #    msg = 'The projection matrix cannot be set manually!'
+    #    raise AttributeError(msg)
     @proj_matrix.setter
     def proj_matrix(self, value):
-        msg = 'The projection matrix cannot be set manually!'
-        raise AttributeError(msg)
+        self._proj_matrix[self._current_ispin] = value
     @property
     def proj_matrix_dual(self):
         if(self.proj_matrix[self._current_ispin] is None):
@@ -142,10 +142,20 @@ class KptInfo(object):
         elif(self._proj_matrix_dual[self._current_ispin] is None):
             self._proj_matrix_dual[self._current_ispin]=np.linalg.pinv(self.proj_matrix)
         return self._proj_matrix_dual[self._current_ispin]
+    #@proj_matrix_dual.setter
+    #def proj_matrix_dual(self, value):
+    #    msg = 'The dual of the projection matrix cannot be set manually!'
+    #    raise AttributeError(msg)
     @proj_matrix_dual.setter
     def proj_matrix_dual(self, value):
-        msg = 'The dual of the projection matrix cannot be set manually!'
-        raise AttributeError(msg)
+        self._proj_matrix_dual[self._current_ispin] = value
+    @property
+    def orb_contr_matrices(self):
+        return self._orb_contr_matrices[self._current_ispin]
+    @orb_contr_matrices.setter
+    def orb_contr_matrices(self, value):
+        self._orb_contr_matrices[self._current_ispin] = value
+
     def combined_atom_orb_index(self, iat, iorb):
         # The "alpha" variables (these alpha vars are to be renamed)
         return iat*self.n_orbs_per_atom + iorb
@@ -155,6 +165,29 @@ class KptInfo(object):
         return iat, iorb
     def orb2iorb(self, orb):
         return self.orbitals.index(orb)
+    def saveinfo(self):
+        proj_mat_file_prefix = 'proj_matrices'
+        pickle_file_prefix = 'KptsInfo'
+        outdir='orbital_projections'
+        if(self.proj_matrix is None):
+            msg = 'The orbital projection matrix has to exist before it can be saved!'
+            raise ValueError(msg)
+        # I'll keep ne numbering starting from 1 for consistency with the Fortran output
+        outfile = '%s_iKpt_%d_iSpin_%d.npz'%(proj_mat_file_prefix, 
+                                             self.number, self.current_ispin+1)
+        outfile = os.path.join(outdir, outfile)
+        pickle_file_name = os.path.join(outdir, 
+                                        '%s_iSpin_%d.pkl'%(pickle_file_prefix, 
+                                                           self.current_ispin+1))
+        if(self.number==1 and self.current_ispin==0):
+            mkdir(outdir)
+            pickle_file = open(pickle_file_name, 'w')
+        else:
+            pickle_file = open(pickle_file_name, 'a+b')
+            mkdir(outdir, ignore_existing=True)
+        np.savez(outfile, direct=self.proj_matrix, dual=self.proj_matrix_dual)
+        pickle.dump(self, pickle_file, pickle.HIGHEST_PROTOCOL)
+        pickle_file.close()
     def contrib_matrix_element(self, iband1, iband2, orb, 
                                selected_ion_indices=None,
                                use_dual=True, force_hermitian=False,
@@ -233,6 +266,65 @@ class KptInfo(object):
             c_m_element *= 0.5
 
         return c_m_element
+    def get_orbital_contribution_matrix(
+        self,
+        picked_orbitals='all',
+        selected_ion_indices=None,
+        ignore_off_diag=False,
+        force_hermitian=False,
+        use_dual=True,
+        max_band_dE=0.1
+    ): 
+
+        picked_orbitals = formatted_orb_choice(picked_orbitals)
+        str_selected_ion_indices = 'All'
+        if(selected_ion_indices is not None):
+            selec_at_indices_start_from_1 = [i+1 for i in selected_ion_indices]
+            str_selected_ion_indices = (
+                int_list_to_str_range(selec_at_indices_start_from_1)
+            )
+
+        row_indices = []
+        col_indices = []
+        entries = []
+        for iband1 in range(self.nbands):
+            if(force_hermitian): 
+                min_iband2 = iband1
+            else:
+                min_iband2 = 0
+            for iband2 in range(min_iband2,self.nbands):
+                if(ignore_off_diag and (iband2!=iband1)): continue
+                if(abs(self.bands[iband2]['ener'] - 
+                       self.bands[iband1]['ener']) > max_band_dE):
+                    continue
+                contr = complex(0.0, 0.0)
+                for orb in picked_orbitals:
+                    this_orb_contr = self.contrib_matrix_element(
+                                         iband1, iband2, orb, 
+                                         force_hermitian=force_hermitian,
+                                         use_dual=use_dual,
+                                         selected_ion_indices=selected_ion_indices,
+                                     )
+                    if(iband1==iband2 and force_hermitian):
+                        # No orbital should contribute with values outside this 
+                        # interval
+                        this_orb_contr = np.clip(np.real(this_orb_contr), 0.0, 1.0)
+                        this_orb_contr += 0.0j
+                    contr += this_orb_contr
+                if(abs(contr) < 1E-2): continue
+                row_indices.append(iband1)
+                col_indices.append(iband2)
+                entries.append(contr)
+                if(force_hermitian):
+                    row_indices.append(iband2)
+                    col_indices.append(iband1)
+                    entries.append(np.conj(contr))
+
+        orb_contr_matrix = (
+            coo_matrix((entries, (row_indices, col_indices)), 
+                       shape=(self.nbands, self.nbands)).tocsr()
+        )
+        return orb_contr_matrix 
 
 
 def write_orbital_contribution_matrix_file(
@@ -256,7 +348,7 @@ def write_orbital_contribution_matrix_file(
     str_selected_ion_indices = 'All'
     if(selected_ion_indices is not None):
         selec_at_indices_start_from_1 = [i+1 for i in selected_ion_indices]
-        str_selected_ion_indices = str_range_from_list(selec_at_indices_start_from_1)
+        str_selected_ion_indices = int_list_to_str_range(selec_at_indices_start_from_1)
     msg = (
     '#################################################################################\n'
     '# File produced by BandUP at %s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))+
@@ -392,3 +484,102 @@ def read_orbital_contribution_matrix_file(
         )
 
     return orb_contr_matrices
+
+def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
+
+    spin_channel = args.spin_channel
+    picked_orbitals = args.orbs
+    selected_ion_indices=args.atom_indices
+
+    orb_projs_dir = os.path.join(args.results_dir, 'orbital_projections')
+    unf_dens_ops_file = os.path.join(args.results_dir,
+                                     'unfolding_density_operator_symm_avgd.dat')
+    sckpts_info_file = os.path.join(orb_projs_dir, 
+                                    'KptsInfo_iSpin_%d.pkl'%(spin_channel))
+    orb_dependedt_unfolded_ebs_file = os.path.join(args.results_dir,
+                                                   'unfolded_EBS_orb_dependent.dat')
+
+    if(verbose):
+        print 'Reading unfolding-density operators...'
+        print '    * File: %s'%(unf_dens_ops_file)
+    unf_dens_ops = read_unf_dens_ops(filename=unf_dens_ops_file) 
+    if(verbose):
+        print 'Done.' 
+
+    sckpts_info_without_projs = list(pickle_load(sckpts_info_file))
+    sckpts_info_full = {}
+
+    delta_N_times_orb_weights = []
+    pkpt_indices = []
+    energy_indices = []
+    for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
+        first_unf_dens_op = unf_dens_ops_at_a_pckpt[0]
+        i_sckpt = first_unf_dens_op.folding_sckpt_number-1
+        if(verbose):
+            msg = 'PcKpt #%d (--> ScKpt #%d), spin %d: '%(ipckpt+1, i_sckpt+1, 
+                                                          spin_channel)
+            print msg,
+        try:
+            sckpt_info = sckpts_info_full[i_sckpt]
+            sckpt_info.select_spin(spin_channel-1)
+            if(verbose):
+                print 'Orbital contrib. matrix already calculated. Reusing'
+        except(KeyError):
+            if(verbose):
+                print '\n    * ScKpt requested for the first time. Loading info:'
+            sckpt_info = sckpts_info_without_projs[i_sckpt]
+            sckpt_info.select_spin(spin_channel-1)
+            orb_projs_file = os.path.join(orb_projs_dir, 
+                                          'proj_matrices_iKpt_%d_iSpin_%d.npz'%(
+                                           sckpt_info.number, spin_channel))
+            if(verbose):
+                print '        > Reading direct and dual projection matrices...'
+            with np.load(orb_projs_file) as data:
+                sckpt_info.proj_matrix = data['direct']
+                sckpt_info.proj_matrix_dual = data['dual']
+            if(verbose):
+                print '        > Calculating orbital contribution matrix...'
+            sckpt_info.orb_contr_matrix = sckpt_info.get_orbital_contribution_matrix(
+                                              picked_orbitals=picked_orbitals,
+                                              selected_ion_indices=selected_ion_indices,
+                                          )
+            sckpts_info_full[i_sckpt] = sckpt_info
+
+        for i_udo, unf_dens_op in enumerate(unf_dens_ops_at_a_pckpt):
+            unf_dens_op.select_spin(sckpt_info.current_ispin)
+            clip_interval = None
+            if(clip_contributions): 
+                clip_interval = (0.0, unf_dens_op.unfolded_N)
+            unfolded_op_val = unf_dens_op.unfold(
+                                  sckpt_info.orb_contr_matrix, 
+                                  discard_imag=True,
+                                  multiply_by_N=True, 
+                                 clip_interval=clip_interval,
+                                  verbose=verbose
+                              )
+            pkpt_indices.append(unf_dens_op.pckpt_number-1)
+            energy_indices.append(unf_dens_op.iener-1)
+            delta_N_times_orb_weights.append(unfolded_op_val)
+
+    n_pckpt = len(unf_dens_ops)
+    nener = unf_dens_ops[0][0].nener_parent_grid
+    unfolded_values_in_k_E_grid = coo_matrix((delta_N_times_orb_weights,
+                                              (pkpt_indices, energy_indices)),
+                                             shape=(n_pckpt,nener)).tocsr()
+
+    if(verbose):
+        print 'Writing file "%s"...'%(orb_dependedt_unfolded_ebs_file)
+    with open(orb_dependedt_unfolded_ebs_file, 'w') as f:
+        msg = '# File created by BandUP - '
+        msg += 'Band Unfolding code for Plane-wave based calculations\n'
+        f.write(msg)
+        msg = '#KptCoord #E-E_Fermi #{N*Unfolded[<Proj>]}(k,E)\n'
+        f.write(msg)
+        for ikpt in range(n_pckpt):
+            for iener in range(nener):
+                kpt_coord = unf_dens_ops[ikpt][0].pckpt_coord_in_plot
+                energy = unf_dens_ops[0][0].parent_energy_grid(iener+1)
+                f.write('%.4f  %.4f   %.4f\n'%(
+                        kpt_coord, energy, unfolded_values_in_k_E_grid[ikpt, iener]))
+    if(verbose):
+        print 'Done.'

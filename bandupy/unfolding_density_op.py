@@ -20,7 +20,7 @@ import itertools
 # Imports from within the package
 from .warnings_wrapper import warnings
 
-class UnfDensOp():
+class UnfDensOp(object):
     def __init__(
             self, pckpt_number, 
             pckpt_cart_coords, pckpt_frac_coords_scrl, pckpt_frac_coords_pcrl,
@@ -28,7 +28,7 @@ class UnfDensOp():
             folding_sckpt_frac_coords_scrl, nbands, nener_parent_grid, 
             emin_parent_grid, emax_parent_grid, iener, 
             energy, unfolded_N,
-            row_indices, col_indices, entries
+            row_indices, col_indices, entries, nspins=1
         ):
         self.nbands = nbands
         self.pckpt_number = pckpt_number
@@ -47,6 +47,8 @@ class UnfDensOp():
         self.iener = iener
         self.energy = energy
         self.unfolded_N = unfolded_N
+        self._nspins = nspins
+        self._current_ispin = 0
         # Loading sparse matrix elements
         extended_entries = []
         extended_row_indices = []
@@ -72,6 +74,44 @@ class UnfDensOp():
         return ener
 
     @property
+    def nspins(self):
+        return self._nspins
+    @nspins.setter
+    def nspins(self, nspins):
+        if(nspins in [1,2]):
+            self._nspins = nspins
+        else:
+            if(nspins < 1):
+                msg = 'Cannot chose nspins={0}<1! Setting nspins=1.'.format(nspins)
+                self._nspins = 1
+            else:
+                msg = 'Cannot chose nspins={0}>2! Setting nspins=2.'.format(nspins)
+                self._nspins = 2
+            warnings.warn(msg)
+    @property
+    def current_ispin(self):
+        return self._current_ispin
+    @current_ispin.setter
+    def current_ispin(self, ispin):
+        if(0 <= ispin < self._nspins):
+            self._current_ispin = ispin
+        else:
+            if(ispin < 0):
+                msg = 'Cannot chose ispin={0}<0! Setting ispin=0.'.format(ispin)
+                self._current_ispin = 0 
+            else:
+                msg = 'Cannot chose ispin={0}>{1}! Setting ispin={1}.'.format(
+                      ispin, self._nspins-1)
+                self._current_ispin = self._nspins-1 
+            warnings.warn(msg)
+    def select_spin(self, ispin):
+        self.current_ispin = ispin
+    def switch_spin_channel(self):
+        if(self._nspins==1):
+            warnings.warn('There is only 1 spin channel! Nothing has been changed.')
+            return
+        self._current_ispin = (self._current_ispin + 1) % self._nspins
+    @property
     def trace(self):
         return sum(self.csr_matrix.diagonal())
     def unfold(self, general_operator, multiply_by_N=False,
@@ -86,10 +126,10 @@ class UnfDensOp():
         if(multiply_by_N): 
             unfolded_op_val *= self.unfolded_N
         if(discard_imag):
-            if(verbose and abs(unfolded_op_val)>=1E-2):
-                if(abs(np.imag(unfolded_op_val)) / abs(unfolded_op_val) > 0.1):
-                    msg = 'Ignoring imaginary part of unfolded value', unfolded_op_val
-                    warnings.warn(msg)
+            #if(verbose and abs(unfolded_op_val)>=1E-2):
+            #    if(abs(np.imag(unfolded_op_val)) / abs(unfolded_op_val) > 0.1):
+            #        msg = 'Ignoring imaginary part of unfolded value', unfolded_op_val
+            #        warnings.warn(msg)
             unfolded_op_val = np.real(unfolded_op_val)
             if(clip_interval is not None):
                 unfolded_op_val = np.clip([unfolded_op_val], 

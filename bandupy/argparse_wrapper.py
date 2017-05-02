@@ -33,6 +33,7 @@ from .figs import (
 )
 from .warnings_wrapper import warnings
 from .sysargv import arg_passed
+from .lists import str_list_to_int_range
 
 
 def store_abs_path_action_gen(assert_existence=False, rel_path_start=WORKING_DIR):
@@ -78,7 +79,30 @@ def obsolete_arg_action_gen(alternative_option=None):
                     msg += 'Please use "%s %s" instead.'%(alternative_option, values)
                 parser.error(msg)
     return RefuseObsoleteArgs
-    
+
+def str_list_to_int_range_arg_action_gen(convert_fortran2python_indexing,
+                                 include_last_from_subranges
+                                 ):
+    class StrList2IntRange(argparse.Action):
+        """ This action converts a range pased as string to a list of integers 
+
+            This assumes that the string items are given either as "I0" or "I0-I1"
+
+        """
+        def __init__(self, option_strings, dest, **kwargs):
+            super(StrList2IntRange, self).__init__(option_strings, dest, **kwargs)
+        def __call__(self, parser, namespace, values, option_string=None):
+            try:
+                int_range = str_list_to_int_range(
+                         values, 
+                         convert_fortran2python_indexing=convert_fortran2python_indexing,
+                         include_last_from_subranges=include_last_from_subranges
+                            )
+                setattr(namespace, self.dest, int_range)
+            except(ValueError):
+                msg = 'Invalid range.'
+                parser.error(msg)
+    return StrList2IntRange 
 
 def get_bandup_registered_clas(bandup_path=BANDUP_DIR):
     cla_file = os.path.join(bandup_path, 'src', 'cla_wrappers_mod.f90')
@@ -142,6 +166,40 @@ class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
                 input_files_args.add_argument(arg_name, help=arg_help,
                     action=store_abs_path_action_gen(assert_existence=True), 
                     **parser_remaining_kwargs)
+
+class BandUpAtOrbProjUnfoldingArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        if('formatter_class') not in kwargs:
+            kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
+        if('add_help' not in kwargs): kwargs['add_help'] = False
+        super(BandUpAtOrbProjUnfoldingArgumentParser, self).__init__(*args, **kwargs)
+        self.add_argument('-spin_channel', default=1, choices=[1,2])
+        self.add_argument('-orbs', default=None, nargs='+',
+                          help=(
+                                'The orbitals to be included in the sum. If not '+
+                                'passed, then all available orbitals will be used. '+
+                                'Ex.: -orbs px'
+                               )
+                         )
+        self.add_argument('-atom_indices', default=None, nargs='+',
+                          action=str_list_to_int_range_arg_action_gen(
+                                     convert_fortran2python_indexing=True,
+                                     include_last_from_subranges=True,
+                                 ),
+                          help=(
+                                'The indices of the atoms to be included, *starting '+
+                                'from 1*. If not passed, then all atoms will be used. '+
+                                'Ranges are accepted. Ex: -at 1 3 5-18 22-30 41 52'
+                               )
+                         )
+        self.add_argument('-results_dir', 
+            action=store_abs_path_action_gen(assert_existence=False), 
+            default=defaults['results_dir'],
+            help=('Dir where the orbital_projections dir and the unfolding-density '+
+                  ' operator files are located. This is also the directory where the '+
+                  'output file will be saved.'
+                 )
+        )
 
 class BandUpArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -512,18 +570,36 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         self.bandup_parser = BandUpArgumentParser(add_help=False)
         self.bandup_plot_parser = BandUpPlotArgumentParser(add_help=False)
         self.bandup_pre_unf_parser = BandUpPreUnfoldingArgumentParser(add_help=False)
+        self.bandup_at_proj_parser = (
+            BandUpAtOrbProjUnfoldingArgumentParser(add_help=False)
+        )
 
         # Defining available tasks and setting the default one to 'unfolding'
         self.allowed_tasks = OrderedDict()
-        self.allowed_tasks['pre-unfold'] = {'subparser_name':'bandup',
+        self.allowed_tasks['pre-unfold'] = {'subparser_name':'bandup_pre_unf',
                                             'help':"Runs BandUP's pre-unfolding tool "+
                                             "to get the SC-KPTs needed for unfolding.",
                                             'parents':[self.bandup_pre_unf_parser],
                                          'parent_class':BandUpPreUnfoldingArgumentParser}
         self.allowed_tasks['unfold'] = {'subparser_name':'bandup',
-                                        'help':"Runs BandUP's main code",
+                                        'help':"Runs BandUP's main code.",
                                         'parents':[self.bandup_parser],
                                         'parent_class':BandUpArgumentParser}
+        self.allowed_tasks['projected-unfold'] = {'subparser_name':'bandup_at_proj',
+                                        'help':(
+                                                "Reads SC atomic orbital projections, "+
+                                                "creates SC projection operators for "+
+                                                "the chosen atoms and/or atomic "+
+                                                "orbitals, and then uses unfolding-"+
+                                                "density operators to produce orbital- "+
+                                                'and/or atom-decomposed unfolded band '+
+                                                'structures. N.B.: For this to work, '+
+                                                'please run BandUP first using either '+
+                                                'of the following flags: "--orbitals", '+
+                                                '"-write_unf_dens_op".'
+                                               ),
+                                   'parents':[self.bandup_at_proj_parser],
+                                   'parent_class':BandUpAtOrbProjUnfoldingArgumentParser}
         self.allowed_tasks['plot'] = {'subparser_name':'bandup_plot',
                                       'help':"Plots BandUP's output files.",
                                       'parents':[self.bandup_plot_parser],
@@ -574,6 +650,13 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             help='Dir where the BandUP will be run.')
         bandup_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
+        bandup_extra_opts.add_argument('--orbitals', action='store_true', 
+            help=('If set, BandUP will attempt to parse projections onto atomic '+
+                  'orbitals. These need to have been previously calculated by your '+
+                  'plane-wave code. All projections must be available, and they '+
+                  'should contain both real and imaginary parts -- BandUP will need '+
+                  'these to calculate their duals. This option will request unfolding-'+
+                  'density operators to be written out.'))
 
 
     def print_help(self, *args, **kwargs):
@@ -664,11 +747,16 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                 args.argv.append('-seed')
                 args.argv.append(args.seed)
                 warnings.warn('Seed not passed as argument. Using "%s".'%(args.seed))
+            # Asking BandUP to write unfolding-density operators if --orbitals is passed
+            if(arg_passed('--orbitals')):
+                args.argv.append('-write_unf_dens_op')
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
         elif(args.main_task == 'pre-unfold'):
             subparser = self.bandup_pre_unf_parser
+        elif(args.main_task == 'projected-unfold'):
+            subparser = self.bandup_at_proj_parser
 
         try:
             if(args.efermi is None): 

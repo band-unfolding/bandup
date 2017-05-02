@@ -16,6 +16,7 @@
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import shutil
+import pickle
 import sys
 import errno
 from collections import OrderedDict
@@ -62,6 +63,15 @@ def assert_valid_path(path):
             raise IOError('"%s" is not a valid path!' % (path))
         else:
             raise e
+
+def pickle_load(filename):
+    # Source: http://stackoverflow.com/questions/20716812/saving-and-loading-multiple-objects-in-pickle-file
+    with open(filename, "rb") as f:
+        while True:
+            try:
+                yield pickle.load(f)
+            except EOFError:
+                break
 
 def continuation_lines(fname, marker='&'):
     """Reads data from an opened file object taking into account line continuation marks.

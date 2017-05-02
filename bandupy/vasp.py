@@ -19,18 +19,14 @@ import numpy as np
 import time
 # Imports from within the package
 from .constants import WORKING_DIR
-from .orbital_contributions import KptInfo, write_orbital_contribution_matrix_file
+from .orbital_contributions import KptInfo
 
 def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
-                  out_file='orbital_contribution_matrix.dat',
-                  picked_orbitals='all', selected_ion_indices=None,
                   ignore_off_diag=False, force_hermitian=False, use_dual=True):
+
     read_procar(
         fpath=fpath,
         mode='convert2bandup',
-        picked_orbitals=picked_orbitals,
-        selected_ion_indices=selected_ion_indices,
-        out_file=out_file,
         ignore_off_diag=ignore_off_diag,
         force_hermitian=force_hermitian,
         use_dual=use_dual,
@@ -39,9 +35,6 @@ def procar2bandup(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
 
 def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 mode='accumulate', 
-                picked_orbitals='all', 
-                selected_ion_indices=None,
-                out_file='orbital_contribution_matrix.dat',
                 ignore_off_diag=False,
                 force_hermitian=False,
                 use_dual=True,
@@ -76,7 +69,7 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 if(ispin==0 and mode=='accumulate'):
                     kpts_info = [None for ik in range(nkps)]
             elif('k-point' in line and 'weight' in line): 
-                print 'Reading info for Kpt #%d/%d, spin_channel=%d...'%(#TEST
+                print 'Kpt #%d/%d, spin_channel=%d: Reading <atOrb|PW> projections...'%(
                       int(lsplit[1]), nkps, ispin+1) # TEST
                 # Some PROCAR files have a formatting problem in this line
                 new_lsplit = []
@@ -143,19 +136,8 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 reading_real_part = not reading_real_part
                 if(iline==end_phase and iband==nbands):
                     if(mode=='convert2bandup'):
-                        open_mode = 'append'
-                        if(kpt.number==1 and ispin==0): 
-                            open_mode = 'write'
-                        print 'Writing info for Kpt #%d/%d, spin_channel=%d...'%(#TEST
-                              kpt.number, kpt.nkpts_in_parent_file,ispin+1) # TEST
-                        write_orbital_contribution_matrix_file(
-                            kpt, picked_orbitals=picked_orbitals,
-                            selected_ion_indices=selected_ion_indices,
-                            out_file=out_file, 
-                            open_mode=open_mode,
-                            ignore_off_diag=ignore_off_diag,
-                            force_hermitian=force_hermitian,
-                            use_dual=use_dual)
+                        print '    * Calculating duals and saving results...'
+                        kpt.saveinfo()
                     elif(mode=='accumulate'):
                         kpts_info[kpt.number-1] = kpt
                     del kpt
