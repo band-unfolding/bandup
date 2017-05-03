@@ -3,6 +3,7 @@ from scipy.sparse import coo_matrix
 import time
 import os
 import pickle
+import sys
 # Imports from within the package
 from .files import mkdir
 from .warnings_wrapper import warnings
@@ -10,23 +11,42 @@ from .lists import int_list_to_str_range
 from .unfolding_density_op import read_unf_dens_ops
 from .files import pickle_load
 
-def formatted_orb_choice(orb_choices):
-    if(type(orb_choices)==list): 
-        return orb_choices
+
+def formatted_orb_choice(orb_choices, supported):
+    spdf = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2',
+            'fy(3x2-y2)', 'fxyz', 'fyz2', 'fz3', 'fxz2', 'fz(x2-y2)', 'fx(x2-3y2)']
+    if(type(orb_choices)==list):
+        temp_list = []
+        for orb in orb_choices:
+            temp_list += formatted_orb_choice(orb, supported)
+        temp_list = list(set(temp_list))
+        rtn = [orb for orb in spdf if orb in temp_list]
+        return rtn
     elif(orb_choices is None):
         return formatted_orb_choice('all')
-    SUPPORTED_ORBS = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2']
+
+    orb_dict = {orb:[orb] for orb in supported}
+    orb_dict['all'] = supported
+    for general_orb in ['s', 'p', 'd', 'f']:
+        orb_dict[general_orb] = [orb for orb in supported if general_orb in 
+                                 orb.lower()]
+    orb_dict['sp2'] = ['s', 'px', 'py']
+    orb_dict['spxy'] = orb_dict['sp2']
+    orb_dict['spyx'] = orb_dict['sp2']
+    orb_dict['spxz'] = ['s', 'px', 'pz']
+    orb_dict['spzx'] = orb_dict['spxz']
+    orb_dict['spyz'] = ['s', 'py', 'pz']
+    orb_dict['spzy'] = orb_dict['spyz']
+    orb_dict['sp3'] = orb_dict['sp2'] + ['pz']
+
     orb = orb_choices.lower().strip()
-    if(orb in ['all', 'spd']): orblist = SUPPORTED_ORBS
-    elif(orb in ['p']): orblist = ['px', 'py', 'pz']   
-    elif(orb in ['d']): orblist = ['dxy', 'dyz', 'dz2', 'dxz', 'dx2']   
-    elif(orb in ['sp3', 'sp']): orblist = ['s', 'px', 'py', 'pz']   
-    elif(orb in ['sp2', 'spxy', 'spyx']): orblist = ['s', 'px', 'py']   
-    elif(orb in ['spxz', 'spzx']): orblist = ['s', 'px', 'pz']   
-    elif(orb in ['spxy', 'spyx']): orblist = ['s', 'px', 'py']   
-    elif(orb in ['spzy', 'spyz']): orblist = ['s', 'py', 'pz']   
-    else: 
-        orblist = [orb_choices]
+    try:
+        orblist = orb_dict[orb]
+    except(KeyError):
+       msg = 'ERROR: Invalid choice of orbital: "%s".\n'%(str(orb)) 
+       msg += 'Cannot continue. Stopping now.'
+       print msg
+       sys.exit(1)
     return orblist
 
 class KptInfo(object):
@@ -276,7 +296,7 @@ class KptInfo(object):
         max_band_dE=0.1
     ): 
 
-        picked_orbitals = formatted_orb_choice(picked_orbitals)
+        picked_orbitals = formatted_orb_choice(picked_orbitals, supported=self.orbitals)
         str_selected_ion_indices = 'All'
         if(selected_ion_indices is not None):
             selec_at_indices_start_from_1 = [i+1 for i in selected_ion_indices]
@@ -343,7 +363,8 @@ def write_orbital_contribution_matrix_file(
         kpts_info = kpts_info_list
     else:
         kpts_info = [kpts_info_list]
-    picked_orbitals = formatted_orb_choice(picked_orbitals)
+    picked_orbitals = formatted_orb_choice(picked_orbitals, 
+                                           supported=kpts_info[0].orbitals)
 
     str_selected_ion_indices = 'All'
     if(selected_ion_indices is not None):
@@ -488,7 +509,6 @@ def read_orbital_contribution_matrix_file(
 def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
 
     spin_channel = args.spin_channel
-    picked_orbitals = args.orbs
     selected_ion_indices=args.atom_indices
 
     orb_projs_dir = os.path.join(args.results_dir, 'orbital_projections')
@@ -501,17 +521,32 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
 
     if(verbose):
         print 'Reading unfolding-density operators...'
-        print '    * File: %s'%(unf_dens_ops_file)
+        print '    * File: %s'%(os.path.basename(unf_dens_ops_file))
     unf_dens_ops = read_unf_dens_ops(filename=unf_dens_ops_file) 
     if(verbose):
         print 'Done.' 
 
     sckpts_info_without_projs = list(pickle_load(sckpts_info_file))
     sckpts_info_full = {}
+    picked_orbitals = formatted_orb_choice(
+                          args.orbs, 
+                          supported=sckpts_info_without_projs[0].orbitals
+                      )
+    str_selected_ion_indices = 'All'
+    if(selected_ion_indices is not None):
+        # Internally we use python indexing, but externally the user sees fortran-style
+        # indices. This is to keep consistency with the main BandUP (fortran) code output
+        ion_indices_plus_one = [i+1 for i in selected_ion_indices]
+        str_selected_ion_indices = int_list_to_str_range(ion_indices_plus_one)
 
     delta_N_times_orb_weights = []
     pkpt_indices = []
     energy_indices = []
+    if(verbose):
+        print 'Parsing projections:'
+        print '    * PickedAtomIndicesSC: %s'%(str_selected_ion_indices)
+        print '    * OrbitalProjector: %s'%('+'.join(picked_orbitals))
+        print ''
     for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
         first_unf_dens_op = unf_dens_ops_at_a_pckpt[0]
         i_sckpt = first_unf_dens_op.folding_sckpt_number-1
@@ -523,7 +558,7 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
             sckpt_info = sckpts_info_full[i_sckpt]
             sckpt_info.select_spin(spin_channel-1)
             if(verbose):
-                print 'Orbital contrib. matrix already calculated. Reusing'
+                print 'Orb. contrib. matrix already calcd. Reusing.'
         except(KeyError):
             if(verbose):
                 print '\n    * ScKpt requested for the first time. Loading info:'
@@ -570,10 +605,15 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
     if(verbose):
         print 'Writing file "%s"...'%(orb_dependedt_unfolded_ebs_file)
     with open(orb_dependedt_unfolded_ebs_file, 'w') as f:
-        msg = '# File created by BandUP - '
-        msg += 'Band Unfolding code for Plane-wave based calculations\n'
+        msg = '# File created by BandUP at '
+        msg += '%s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))
+        msg += '# Orbital/atom-decomposed unfolded band structure\n'
         f.write(msg)
-        msg = '#KptCoord #E-E_Fermi #{N*Unfolded[<Proj>]}(k,E)\n'
+        f.write('# nAtomsSC: %d\n'%(sckpts_info_without_projs[0].nions))
+        f.write('# PickedAtomIndicesSC: %s\n'%(str_selected_ion_indices))
+        f.write('# OrbitalProjector: %s\n'%('+'.join(picked_orbitals)))
+        f.write('# SpinChannel: %d\n'%(unf_dens_ops_at_a_pckpt[0].current_ispin+1))
+        msg = '#KCoord #E-E_Fermi #{N*Unf[<Proj>]}(k,E)\n'
         f.write(msg)
         for ikpt in range(n_pckpt):
             for iener in range(nener):
