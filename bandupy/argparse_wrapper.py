@@ -173,7 +173,7 @@ class BandUpAtOrbProjUnfoldingArgumentParser(argparse.ArgumentParser):
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         if('add_help' not in kwargs): kwargs['add_help'] = False
         super(BandUpAtOrbProjUnfoldingArgumentParser, self).__init__(*args, **kwargs)
-        self.add_argument('-spin_channel', default=1, choices=[1,2])
+        self.add_argument('-spin_channel', default=1, type=int, choices=[1,2])
         self.add_argument('-orbs', default=None, nargs='+',
                           help=(
                                 'The orbitals to be included in the sum. If not '+
@@ -195,7 +195,7 @@ class BandUpAtOrbProjUnfoldingArgumentParser(argparse.ArgumentParser):
         self.add_argument('-results_dir', 
             action=store_abs_path_action_gen(assert_existence=False), 
             default=defaults['results_dir'],
-            help=('Dir where the orbital_projections dir and the unfolding-density '+
+            help=('Dir where the "orbital_projections" dir and the unfolding-density '+
                   ' operator files are located. This is also the directory where the '+
                   'output file will be saved.'
                  )
@@ -566,6 +566,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         if('formatter_class' not in kwargs):
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         super(BandUpPythonArgumentParser, self).__init__(*args, **kwargs)
+        self._positionals.title = 'BandUP tasks'
 
         self.bandup_parser = BandUpArgumentParser(add_help=False)
         self.bandup_plot_parser = BandUpPlotArgumentParser(add_help=False)
@@ -582,7 +583,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                                             'parents':[self.bandup_pre_unf_parser],
                                          'parent_class':BandUpPreUnfoldingArgumentParser}
         self.allowed_tasks['unfold'] = {'subparser_name':'bandup',
-                                        'help':"Runs BandUP's main code.",
+                                        'help':"Runs BandUP's main unfolding code.",
                                         'parents':[self.bandup_parser],
                                         'parent_class':BandUpArgumentParser}
         self.allowed_tasks['projected-unfold'] = {'subparser_name':'bandup_at_proj',
@@ -594,9 +595,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                                                 "density operators to produce orbital- "+
                                                 'and/or atom-decomposed unfolded band '+
                                                 'structures. N.B.: For this to work, '+
-                                                'please run BandUP first using either '+
-                                                'of the following flags: "--orbitals", '+
-                                                '"-write_unf_dens_op".'
+                                                'please run BandUP first using the '+
+                                                '"--orbitals" flag.'
                                                ),
                                    'parents':[self.bandup_at_proj_parser],
                                    'parent_class':BandUpAtOrbProjUnfoldingArgumentParser}
@@ -655,8 +655,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                   'orbitals. These need to have been previously calculated by your '+
                   'plane-wave code. All projections must be available, and they '+
                   'should contain both real and imaginary parts -- BandUP will need '+
-                  'these to calculate their duals. This option will request unfolding-'+
-                  'density operators to be written out.'))
+                  'these to calculate their duals. This option will also request '+
+                  'unfolding-density operators to be written out.'))
 
 
     def print_help(self, *args, **kwargs):
@@ -695,8 +695,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                     compatible_task = allowed_task
             if(n_compat_choices!=1): compatible_task = None
             if(compatible_task is not None): 
-                first_positional_arg = compatible_task
                 i_first_pos_arg = sys.argv.index(first_positional_arg)
+                first_positional_arg = compatible_task
                 sys.argv[i_first_pos_arg] = first_positional_arg
         elif(not help_requested):
             # Defining 'unfold' as default task
