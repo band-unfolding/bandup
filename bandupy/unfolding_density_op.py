@@ -151,7 +151,8 @@ def read_unf_dens_ops(
 
         istart_values = float('Inf')
         for iline, (line, next_line) in enumerate(itertools.izip(f, f_one_step_ahead)):
-            if('nScBands' in line): nbands = int(line.split('=')[-1])
+            if('SpinChannel' in line): spin_channel = int(line.split('=')[-1])
+            elif('nScBands' in line): nbands = int(line.split('=')[-1])
             elif('emin' in line): emin_parent_grid = float(line.split('=')[1].split()[0])
             elif('emax' in line): emax_parent_grid = float(line.split('=')[1].split()[0])
             elif('nEner' in line): nener_parent_grid = int(line.split('=')[1])
@@ -215,7 +216,8 @@ def read_unf_dens_ops(
                                             ),
                                             folding_sckpt_frac_coords_scrl=(
                                                 folding_sckpt_frac_coords_scrl
-                                            ), 
+                                            ),
+                                            nspins=spin_channel, 
                                             nbands=nbands, 
                                             nener_parent_grid=nener_parent_grid,
                                             emin_parent_grid=emin_parent_grid, 
@@ -225,7 +227,8 @@ def read_unf_dens_ops(
                                             row_indices=row_indices, 
                                             col_indices=col_indices, 
                                             entries=entries
-                                  ) 
+                                  )
+                    unf_dens_op.select_spin(spin_channel-1) 
                     unf_dens_ops_at_a_pckpt.append(unf_dens_op)
         unf_dens_ops.append(unf_dens_ops_at_a_pckpt)
 
