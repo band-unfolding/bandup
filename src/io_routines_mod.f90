@@ -1441,6 +1441,7 @@ real(kind=dp), dimension(:), pointer :: dN
         write(unf_dens_file_unit, '(A)')'# produced by BandUP when you run &
                                            the code (normally printed to stdout).'
         write(unf_dens_file_unit, '(A)')'#'
+        write(unf_dens_file_unit, '(A,X,I0)')'# SpinChannel =', args%spin_channel
         write(unf_dens_file_unit, '(A,X,I0)')'# nScBands =', delta_N%n_SC_bands
         write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emin =', &
                                                    minval(energy_grid)-e_fermi,'eV'
