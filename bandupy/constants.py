@@ -33,5 +33,6 @@ BANDUP_BIN = os.path.join(BANDUP_BIN_DIR, 'BandUP.x')
 ORIGINAL_MATPLOTLIB_BACKEND = mpl.get_backend()
 
 USER_HOME = os.path.expanduser('~')
-WORKING_DIR = os.getcwd()
+#WORKING_DIR = os.getcwd()
+WORKING_DIR = os.getenv('PWD')
 

@@ -2,7 +2,7 @@ from subprocess import Popen, PIPE, STDOUT
 import os
 import sys
 # Imports from within the package
-from .constants import BANDUP_BIN
+from .constants import BANDUP_BIN, WORKING_DIR
 from .files import (
     mkdir,
     create_bandup_input,
@@ -17,7 +17,8 @@ from .vasp import procar2bandup
 from .orbital_contributions import get_unfolded_orb_projs
 
 def run_bandup(args):
-    start_dir = os.getcwd()
+    #start_dir = os.getcwd()
+    start_dir = WORKING_DIR
     # Running BandUP
     os.chdir(args.results_dir)
     bandup_run_options = [BANDUP_BIN] + args.argv
