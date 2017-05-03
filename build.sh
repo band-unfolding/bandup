@@ -87,7 +87,7 @@ cd ${working_dir}/src
     make FC=$FC CC=$CC
     make clean
     mv -f BandUP.x  ${bin_folder}
-    ln -s ${bin_folder}/BandUP.x  ${bin_folder}/bandup
+    ln -s ${working_dir}/src/python_interface/bandup  ${bin_folder}/bandup
 cd ${working_dir}
 
 BANDUP="${bin_folder}/BandUP.x"
