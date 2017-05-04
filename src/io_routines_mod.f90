@@ -1396,12 +1396,13 @@ integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
            n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener,  &
            ipc_kpt_general, linearized_band_index
 logical :: folds
-character(len=127) :: fmt_str
+character(len=127) :: fmt_str, str_trace
 real(kind=dp) :: stime, ftime, coord_first_k_in_dir, coord_k, trace, e_fermi
 real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt, sckpt, aux_coords, &
                                  first_pckpt_dir
 type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
 real(kind=dp), dimension(:), pointer :: dN
+real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
 
     stime = time()
 
@@ -1420,18 +1421,31 @@ real(kind=dp), dimension(:), pointer :: dN
         write(unf_dens_file_unit, '(A)')'# Copyright (C) 2013-2017 Paulo V. C. Medeiros'
         write(unf_dens_file_unit, '(A)')'############################################&
                                          ############################################'
-        write(unf_dens_file_unit, '(A)')'# Non-zero, upper-triangular matrix elements &
-                                           of the unfolding-density operator'
-        write(unf_dens_file_unit, '(A)')'# evaluated between SC states'
-        write(unf_dens_file_unit, '(A)')'# The unfolding-density operator is hermitian'
-        write(unf_dens_file_unit, '(A)')'# m1 and m2 refer to SC band indices, and &
-                                         the UnfDensOp matrix elements are in the form'
-        write(unf_dens_file_unit, '(A,25X,A)')'#',&
-                                        'UnfDensOp = (Re{UnfDensOp}, Im{UnfDensOp})'
-        write(unf_dens_file_unit, '(A)')'# The quantities written in this file are &
-                                           introduced and discussed in'
-       write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 91, 041116(R) (2015)'
-       write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 89, 041407(R) (2014)'
+        write(unf_dens_file_unit, '(A)')'# This file contains all information needed to &
+                                           unfold the expectation values of any'
+        write(unf_dens_file_unit, '(A)')'# operator defined in the (k,E) space. &
+                                           In particular, it reports, for each point in'
+        write(unf_dens_file_unit, '(A,ES10.3,A)')'# the (k,E) grid satisfying &
+                                                    N(k,E) >= ',min_allowed_dN,':'
+        write(unf_dens_file_unit, '(A)')'#     * Unfolding-density operators (UnfDensOp)'
+        write(unf_dens_file_unit, '(A)')'#     * Generalized spectral weight matrices &
+                                                 (GenSpecWeight)'
+        write(unf_dens_file_unit, '(A)')'#     * k, E and N(k,E) -- used for "regular" &
+                                           band unfolding (unfolding eigenvalues of H)'
+        write(unf_dens_file_unit, '(A)')'# Both UnfDensOp and GenSpecWeight are &
+                                           hermitian; only the upper-triangular matrix'
+        write(unf_dens_file_unit, '(A)')'# elements are present. They are represented &
+                                           as (RealPart, ImagPart), and were'
+        write(unf_dens_file_unit, '(A)')'# evaluated between SC states with band &
+                                           indices indicated by m1 and m2.'
+        write(unf_dens_file_unit,'(A)')'#'
+        write(unf_dens_file_unit, '(A)')'# All quantities reported in this file are &
+                                           introduced and fully discussed in'
+        write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 91, 041116(R) (2015)'
+        write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 89, 041407(R) (2014)'
+        write(unf_dens_file_unit,'(A)')'# You must read and cite these papers and the &
+                                         appropriate references therein.'
+        write(unf_dens_file_unit,'(A)')'#'
         write(unf_dens_file_unit, '(A)')'# N.B.: If symmetry has been used for the &
                                            unfolding, then the folding/unfolding'
         write(unf_dens_file_unit, '(A)')'# relations between the SCKPTs and PcKpts &
@@ -1515,13 +1529,7 @@ real(kind=dp), dimension(:), pointer :: dN
                 do i_rho=1, size(rhos)
                     if(.not. allocated(rhos(i_rho)%band_indices)) cycle
                     iener = rhos(i_rho)%iener_in_full_pc_egrid
-                    if(dN(iener) < 1E-3_dp) cycle
-                    fmt_str = '(A,5X,A,X,I0,3X,A,X,f0.4,X,A,3X,A,X,ES10.3)'
-                    write(unf_dens_file_unit, fmt_str)'#','PcEnergyGridPtNumber =', &
-                                                       iener,'Energy =', &
-                                                       energy_grid(iener),'eV', &
-                                                       'N(k,E) =',dN(iener)
-
+                    if(dN(iener) < min_allowed_dN) cycle
                     trace = 0.0_dp
                     do m1=1,rhos(i_rho)%nbands
                         linearized_band_index = list_index(item=[m1,m1], &
@@ -1530,21 +1538,24 @@ real(kind=dp), dimension(:), pointer :: dN
                         trace = trace + real(rhos(i_rho)%rho(linearized_band_index), &
                                              kind=dp)
                     enddo
-
-                    if(abs(trace-1.0_dp)>1E-2)then
+                    if(abs(trace-1.0_dp)<1E-1)then
                         ! The trace of the unfolding-density operator should equal 1,
                         ! as discussed in Phys. Rev. B 91, 041116(R) (2015)
-                        fmt_str = '(A,5X,3A,7X,A,X,f0.1,X,A)'
-                        write(unf_dens_file_unit, fmt_str)&
-                              "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}",&
-                              'Trace{UnfDensOp} =',trace,'(WARNING: Tr!=1)'
+                        write(str_trace, '(ES8.1)') trace
                     else
-                        fmt_str = '(A,5X,3A,8X,A,X,f0.2)'
-                        write(unf_dens_file_unit, fmt_str)&
-                              "#","   m1   ","   m2   ","    UnfDensOp_{m1,m2}",&
-                              'Trace{UnfDensOp} =',trace
+                        write(str_trace, '(ES8.1,X,A)') trace, '(!=1)'
                     endif
-                    fmt_str = '(6X,I5,"   ",I5,6X,"(",ES10.3,",",X,ES10.3,")",)'
+                    fmt_str = '(A,5X,A,X,I0,2X,A,X,f0.4,X,A,2X,A,X,ES10.3,2X,A,X,A)'
+                    write(unf_dens_file_unit, fmt_str)'#','iEnerPC =', &
+                                                       iener,'E =', &
+                                                       energy_grid(iener),'eV', &
+                                                       'N(k,E) =',dN(iener),&
+                                                       'Tr{UnfDensOp} =',trim(str_trace)
+                    fmt_str='(A,8X,A,6X,A,8X,A,9X,A)'
+                    write(unf_dens_file_unit, fmt_str)'#','m1','m2',&
+                                                      'GenSpecWeight[m1,m2]',&
+                                                      'UnfDensOp[m1,m2]'
+                    fmt_str = '(3X,2(3X,I5),3X,2(3X,"(",ES10.3,",",X,ES10.3,")"))'
                     do m1=1,rhos(i_rho)%nbands
                         do m2=m1,rhos(i_rho)%nbands
                             linearized_band_index = &
@@ -1553,6 +1564,7 @@ real(kind=dp), dimension(:), pointer :: dN
                             if(linearized_band_index<1) cycle
                             if(abs(rhos(i_rho)%rho(linearized_band_index))<1E-4) cycle
                             write(unf_dens_file_unit, fmt_str) m1, m2, &
+                                rhos(i_rho)%rho(linearized_band_index)*dN(iener), &
                                 rhos(i_rho)%rho(linearized_band_index)
                         enddo
                     enddo
