@@ -233,16 +233,16 @@ logical :: main_code
     call cla_register(key='-no_symm_sckpts', &
                       description="Do not use symmetry to reduce the number of &
                                 SC K-points needed." // new_line('A') // &
-                                "     Works only if used both with BandUP's main &
-                                program as well as with"// new_line('A')//&
-                                "     the pre-processing tool 'get_SCKPTS_pre_BandUP'",&
+                                "     Works only if used *both* with BandUP's main &
+                                unfolding task *and* when"// new_line('A')//&
+                                "     getting the needed SC-Kpts (prior to unfolding).",&
                       kkind=cla_flag, default='F')
     call cla_register(key='-no_symm_avg', &
                       description="Do not calculate the symmetry-averaged EBS. &
-                                   If the pre-processing tool"//new_line('A')//&
-                                  "     'get_SCKPTS_pre_BandUP' is run with &
-                                  this flag, then BandUP's main"//new_line('A')// &
-                                  "     program has to be run with this flag as well.", &
+                                   If the SC-Kpts needed for unfolding"//new_line('A')//&
+                                  "     were determined using this option, &
+                                  then BandUP's main unfolding"//new_line('A')// &
+                                  "     task *must* be run with this flag as well.", &
                       kkind=cla_flag, default='F')
     call cla_register(key='-saxis', &
                       description='Quantization axis; applies to noncollinear &
