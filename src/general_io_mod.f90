@@ -148,7 +148,7 @@ character(len=127) :: fmt_str, temp_str
     day = values(3)
     hour = values(5)
     minute = values(6)
-    fmt_str = "(I0,':',I2,X,A,X,'on',X,A,X,I2,',',X,I4)"
+    fmt_str = "(I0,':',I0.2,X,'UTC',A,X,'on',X,A,X,I0.2,',',X,I4)"
     write(temp_str, trim(fmt_str))hour,minute,zone,str_month(values(2)),day,year
     str_time = trim(adjustl(temp_str))
 
