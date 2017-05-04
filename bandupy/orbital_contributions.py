@@ -23,7 +23,7 @@ def formatted_orb_choice(orb_choices, supported):
         rtn = [orb for orb in spdf if orb in temp_list]
         return rtn
     elif(orb_choices is None):
-        return formatted_orb_choice('all')
+        return formatted_orb_choice('all', supported)
 
     orb_dict = {orb:[orb] for orb in supported}
     orb_dict['all'] = supported
