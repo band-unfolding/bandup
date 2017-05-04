@@ -48,7 +48,7 @@ def run_requested_task(args):
         make_plot(args)
     elif(args.main_task=='pre-unfold'):
        pass
-    if(args.main_task=='projected-unfold'):
+    elif(args.main_task=='projected-unfold'):
         get_unfolded_orb_projs(args, clip_contributions=True, verbose=True)
     else:
         print 'Task "%s" not available.'%(args.main_task)
