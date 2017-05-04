@@ -156,7 +156,8 @@ class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
             else:
                 parser_remaining_kwargs['action'] = 'store_true'
             if(arg_name in ['-out_sckpts_file']):
-                output_files_args.add_argument(arg_name, help=arg_help, 
+                output_files_args.add_argument(arg_name, 
+                    help=arg_help.replace('(pre-unfolding utility)',''), 
                     action=store_abs_path_action_gen(assert_existence=False), 
                     **parser_remaining_kwargs)
             elif(('no_symm' in arg_name) or ('skip_propose_pc' in arg_name)):
@@ -166,6 +167,32 @@ class BandUpPreUnfoldingArgumentParser(argparse.ArgumentParser):
                 input_files_args.add_argument(arg_name, help=arg_help,
                     action=store_abs_path_action_gen(assert_existence=True), 
                     **parser_remaining_kwargs)
+    def parse_known_args(self, *fargs, **fkwargs):
+        # Argparse calls parse_known_args when we call parse_args, so we only need
+        # to override this one
+        args, unknown_args = (
+            super(BandUpPreUnfoldingArgumentParser, self).parse_known_args())
+        args.argv = self.get_argv(args)
+        return args, unknown_args
+    def get_argv(self, args, run_dir=None):
+        # Working out which of the supported BandUP options have actually been passed, 
+        # and generating an arg list to pass to Popen
+        argv = []
+        for cla_dict in self.bandup_registered_clas:
+            arg_name = '%s'%(cla_dict['key'])
+            if(arg_passed(arg_name)):
+                argv.append(arg_name)
+                if(cla_dict['kkind'] in
+                   ['cla_int', 'cla_float', 'cla_char', 'cla_xchar', 'cla_logical']):
+                    argparse_var_name = arg_name.strip('-').strip('-')
+                    val = getattr(args, argparse_var_name) 
+                    # Relative paths instead of absolute ones, to get shorter paths
+                    if(('file' in argparse_var_name) and (run_dir is not None)):
+                        abspath = os.path.abspath(val)
+                        path_rel_to_run_dir = os.path.relpath(abspath, run_dir)
+                        val = path_rel_to_run_dir
+                    argv.append(val)
+        return argv
 
 class BandUpAtOrbProjUnfoldingArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -279,11 +306,11 @@ class BandUpArgumentParser(argparse.ArgumentParser):
         egrid_args.add_argument('-efermi', type=float, default=None,
                                 help='Fermi energy (eV). Take from self-consist. calc.!')
         egrid_args.add_argument('-emin', type=float, default=None, 
-                                help='Minimum energy in the grid')
+                                help='Minimum energy in the grid (eV).')
         egrid_args.add_argument('-emax', type=float, default=None, 
-                                help='Maximum energy in the grid')
-        egrid_args.add_argument('-dE', type=float, default=None, metavar='dE',
-                                help='Energy grid spacing.')
+                                help='Maximum energy in the grid (eV).')
+        egrid_args.add_argument('-dE', type=float, default=0.05, metavar='dE',
+                                help='Energy grid spacing (eV).')
 
     def parse_known_args(self, *fargs, **fkwargs):
         # Argparse calls parse_known_args when we call parse_args, so we only need
@@ -577,7 +604,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
         # Defining available tasks and setting the default one to 'unfolding'
         self.allowed_tasks = OrderedDict()
-        self.allowed_tasks['pre-unfold'] = {'subparser_name':'bandup_pre_unf',
+        self.allowed_tasks['sckpts-get'] = {'subparser_name':'bandup_pre_unf',
                                             'help':"Runs BandUP's pre-unfolding tool "+
                                             "to get the SC-KPTs needed for unfolding.",
                                             'parents':[self.bandup_pre_unf_parser],
@@ -657,7 +684,17 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                   'should contain both real and imaginary parts -- BandUP will need '+
                   'these to calculate their duals. This option will also request '+
                   'unfolding-density operators to be written out.'))
-
+        # BandUP's pre-unfolding tool
+        bandup_pre_unf_extra_opts = self.bandup_pre_unf_subparser.add_argument_group(
+                                     'Options available'+
+                                     ' only through this Python interface')
+        bandup_pre_unf_extra_opts.add_argument('-inputs_dir', 
+            default=defaults['pre_unfolding_inputs_dir'],
+            help=('Dir where the input files for the pre-unfolding "sckpts-get" task '+
+                  'are located. This is also the directory where the output files '+
+                  'will be saved.'
+                 )
+        )
 
     def print_help(self, *args, **kwargs):
         calling_script = sys.argv[0]
@@ -703,9 +740,9 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             sys.argv.insert(1, self.default_main_task) 
 
         # Making sure arguments are compatible
-        needed_energy_opts = ['-emin', '-emax', '-dE']
+        needed_energy_opts = ['-emin', '-emax']
         # EFermi will be read from file if not passed
-        individual_energy_opts = needed_energy_opts + ['-efermi']
+        individual_energy_opts = needed_energy_opts + ['-dE', '-efermi']
 
         efile_passed = arg_passed('-efile') or arg_passed('--energy_info_file')
         individual_energy_opts_passed = (
@@ -738,7 +775,11 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         return args, unknown_args
 
     def filter_args(self, args, *fargs, **fkwargs):
-        if(args.main_task == 'unfold'):
+        if(args.main_task == 'sckpts-get'):
+            subparser = self.bandup_pre_unf_parser
+            # args.argv will be passed to Popen to run BandUP's Fortran core code
+            args.argv = subparser.get_argv(args, run_dir=args.inputs_dir)
+        elif(args.main_task == 'unfold'):
             subparser = self.bandup_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
             args.argv = subparser.get_argv(args, run_dir=args.results_dir)
@@ -750,13 +791,11 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             # Asking BandUP to write unfolding-density operators if --orbitals is passed
             if(arg_passed('--orbitals')):
                 args.argv.append('-write_unf_dens_op')
+        elif(args.main_task == 'projected-unfold'):
+            subparser = self.bandup_at_proj_parser
         elif(args.main_task == 'plot'):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
-        elif(args.main_task == 'pre-unfold'):
-            subparser = self.bandup_pre_unf_parser
-        elif(args.main_task == 'projected-unfold'):
-            subparser = self.bandup_at_proj_parser
 
         try:
             if(args.efermi is None): 

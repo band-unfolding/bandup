@@ -41,10 +41,11 @@ def file_header(msgs=None, next_line=None):
         pass
     elif(type(msgs)==str):
         header += msgs.strip('\n') + '\n'
+        header += 85 * '#' + '\n'
     else:
         for msg in msgs:
             header += msg.strip('\n') + '\n'
-    header += 85 * '#' + '\n'
+        header += 85 * '#' + '\n'
     if(next_line is not None):
         if(next_line=='comment'):
             header += '#\n'
@@ -153,13 +154,16 @@ def get_efermi(args):
     fpath = get_efermi_fpath(args)
     efermi = None
 
-    if(args.castep):
+    if(os.path.basename(fpath)=='OUTCAR'):
         with open(fpath, 'r') as f:
-            flines = f.readlines()
-            for line in flines:
+            for line in f:
+                if('E-fermi' in line):
+                    efermi = float(line.split()[2])
+    elif(args.castep):
+        with open(fpath, 'r') as f:
+            for line in f:
                 if("Fermi energy" in line):
                     efermi_au = float(line.split()[-1])
-                    continue
         efermi = efermi_au / physical_constants["electron volt-hartree relationship"][0]
 
     return efermi
@@ -181,8 +185,8 @@ def guess_castep_seed(args):
 def create_bandup_input(args):
     origin2dest = {}
     # Energy file
-    if(args.dE is None):
-        # The other related options will have been garanteed to be None when
+    if(args.emin is None):
+        # The option "emax" will have been guaranteed to be None when
         # parsing the arguments
         efile_passed = arg_passed('-efile') or arg_passed('--energy_info_file')
         if(efile_passed):
@@ -196,7 +200,7 @@ def create_bandup_input(args):
         fpath = fpath.strip()
         origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
     else:
-        # The other related options will have been garanteed not to be None when
+        # The option "emax" will have been guaranteed not to be None when
         # parsing the arguments
         energy_info_file = os.path.join(args.results_dir, 'energy_info.in')
         energy_info_file_contents = OrderedDict([("E_Fermi",args.efermi),
@@ -204,8 +208,9 @@ def create_bandup_input(args):
                                                  ("emax",args.emax),
                                                  ("dE",args.dE)])
         with open(energy_info_file, 'w') as f:
+            f.write(file_header())
             for k,v in energy_info_file_contents.iteritems():
-                f.write("%.5f  ! %s \n"%(v,k))
+                f.write("%.5f  # %s \n"%(v,k))
 
     # PC, SC and PC-KPT files
     input_file_args_var_names = ['pc_file', 'sc_file', 'pckpts_file']
