@@ -33,18 +33,12 @@ SAVE
 PRIVATE
 PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           get_file_size_in_bytes, str_len, package_version, file_header_BandUP, &
-          file_header_BandUP_short, file_for_pc_reduced_to_prim_cell, &
-          file_for_SC_reduced_to_prim_cell, compiler_version, compilation_time, &
-          get_git_info_compiled_files
+          file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell, &
+          compiler_version, compilation_time, get_git_info_compiled_files, timestamp
 
 integer, parameter :: str_len=256
 character(len=30), parameter :: package_version="2.10.0, 2017-MM-DD"
 character(len=str_len), parameter :: &
-    file_header_BandUP="# File created by BandUP - Band Unfolding code for &
-                          Plane-wave based calculations, &
-                          V"//trim(adjustl(package_version)), &
-    file_header_BandUP_short="# File created by BandUP, &
-                                V"//trim(adjustl(package_version)),&
     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
                                       for_your_reference_unit_cell.POSCAR", &
     file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_&
@@ -52,6 +46,17 @@ character(len=str_len), parameter :: &
 
 !! Functions and subroutines
 CONTAINS 
+
+function file_header_BandUP() result(header)
+implicit none
+character(len=:), allocatable :: header
+
+    header = "# File created by BandUP (V"//trim(adjustl(package_version))//') at '// &
+             timestamp()//new_line('')//&
+             '# Copyright (C) 2013-2017 Paulo V. C. Medeiros'
+
+end function file_header_BandUP
+
 
 function compiler_version() result(compiler_info_string)
 implicit none
@@ -109,6 +114,45 @@ character(len=127) :: req_info_val
     end select
 
 end function get_git_info_compiled_files
+
+
+function str_month(imonth) result(rtn)
+implicit none
+character(len=:), allocatable :: rtn
+integer, intent(in) :: imonth
+character(len=3), dimension(12) :: month_int2str
+
+    month_int2str = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', &
+                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    select case (imonth)
+        case(1:12)
+            rtn = month_int2str(imonth)
+        case default
+            rtn = 'ERR'
+    end select
+
+end function str_month
+
+function timestamp() result(str_time)
+implicit none
+character(len=:), allocatable :: str_time
+character(len=8) :: date
+character(len=10) :: time
+character(len=5) :: zone
+integer, dimension(1:8) :: values
+integer :: year, day, hour, minute
+character(len=127) :: fmt_str, temp_str
+
+    call date_and_time(date, time, zone, values)
+    year = values(1)
+    day = values(3)
+    hour = values(5)
+    minute = values(6)
+    fmt_str = "(I0,':',I2,X,A,X,'on',X,A,X,I2,',',X,I4)"
+    write(temp_str, trim(fmt_str))hour,minute,zone,str_month(values(2)),day,year
+    str_time = trim(adjustl(temp_str))
+
+end function timestamp
 
 
 function available_io_unit(min_unit,max_unit) result(unit_num)

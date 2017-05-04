@@ -155,7 +155,7 @@ integer :: i_req_dir, ikpt2, i_irr_kpt, aux_n_irr_unfolding_SCKPTS
             read(04,'(A)')file_line
             write(03,'(A)')trim(adjustl(file_line))//' (this is &
                            exactly the header of the input kpts &
-                           file) ' // trim(adjustl(file_header_BandUP_short))
+                           file) ' // file_header_BandUP()
         close(04)
         write(03,'(I0)')n_irr_unfolding_SCKPTS
         write(03,'(A)')'Reciprocal (fractional) coords. w.r.t. the SCRL vectors:' 

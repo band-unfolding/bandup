@@ -788,7 +788,7 @@ logical :: write_spin_info
     ndirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
     coord_first_k_in_dir = origin_of_kpts_line
     open(unit=12,file=out_file)
-        write(12,'(A)')trim(adjustl(file_header_BandUP))
+        write(12,'(A)')file_header_BandUP()
         if(write_spin_info)then
             write(12, '(A)')'# Please mind that the support to two-component spinor-like &
                                wavefunctions is still under test.' 
@@ -1417,8 +1417,7 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
     open(unit=unf_dens_file_unit, file=out_file, action='write')
         write(unf_dens_file_unit, '(A)')'############################################&
                                          ############################################'
-        write(unf_dens_file_unit, '(A)')'# File produced by BandUP'
-        write(unf_dens_file_unit, '(A)')'# Copyright (C) 2013-2017 Paulo V. C. Medeiros'
+        write(unf_dens_file_unit, '(A)')file_header_BandUP()
         write(unf_dens_file_unit, '(A)')'############################################&
                                          ############################################'
         write(unf_dens_file_unit, '(A)')'# This file contains all information needed to &
@@ -1426,7 +1425,8 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
         write(unf_dens_file_unit, '(A)')'# operator defined in the (k,E) space. &
                                            In particular, it reports, for each point in'
         write(unf_dens_file_unit, '(A,ES10.3,A)')'# the (k,E) grid satisfying &
-                                                    N(k,E) >= ',min_allowed_dN,':'
+                                                    N(k,E) >= ',min_allowed_dN,&
+                                                 ', the following information:'
         write(unf_dens_file_unit, '(A)')'#     * Unfolding-density operators (UnfDensOp)'
         write(unf_dens_file_unit, '(A)')'#     * Generalized spectral weight matrices &
                                                  (GenSpecWeight)'
@@ -1440,15 +1440,15 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
                                            indices indicated by m1 and m2.'
         write(unf_dens_file_unit,'(A)')'#'
         write(unf_dens_file_unit, '(A)')'# All quantities reported in this file are &
-                                           introduced and fully discussed in'
+                                           introduced and discussed in detail in'
         write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 91, 041116(R) (2015)'
         write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 89, 041407(R) (2014)'
-        write(unf_dens_file_unit,'(A)')'# You must read and cite these papers and the &
-                                         appropriate references therein.'
+        write(unf_dens_file_unit,'(A)')'# You must read and cite these papers, as well &
+                                          as the appropriate references therein.'
         write(unf_dens_file_unit,'(A)')'#'
         write(unf_dens_file_unit, '(A)')'# N.B.: If symmetry has been used for the &
                                            unfolding, then the folding/unfolding'
-        write(unf_dens_file_unit, '(A)')'# relations between the SCKPTs and PcKpts &
+        write(unf_dens_file_unit, '(A)')'# relations between the ScKpts and PcKpts &
                                            shown here might not seem obvious.'
         write(unf_dens_file_unit, '(A)')'# For full details about the geometric &
                                            unfolding relations, please see the log'
