@@ -365,8 +365,14 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
     unf_dens_ops = read_unf_dens_ops(filename=unf_dens_ops_file) 
     if(verbose):
         print 'Done.' 
-
+        
     sckpts_info_without_projs = list(pickle_load(sckpts_info_file))
+
+    sckpt_still_needed = [0 for i_sckpt in sckpts_info_without_projs]
+    for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
+        i_sckpt = unf_dens_ops_at_a_pckpt[0].folding_sckpt_number-1
+        sckpt_still_needed[i_sckpt] += 1
+
     sckpts_info_full = {}
     picked_orbitals = formatted_orb_choice(
                           args.orbs, 
@@ -388,8 +394,7 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
         print '    * OrbitalProjector: %s'%('+'.join(picked_orbitals))
         print ''
     for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
-        first_unf_dens_op = unf_dens_ops_at_a_pckpt[0]
-        i_sckpt = first_unf_dens_op.folding_sckpt_number-1
+        i_sckpt = unf_dens_ops_at_a_pckpt[0].folding_sckpt_number-1
         if(verbose):
             msg = 'PcKpt #%d (--> ScKpt #%d), spin %d: '%(ipckpt+1, i_sckpt+1, 
                                                           spin_channel)
@@ -435,6 +440,11 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
             pkpt_indices.append(unf_dens_op.pckpt_number-1)
             energy_indices.append(unf_dens_op.iener-1)
             delta_N_times_orb_weights.append(unfolded_op_val)
+
+        sckpt_still_needed[i_sckpt] -= 1
+        if(not sckpt_still_needed[i_sckpt]):
+            print '    * ScKpt #%d no longer needed. Unloading info.'%(i_sckpt+1)
+            del sckpts_info_full[i_sckpt]
 
     n_pckpt = len(unf_dens_ops)
     nener = unf_dens_ops[0][0].nener_parent_grid
