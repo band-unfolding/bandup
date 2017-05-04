@@ -9,8 +9,7 @@ from .files import mkdir
 from .warnings_wrapper import warnings
 from .lists import int_list_to_str_range 
 from .unfolding_density_op import read_unf_dens_ops
-from .files import pickle_load
-
+from .files import pickle_load, file_header
 
 def formatted_orb_choice(orb_choices, supported):
     spdf = ['s', 'py', 'pz', 'px', 'dxy', 'dyz', 'dz2', 'dxz', 'dx2',
@@ -372,8 +371,8 @@ def write_orbital_contribution_matrix_file(
         str_selected_ion_indices = int_list_to_str_range(selec_at_indices_start_from_1)
     msg = (
     '#################################################################################\n'
-    '# File produced by BandUP at %s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))+
-    '# Copyright (C) 2017 Paulo V. C. Medeiros                                        \n'
+    '# File created by BandUP at %s\n'%(time.strftime('%-H:%M UTC%z on %b %d, %Y'))+
+    '# Copyright (C) 2013-2017 Paulo V. C. Medeiros                                   \n'
     '#################################################################################\n'
         ) 
     if(force_hermitian): 
@@ -605,14 +604,13 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
     if(verbose):
         print 'Writing file "%s"...'%(orb_dependedt_unfolded_ebs_file)
     with open(orb_dependedt_unfolded_ebs_file, 'w') as f:
-        msg = '# File created by BandUP at '
-        msg += '%s\n'%(time.strftime('%l:%M%p %z on %b %d, %Y'))
-        msg += '# Orbital/atom-decomposed unfolded band structure\n'
-        f.write(msg)
-        f.write('# nAtomsSC: %d\n'%(sckpts_info_without_projs[0].nions))
-        f.write('# PickedAtomIndicesSC: %s\n'%(str_selected_ion_indices))
-        f.write('# OrbitalProjector: %s\n'%('+'.join(picked_orbitals)))
-        f.write('# SpinChannel: %d\n'%(unf_dens_ops_at_a_pckpt[0].current_ispin+1))
+        msg = ['# Orbital/atom-decomposed unfolded band structure',
+               '# nAtomsSC: %d'%(sckpts_info_without_projs[0].nions),
+               '# PickedAtomIndicesSC: %s'%(str_selected_ion_indices),
+               '# OrbitalProjector: %s\n'%('+'.join(picked_orbitals)),
+               '# SpinChannel: %d\n'%(unf_dens_ops_at_a_pckpt[0].current_ispin+1)
+        ]
+        f.write(file_header(msg))
         msg = '#KCoord #E-E_Fermi #{N*Unf[<Proj>]}(k,E)\n'
         f.write(msg)
         for ikpt in range(n_pckpt):

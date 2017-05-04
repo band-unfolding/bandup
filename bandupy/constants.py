@@ -30,6 +30,13 @@ BANDUP_DIR = __get_parent_dir(PACKAGE_DIR, 3)
 BANDUP_BIN_DIR = os.path.join(BANDUP_DIR, 'BandUP_bin')
 BANDUP_BIN = os.path.join(BANDUP_BIN_DIR, 'BandUP.x')
 
+PACKAGE_VERSION = 'UNKNOWN'
+with open(os.path.join(BANDUP_DIR, 'src', 'general_io_mod.f90'), 'r') as f:
+    for line in f:
+        if('package_version' in line and '::' in line):
+            PACKAGE_VERSION = line.split('=')[-1].replace('"','').strip()
+            break
+
 ORIGINAL_MATPLOTLIB_BACKEND = mpl.get_backend()
 
 USER_HOME = os.path.expanduser('~')

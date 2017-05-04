@@ -22,12 +22,35 @@ import errno
 from collections import OrderedDict
 from scipy.constants import physical_constants
 import argparse
+import time
 # Imports from within the package
 from .defaults import defaults
 from .warnings_wrapper import warnings
-from .constants import WORKING_DIR
+from .constants import WORKING_DIR, PACKAGE_VERSION
 from .sysargv import arg_passed
 
+
+def file_header(msgs=None, next_line=None):
+    basic_header = '# File created by BandUP (V%s) at '%(PACKAGE_VERSION)
+    basic_header += '%s\n'%(time.strftime('%-H:%M UTC%z on %b %d, %Y'))
+    basic_header += '# Copyright (C) 2013-2017 Paulo V. C. Medeiros\n'
+    header = 85 * '#' + '\n'
+    header += basic_header
+    header += 85 * '#' + '\n'
+    if(msgs is None):
+        pass
+    elif(type(msgs)==str):
+        header += msgs.strip('\n') + '\n'
+    else:
+        for msg in msgs:
+            header += msg.strip('\n') + '\n'
+    header += 85 * '#' + '\n'
+    if(next_line is not None):
+        if(next_line=='comment'):
+            header += '#\n'
+        else:
+            header += next_line.strip('\n') + '\n'
+    return header
 
 def mkdir(path, ignore_existing=False):
     try:
