@@ -289,14 +289,20 @@ character(len=*), intent(in) :: input_file
 real(kind=dp), intent(out) :: e_fermi,E_start,E_end,delta_e
 integer :: unt, ios
 real(kind=dp) :: E_start_minus_ef, E_end_minus_ef, aux_ener, dE_factor
-character(len=str_len) :: str_delta_e
+character(len=str_len) :: str_delta_e, aux_str
+character(len=1) :: first_char
 logical :: verbose
 
     verbose = .TRUE.
     dE_factor = 0.4E-2_dp
     unt = available_io_unit()
     open(unit=unt, file=input_file)
-        read(unt,*) e_fermi
+        first_char = '#'
+        do while (first_char=='#')
+            read(unt,*) aux_str
+            read(aux_str, *) first_char
+        enddo
+        read(aux_str,*) e_fermi
         read(unt,*) E_start_minus_ef
         read(unt,*) E_end_minus_ef
         read(unt,*) str_delta_e
