@@ -114,6 +114,10 @@ class UnfDensOp(object):
     @property
     def trace(self):
         return sum(self.csr_matrix.diagonal())
+    @property
+    def gen_spec_weights(self):
+        '''Generalised spectral weights'''
+        return self.unfolded_N * self.csr_matrix 
     def unfold(self, general_operator, multiply_by_N=False,
                discard_imag=False, clip_interval=None, verbose=False):
         if(np.shape(self.csr_matrix) != np.shape(general_operator)):
@@ -149,7 +153,7 @@ def read_unf_dens_ops(
         f_one_step_ahead.next()
         f_one_step_ahead = itertools.chain(f_one_step_ahead,[None])
 
-        istart_values = float('Inf')
+        next_line_contains_mat_el = False
         for iline, (line, next_line) in enumerate(itertools.izip(f, f_one_step_ahead)):
             if('SpinChannel' in line): spin_channel = int(line.split('=')[-1])
             elif('nScBands' in line): nbands = int(line.split('=')[-1])
@@ -176,34 +180,30 @@ def read_unf_dens_ops(
             elif('ScKptFractionalCoords' in line and 'SCRL' in line):
                 folding_sckpt_frac_coords_scrl = map(float, 
                                                      line.split('=')[-1].split()[:3])
-            elif('PcEnergyGridPtNumber' in line):
+            elif('iEnerPC' in line):
                 iener = int(line.split()[3])
                 energy = float(line.split()[6])
                 unfolded_N = float(line.split()[10])
                 row_indices = []
                 col_indices = []
                 entries = []
-            elif('m1' in line and 'm2' in line and 'UnfDensOp_{m1,m2}' in line):
-                istart_values = iline + 1
-            elif(iline >= istart_values):
-                try:
-                    lsplit = line.replace(')','').replace('(','').replace(',','').split()
-                    irow, icol = (i-1 for i in map(int, lsplit[:2]))
-                    val = float(lsplit[2]) + 0.0j
-                    if(icol!=irow):
-                        val += 1.0j * float(lsplit[3])
-                    row_indices.append(irow)
-                    col_indices.append(icol)
-                    entries.append(val)
-                    # TEST
-                    #if(irow!=icol and abs(val)>=4.0E-1): 
-                    #    print('Pckpt(%d) iE(%d) [m1,m2]=[%d,%d] UDO=(%.3f,%.3f) |UDO|=%.3f'%
-                    #    (pckpt_number,iener,irow+1,icol+1,
-                    #     np.real(val),np.imag(val),abs(val)))
-                    # End TEST
-                    if(next_line is None or '#' in next_line):
-                        raise ValueError
-                except(ValueError):
+            elif(('m1' in line) and ('m2' in line) and 
+                 ('GenSpecWeight' in line) and ('UnfDensOp' in line)):
+                next_line_contains_mat_el = True
+            elif(next_line_contains_mat_el):
+                lsplit = line.replace(')','').replace('(','').replace(',','').split()
+                irow, icol = (i-1 for i in map(int, lsplit[:2]))
+                val = float(lsplit[4]) + 0.0j
+                if(icol!=irow):
+                    val += 1.0j * float(lsplit[5])
+                row_indices.append(irow)
+                col_indices.append(icol)
+                entries.append(val)
+                if(next_line is None):
+                    next_line_contains_mat_el = False
+                elif(next_line.startswith('#') or not next_line.strip()): 
+                    next_line_contains_mat_el = False
+                if(not next_line_contains_mat_el):
                     unf_dens_op = UnfDensOp(
                                             pckpt_number=pckpt_number,
                                             pckpt_cart_coords=pckpt_cart_coords, 
