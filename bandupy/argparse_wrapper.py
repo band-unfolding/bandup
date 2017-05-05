@@ -19,6 +19,7 @@ import os
 from fractions import Fraction
 from collections import OrderedDict
 import sys
+from six import iteritems
 # Imports from within the package
 from .constants import (
     BANDUP_DIR,
@@ -639,7 +640,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         # This is to prevent the .subparsers.add_parser method to fail,
         # attempting to init this class recursively
         self.subparsers._parser_class = argparse.ArgumentParser
-        for task, task_info in self.allowed_tasks.iteritems():
+        for task, task_info in iteritems(self.allowed_tasks):
             subparser = self.subparsers.add_parser(task, 
                 help=task_info['help'], parents=task_info['parents'],
                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -700,12 +701,12 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
     def print_help(self, *args, **kwargs):
         calling_script = sys.argv[0]
-        print self.format_help()
+        print(self.format_help())
         extra_help_msg = "Each task has its own help as well, which can be requested\n"
         extra_help_msg+= 'by passing "-h" or "--help" after the name of the task.\n'
         extra_help_msg+= 'Eg.: %s unfold -h'%(calling_script)
-        print extra_help_msg
-        print ''
+        print(extra_help_msg)
+        print('')
         sys.exit(0)
 
     def parse_known_args(self, *fargs, **fkwargs):

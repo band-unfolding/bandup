@@ -44,7 +44,7 @@ def formatted_orb_choice(orb_choices, supported):
     except(KeyError):
        msg = 'ERROR: Invalid choice of orbital: "%s".\n'%(str(orb)) 
        msg += 'Cannot continue. Stopping now.'
-       print msg
+       print(msg)
        sys.exit(1)
     return orblist
 
@@ -360,11 +360,11 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
                                                    'unfolded_EBS_orb_dependent.dat')
 
     if(verbose):
-        print 'Reading unfolding-density operators...'
-        print '    * File: %s'%(os.path.basename(unf_dens_ops_file))
+        print('Reading unfolding-density operators...')
+        print('    * File: %s'%(os.path.basename(unf_dens_ops_file)))
     unf_dens_ops = read_unf_dens_ops(filename=unf_dens_ops_file) 
     if(verbose):
-        print 'Done.' 
+        print('Done.')
         
     sckpts_info_without_projs = list(pickle_load(sckpts_info_file))
 
@@ -389,36 +389,36 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
     pkpt_indices = []
     energy_indices = []
     if(verbose):
-        print 'Parsing projections:'
-        print '    * PickedAtomIndicesSC: %s'%(str_selected_ion_indices)
-        print '    * OrbitalProjector: %s'%('+'.join(picked_orbitals))
-        print ''
+        print('Parsing projections:')
+        print('    * PickedAtomIndicesSC: %s'%(str_selected_ion_indices))
+        print('    * OrbitalProjector: %s'%('+'.join(picked_orbitals)))
+        print('')
     for ipckpt, unf_dens_ops_at_a_pckpt in enumerate(unf_dens_ops):
         i_sckpt = unf_dens_ops_at_a_pckpt[0].folding_sckpt_number-1
         if(verbose):
             msg = 'PcKpt #%d (--> ScKpt #%d), spin %d: '%(ipckpt+1, i_sckpt+1, 
                                                           spin_channel)
-            print msg,
+            print(msg)
         try:
             sckpt_info = sckpts_info_full[i_sckpt]
             sckpt_info.select_spin(spin_channel-1)
             if(verbose):
-                print 'Orb. contrib. matrix already calcd. Reusing.'
+                print('    * Orb. contrib. matrix already calcd. Reusing.')
         except(KeyError):
             if(verbose):
-                print '\n    * ScKpt requested for the first time. Loading info:'
+                print('    * ScKpt requested for the first time. Loading info:')
             sckpt_info = sckpts_info_without_projs[i_sckpt]
             sckpt_info.select_spin(spin_channel-1)
             orb_projs_file = os.path.join(orb_projs_dir, 
                                           'proj_matrices_iKpt_%d_iSpin_%d.npz'%(
                                            sckpt_info.number, spin_channel))
             if(verbose):
-                print '        > Reading direct and dual projection matrices...'
+                print('        > Reading direct and dual projection matrices...')
             with np.load(orb_projs_file) as data:
                 sckpt_info.proj_matrix = data['direct']
                 sckpt_info.proj_matrix_dual = data['dual']
             if(verbose):
-                print '        > Calculating orbital contribution matrix...'
+                print('        > Calculating orbital contribution matrix...')
             sckpt_info.orb_contr_matrix = sckpt_info.get_orbital_contribution_matrix(
                                               picked_orbitals=picked_orbitals,
                                               selected_ion_indices=selected_ion_indices,
@@ -443,7 +443,7 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
 
         sckpt_still_needed[i_sckpt] -= 1
         if(not sckpt_still_needed[i_sckpt]):
-            print '    * ScKpt #%d no longer needed. Unloading info.'%(i_sckpt+1)
+            print('    * ScKpt #%d no longer needed. Unloading info.'%(i_sckpt+1))
             del sckpts_info_full[i_sckpt]
 
     n_pckpt = len(unf_dens_ops)
@@ -453,7 +453,7 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
                                              shape=(n_pckpt,nener)).tocsr()
 
     if(verbose):
-        print 'Writing file "%s"...'%(orb_dependedt_unfolded_ebs_file)
+        print('Writing file "%s"...'%(orb_dependedt_unfolded_ebs_file))
     with open(orb_dependedt_unfolded_ebs_file, 'w') as f:
         msg = ['# Orbital/atom-decomposed unfolded band structure',
                '# nAtomsSC: %d'%(sckpts_info_without_projs[0].nions),
@@ -471,4 +471,4 @@ def get_unfolded_orb_projs(args, clip_contributions=False, verbose=False):
                 f.write('%.4f  %.4f   %.4f\n'%(
                         kpt_coord, energy, unfolded_values_in_k_E_grid[ikpt, iener]))
     if(verbose):
-        print 'Done.'
+        print('Done.')

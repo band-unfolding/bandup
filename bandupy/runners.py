@@ -59,7 +59,7 @@ def run_requested_task(args):
     elif(args.main_task=='projected-unfold'):
         get_unfolded_orb_projs(args, clip_contributions=True, verbose=True)
     else:
-        print 'Task "%s" not available.'%(args.main_task)
+        print('Task "%s" not available.'%(args.main_task))
 
 def get_orbital_projections_and_duals(args):
     if(args.qe or args.castep or args.abinit):

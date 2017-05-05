@@ -16,6 +16,7 @@
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 import glob
 import os
+from six import iteritems
 # Imports from within the package
 from .warnings_wrapper import warnings
 from .constants import WORKING_DIR
@@ -31,7 +32,7 @@ defaults['bandup_raw_out_files'] = {
 
 step2dir = {'step_1':'self_consist_calc', 'step_2':'pre_unfolding',
             'step_3':'wavefunc_calc'}
-for step, d in step2dir.iteritems():
+for step, d in iteritems(step2dir):
     try:
         # If the user executes the script inside the "step_4*" dir (or similar dir level)
         tentative_dir=glob.glob(os.path.join(os.path.dirname(WORKING_DIR),'%s*'%(step)))

@@ -747,7 +747,7 @@
       <set>Qt::AlignCenter</set>
      </property>
      <property name="placeholderText">
-      <string>Optional</string>
+      <string>-20</string>
      </property>
     </widget>
    </widget>
@@ -1202,14 +1202,14 @@
      <property name="whatsThis">
       <string/>
      </property>
-     <property name="value">
-      <string>0.05</string>
-     </property>
      <property name="decimals">
       <number>3</number>
      </property>
      <property name="singleStep">
       <double>0.010000000000000</double>
+     </property>
+     <property name="value">
+      <double>0.050000000000000</double>
      </property>
     </widget>
    </widget>
@@ -1226,6 +1226,22 @@
      <string>Plot</string>
     </property>
    </widget>
+   <widget class="QScrollBar" name="verticalScrollBar">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>-1</y>
+      <width>20</width>
+      <height>751</height>
+     </rect>
+    </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
+    <property name="orientation">
+     <enum>Qt::Vertical</enum>
+    </property>
+   </widget>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QMenuBar" name="menubar">
@@ -1234,7 +1250,7 @@
      <x>0</x>
      <y>0</y>
      <width>641</width>
-     <height>25</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">

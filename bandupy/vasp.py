@@ -69,8 +69,8 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 if(ispin==0 and mode=='accumulate'):
                     kpts_info = [None for ik in range(nkps)]
             elif('k-point' in line and 'weight' in line): 
-                print 'Kpt #%d/%d, spin_channel=%d: Reading <atOrb|PW> projections...'%(
-                      int(lsplit[1]), nkps, ispin+1) # TEST
+                print('Kpt #%d/%d, spin_channel=%d: Reading <atOrb|PW> projections...'%(
+                      int(lsplit[1]), nkps, ispin+1)) # TEST
                 # Some PROCAR files have a formatting problem in this line
                 new_lsplit = []
                 for i, item in enumerate(lsplit):
@@ -136,7 +136,7 @@ def read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                 reading_real_part = not reading_real_part
                 if(iline==end_phase and iband==nbands):
                     if(mode=='convert2bandup'):
-                        print '    * Calculating duals and saving results...'
+                        print('    * Calculating duals and saving results...')
                         kpt.saveinfo()
                     elif(mode=='accumulate'):
                         kpts_info[kpt.number-1] = kpt

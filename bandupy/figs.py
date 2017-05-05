@@ -30,6 +30,13 @@ def get_matplotlib_color_names():
 
 def get_available_cmaps(only_names=False):
     colormap_names = sorted(plt.cm.datad.keys(), key=lambda s: s.lower())
+    # Removing deprecated colormaps for future portability with Python 3
+    # Matplotlib and warnings don't seem to like each other in python3 if these 
+    # cmaps are not removed
+    colormap_names = [name for name in colormap_names if 
+                      not name.lower().startswith('spectral') and 
+                      not 'Vega' in name]
+
     colormaps = dict([[cmap_name, plt.get_cmap(cmap_name)] for cmap_name in 
                      colormap_names])
     # Custom colormaps

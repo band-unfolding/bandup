@@ -20,14 +20,33 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 from fractions import Fraction
 try:
-    from PyQt4 import QtGui, QtCore, uic
+    from PyQt5 import QtGui, QtCore, uic
+    from PyQt5.QtWidgets import (
+        QWidget, 
+        QMainWindow, 
+        QApplication, 
+        QCompleter,
+        QDesktopWidget,
+        QFileDialog,
+        QLineEdit,
+        QMenuBar,
+        QTextEdit,
+        QMessageBox,
+        QVBoxLayout,
+        QScrollArea,
+        QHBoxLayout,
+    )
 except ImportError:
-    import Tkinter
-    import tkMessageBox
-    root = Tkinter.Tk()
+    try:
+        import Tkinter as tkinter
+        import tkMessageBox
+    except(ModuleNotFoundError):
+        import tkinter
+        import tkinter.messagebox as tkMessageBox
+    root = tkinter.Tk()
     root.withdraw()
     tkMessageBox.showerror("BandUP plot GUI", 
-                           "Sorry, but you don't seem to have PyQt4 available in your python install. \n" + 
+                           "Sorry, but you don't seem to have PyQt5 available in your python install. \n" + 
                            "Please use the plotting tool through the command line.")
     sys.exit(0)
 import json
@@ -39,15 +58,15 @@ from .figs import (
 from .constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
 
 # Trick to avoid errors with PlaceholderText for Qt4.X, X<7.
-if('setPlaceholderText' not in dir(QtGui.QLineEdit)):
-    def redefined_setPlaceholderText(lineEdit, text):
-        lineEdit._placeholderText = QtCore.QString(text)
-        lineEdit.setText(text)
-    def redefined_PlaceholderText(lineEdit):
-        return lineEdit._placeholderText
-
-    QtGui.QLineEdit.setPlaceholderText = redefined_setPlaceholderText
-    QtGui.QLineEdit.PlaceholderText = redefined_PlaceholderText
+#if('setPlaceholderText' not in dir(QLineEdit)):
+#    def redefined_setPlaceholderText(lineEdit, text):
+#        lineEdit._placeholderText = str(text)
+#        lineEdit.setText(text)
+#    def redefined_PlaceholderText(lineEdit):
+#        return lineEdit._placeholderText
+#
+#    QLineEdit.setPlaceholderText = redefined_setPlaceholderText
+#    QLineEdit.PlaceholderText = redefined_PlaceholderText
 
 
 def find(name, path):
@@ -59,11 +78,11 @@ def find(name, path):
 def center_window(window):
     # From http://zetcode.com/gui/pyqt4
     qr = window.frameGeometry()
-    cp = QtGui.QDesktopWidget().availableGeometry().center()
+    cp = QDesktopWidget().availableGeometry().center()
     qr.moveCenter(cp)
     window.move(qr.topLeft())
 
-class MyOutputWindow(QtGui.QWidget):
+class MyOutputWindow(QWidget):
     def __init__(self, parent=None, dimensions=(1000, 750)):
         super(MyOutputWindow, self).__init__()
         self.setParent(parent)
@@ -74,11 +93,11 @@ class MyOutputWindow(QtGui.QWidget):
         center_window(self)
         # Menu bar
         menubar_end_y = 31
-        self.menubar = QtGui.QMenuBar(self)
+        self.menubar = QMenuBar(self)
         self.menubar.resize(dimensions[0], menubar_end_y)
         fileMenu = self.menubar.addMenu('File')
         # QTextEdit
-        self.edit = QtGui.QTextEdit(self)
+        self.edit = QTextEdit(self)
         self.edit.setGeometry(QtCore.QRect(0, menubar_end_y, dimensions[0], dimensions[1]))
         self.edit.setReadOnly(True)
 
@@ -111,7 +130,7 @@ class MyQProcess(QtCore.QProcess):
         self.w.edit.ensureCursorVisible()
 
 
-class BandupPlotToolWindow(QtGui.QMainWindow):
+class BandupPlotToolWindow(QMainWindow):
     def __init__(self):
         super(BandupPlotToolWindow, self).__init__()
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
@@ -127,15 +146,15 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
         plot_script_fname = 'bandup'
         self.plot_script = os.path.join(INTERFACE_MAIN_SOURCE_DIR, plot_script_fname)
         if(not os.path.isfile(self.plot_script)):
-            reply = QtGui.QMessageBox.critical(self, 
+            reply = QMessageBox.critical(self, 
                         "Error: BandUP's Plotting script not found", 
                         'The file \n %s file could not be found.'
-                        %(self.plot_script), QtGui.QMessageBox.Close
+                        %(self.plot_script), QMessageBox.Close
                     )
             sys.exit(0)
 
-        self.last_folder = QtCore.QString(self.folder_where_gui_has_been_called)
-        self.default_aspect_ratio = QtCore.QString('3/4')
+        self.last_folder = str(self.folder_where_gui_has_been_called)
+        self.default_aspect_ratio = str('3/4')
         self.vmin = None
         self.vmax = None
         self.aspect_ratio = None
@@ -199,14 +218,14 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
             trial_file_path = os.path.abspath(str(trial_file_path))
             file_exists = os.path.isfile(trial_file_path)
             if(file_exists):
-                file_lineEdit.default_file_path = QtCore.QString(trial_file_path)
-                file_lineEdit.default_text = QtCore.QString('Default: %s' % trial_file_path)
+                file_lineEdit.default_file_path = str(trial_file_path)
+                file_lineEdit.default_text = str('Default: %s' % trial_file_path)
             else:
                 file_lineEdit.default_file_path = None
                 if(file_lineEdit == self.select_energy_file_lineEdit):
-                    file_lineEdit.default_text = QtCore.QString('Optional')
+                    file_lineEdit.default_text = str('Optional')
                 else:
-                    file_lineEdit.default_text = QtCore.QString('Select...')
+                    file_lineEdit.default_text = str('Select...')
 
             file_lineEdit.previous_valid_file_path = file_lineEdit.default_file_path
             if(len(str(file_lineEdit.default_text)) < 30):
@@ -269,17 +288,34 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
         # Scheduling the window to be shown at the center of the screen 
         center_window(self)
         self.show()
+    
+        
+    #def setup_scrollbar(self):
+        #self.centralWidget = QWidget(self)
+        #layout = QVBoxLayout(self.centralWidget)
+
+        #self.scrollArea = QScrollArea(self.centralWidget)
+        #layout.addWidget(self.scrollArea)
+
+        #self.scrollAreaWidgetContents = QWidget()
+        #self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1112, 932))
+
+        #self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+
+        #layout = QHBoxLayout(self.scrollAreaWidgetContents)
+
+        #self.setCentralWidget(self.centralWidget)
 
 
     def get_available_cmaps(self, only_names=False):
         return get_available_cmaps(only_names=only_names)
 
     def update_lineEdit_completer(self):
-        self.files_in_current_folder = [QtCore.QString(item) for item in 
+        self.files_in_current_folder = [str(item) for item in 
                                         os.listdir(str(self.last_folder)) if 
                                         os.path.isfile(os.path.join(str(self.last_folder), item))]
-        self.file_lineEdit_completer = QtGui.QCompleter(self.files_in_current_folder)
-        self.file_lineEdit_completer.setCompletionMode(QtGui.QCompleter.InlineCompletion)
+        self.file_lineEdit_completer = QCompleter(self.files_in_current_folder)
+        self.file_lineEdit_completer.setCompletionMode(QCompleter.InlineCompletion)
 
         self.select_prim_cell_file_lineEdit.setCompleter(self.file_lineEdit_completer)
         self.select_pckpts_file_lineEdit.setCompleter(self.file_lineEdit_completer)
@@ -309,7 +345,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
         valid_file_entered = os.path.isfile(entered_file_path)
         if(valid_file_entered):
-            file_path = QtCore.QString(entered_file_path)
+            file_path = str(entered_file_path)
             lineEdit.previous_valid_file_path = file_path
             if(file_path != lineEdit.default_file_path):
                 lineEdit.setText(file_path)
@@ -332,7 +368,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
                         lineEdit.setPlaceholderText('Select...')
             else:
                 if(lineEdit.previous_valid_file_path is not None):
-                    file_path = QtCore.QString(lineEdit.previous_valid_file_path)
+                    file_path = str(lineEdit.previous_valid_file_path)
                     if(lineEdit.previous_valid_file_path != lineEdit.default_file_path):
                         lineEdit.setText(file_path)
                     else:
@@ -387,19 +423,19 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
         file_exists = os.path.isfile(new_file_path)
         is_directory = os.path.isdir(new_file_path)
         if(file_exists or is_directory): 
-            reply = QtGui.QMessageBox.question(self, ' ', 'File "%s" exists. Overwrite?' % new_file_path, 
-                                               QtGui.QMessageBox.Yes | QtGui.QMessageBox.No, 
-                                               QtGui.QMessageBox.No)
-            if reply == QtGui.QMessageBox.Yes:
-                self.out_figure_file_path = QtCore.QString(new_file_path)
+            reply = QMessageBox.question(self, ' ', 'File "%s" exists. Overwrite?' % new_file_path, 
+                                               QMessageBox.Yes | QMessageBox.No, 
+                                               QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                self.out_figure_file_path = str(new_file_path)
             else:
                 if self.out_figure_file_path is not None:
                     if(str(new_file_path) == str(self.out_figure_file_path)):
                         self.out_figure_file_path = None
                     else:
-                        self.out_figure_file_path = QtCore.QString(self.out_figure_file_path)
+                        self.out_figure_file_path = str(self.out_figure_file_path)
         else:
-            self.out_figure_file_path = QtCore.QString(new_file_path)
+            self.out_figure_file_path = str(new_file_path)
 
         if(self.out_figure_file_path is not None):
             self.select_out_figure_file_lineEdit.setText(self.out_figure_file_path)
@@ -410,7 +446,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
     def on_aspect_ratio_change(self):
         try:
-            new_ar = QtCore.QString(str(abs(Fraction(str(self.aspect_ratio_lineEdit.text())).limit_denominator(max_denominator=99))))
+            new_ar = str(str(abs(Fraction(str(self.aspect_ratio_lineEdit.text())).limit_denominator(max_denominator=99))))
             if(new_ar == self.default_aspect_ratio):
                 new_ar = None
         except (SyntaxError, ValueError):
@@ -473,12 +509,12 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
             else:
                 default_output_file_name = 'plot_EBS_BandUP.' + set_default_fig_format(allowed_fig_formats())
             allowed_file_types_string = "Images (*." + " *.".join(allowed_fig_formats()) + ")"
-            file_path = str(QtGui.QFileDialog.getSaveFileName(self, self.windowTitle() + ' - Save file', default_output_file_name, allowed_file_types_string))
+            file_path = str(QFileDialog.getSaveFileName(self, self.windowTitle() + ' - Save file', default_output_file_name, allowed_file_types_string))
             if(file_path.strip()):
-                self.out_figure_file_path = QtCore.QString(file_path)
+                self.out_figure_file_path = str(file_path)
                 lineEdit.setText(self.out_figure_file_path)  # setText does NOT send a 'textEdited' signal. It only sends 'textChanged'
         else:
-            file_path = str(QtGui.QFileDialog.getOpenFileName(self, self.windowTitle() + ' - Select file'))
+            file_path = str(QFileDialog.getOpenFileName(self, self.windowTitle() + ' - Select file'))
             file_path = os.path.abspath(file_path)
 
             file_exists = os.path.isfile(file_path)
@@ -486,7 +522,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
 
             if(file_exists and not is_directory):
                 lineEdit.setText(file_path)
-                lineEdit.previous_valid_file_path = QtCore.QString(file_path) 
+                lineEdit.previous_valid_file_path = str(file_path) 
 
                 if(button == self.select_EBS_file_Button):
                     self.EBS_file_path = file_path
@@ -498,7 +534,7 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
                     self.energy_file_path = file_path
    
         if(os.path.dirname(file_path).strip() and not is_directory):
-            self.last_folder = QtCore.QString(os.path.dirname(file_path))
+            self.last_folder = str(os.path.dirname(file_path))
             self.update_lineEdit_completer()
 
  
@@ -506,9 +542,9 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
         args_for_plotting_tool = []
         # pushButton objects, input and output files
         def warn_file_not_selected(filetype): 
-            reply = QtGui.QMessageBox.warning(self, ' ', 
+            reply = QMessageBox.warning(self, ' ', 
                                               'The %s file could not be found.'%(
-                                              filetype, QtGui.QMessageBox.Ok))
+                                              filetype, QMessageBox.Ok))
 
         if(os.path.isfile(str(self.EBS_file_path).strip())):
             args_for_plotting_tool += ['-input_file', self.EBS_file_path]
@@ -603,6 +639,6 @@ class BandupPlotToolWindow(QtGui.QMainWindow):
         qProcess.start(' '.join(args_for_plotting_tool))
 
 def open_plot_gui():
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     window = BandupPlotToolWindow()
     sys.exit(app.exec_())

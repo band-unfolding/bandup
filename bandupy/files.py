@@ -82,7 +82,7 @@ def assert_valid_path(path):
     try:
         path_stat = os.stat(path)
         st_size = path_stat.st_size 
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             raise IOError('"%s" is not a valid path!' % (path))
         else:
