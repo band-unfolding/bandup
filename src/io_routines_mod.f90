@@ -1449,8 +1449,8 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
                                            introduced and discussed in detail in'
         write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 91, 041116(R) (2015)'
         write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 89, 041407(R) (2014)'
-        write(unf_dens_file_unit,'(A)')'# You must read and cite these papers, as well &
-                                          as the appropriate references therein.'
+        write(unf_dens_file_unit,'(A)')'# You should read and cite these papers, as &
+                                          well as the appropriate references therein.'
         write(unf_dens_file_unit,'(A)')'#'
         write(unf_dens_file_unit, '(A)')'# N.B.: If symmetry has been used for the &
                                            unfolding, then the folding/unfolding'

@@ -77,9 +77,13 @@ vpath %.c $(castep_related_modules_folder)
 vpath %.c $(check2xsf_modules)
 
 # List of executables to be built within the package
-SRC = main_BandUP.f90
-SRC_OBJ = ${SRC:.f90=.o}
-EXE = BandUP.x
+BANDUP_SRC = main_BandUP.f90 
+BANDUP_GET_SCKPTS_SRC = main_get_SCKPTS_pre_BandUP.f90
+BANDUP_SRC_OBJ = $(patsubst %.f90, %.o, $(BANDUP_SRC))
+BANDUP_GET_SCKPTS_SRC_OBJ = $(patsubst %.f90, %.o, $(BANDUP_GET_SCKPTS_SRC))
+BANDUP_EXE = BandUP.x
+BANDUP_GET_SCKPTS_EXE = get_SCKPTS_pre_BandUP.x
+
 C2XSF_C_OBJS = check2xsf_mod_for_bandup.o check_read_for_bandup.o \
                periodic_table_c2xsf.o basis_c2xsf.o super_c2xsf.o gpfa_c2xsf.o \
                interpolate_c2xsf.o line_write_c2xsf.o ident_sym_c2xsf.o \
@@ -90,10 +94,12 @@ OBJ := cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o \
        read_abinit_wavefunctions_mod.o read_castep_wavefunctions_mod.o \
        write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(C2XSF_C_OBJS)
 
-# "make" builds all
-all: $(EXE)
-
-# Dependencies
+# First rule: "make" will build all
+all: $(BANDUP_GET_SCKPTS_EXE) $(BANDUP_EXE)
+# Rules to make the executables individually
+bandup: $(BANDUP_EXE)
+prebandup: $(BANDUP_GET_SCKPTS_EXE)
+# Rules for dependencies
 cla.o: kinds.o
 math_mod.o: constants_and_types_mod.o spglib_f08.o
 general_io_mod.o: constants_and_types_mod.o math_mod.o
@@ -114,12 +120,14 @@ io_routines_mod.o: constants_and_types_mod.o math_mod.o cla_wrappers_mod.o \
                    read_castep_wavefunctions_mod.o
 band_unfolding_routines_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o \
                                general_io_mod.o io_routines_mod.o
-$(SRC_OBJ): $(OBJ) 
-$(EXE): $(OBJ) $(SRC_OBJ)
+$(BANDUP_SRC_OBJ) $(BANDUP_GET_SCKPTS_SRC_OBJ): $(OBJ) 
 # ======================================================================
 # General rules
 # ======================================================================
-$(EXE): $(SRC_OBJ) $(OBJ)
+$(BANDUP_EXE): $(BANDUP_SRC_OBJ) $(OBJ)
+	$(FC) $(FCFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
+
+$(BANDUP_GET_SCKPTS_EXE): $(BANDUP_GET_SCKPTS_SRC_OBJ) $(OBJ)
 	$(FC) $(FCFLAGS) $(LDFLAGS) $^ $(LIBS) -o $@
 
 %.o: %.f90
@@ -132,12 +140,12 @@ $(EXE): $(SRC_OBJ) $(OBJ)
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -c $<
 
 # Utility targets
-.PHONY: clean veryclean
+.PHONY: all bandup prebandup clean veryclean
 
 clean:
 	rm -f *.o *.mod *.MOD
 
 veryclean: clean
-	rm -f *~ $(EXE)
+	rm -f *~ $(BANDUP_EXE) $(BANDUP_GET_SCKPTS_EXE)
 print-%:
 	@echo '$*=$($*)'
