@@ -658,6 +658,8 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             action=store_abs_path_action_gen(assert_existence=True), 
             default=defaults['results_dir'],
             help='Dir where BandUP was run.')
+        bandup_plot_extra_opts.add_argument('--gui', action='store_true',
+            help='Open the GUI.')
         bandup_plot_extra_opts.add_argument('--overwrite', action='store_true',
             help='Overwrite files/directories if copy paths coincide.')
         # BandUP subparser

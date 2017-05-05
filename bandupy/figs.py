@@ -28,7 +28,7 @@ from .constants import PACKAGE_DIR
 def get_matplotlib_color_names():
     return sorted(mpl.colors.cnames.keys())
 
-def get_available_cmaps():
+def get_available_cmaps(only_names=False):
     colormap_names = sorted(plt.cm.datad.keys(), key=lambda s: s.lower())
     colormaps = dict([[cmap_name, plt.get_cmap(cmap_name)] for cmap_name in 
                      colormap_names])
@@ -52,7 +52,10 @@ def get_available_cmaps():
             )
     except(TypeError):
         pass
-    return sorted(colormap_names), colormaps
+    if(only_names):
+        return sorted(colormap_names)
+    else:
+        return sorted(colormap_names), colormaps
 
 
 def allowed_fig_formats():

@@ -25,6 +25,7 @@ def __get_parent_dir(path, level=1):
 
 
 PACKAGE_DIR = os.path.dirname(os.path.realpath(__file__))
+INTERFACE_MAIN_SOURCE_DIR = __get_parent_dir(PACKAGE_DIR, 1)
 BANDUP_DIR = __get_parent_dir(PACKAGE_DIR, 3)
 
 BANDUP_BIN_DIR = os.path.join(BANDUP_DIR, 'BandUP_bin')

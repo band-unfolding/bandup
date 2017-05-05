@@ -822,6 +822,12 @@ def main(args=sys.argv, ignore_unknown_args=False):
     plot = BandUpPlot(plot_options)
     produce_figure(plot)
 
+def make_plot(args):
+    print_opening_message()
+    os.chdir(args.plotdir)
+    plot = BandUpPlot(args)
+    produce_figure(plot)
+
 if __name__ == '__main__':
     main(args=sys.argv)
     sys.exit(0)

@@ -8,11 +8,7 @@ from .files import (
     create_bandup_input,
     create_bandup_plot_input,
 )
-from .plot import (
-    print_opening_message,
-    BandUpPlot, 
-    produce_figure,
-)
+from .plot import make_plot
 from .vasp import procar2bandup
 from .orbital_contributions import get_unfolded_orb_projs
 
@@ -44,11 +40,6 @@ def run_pre_bandup_tool(args):
             f.write(line)
     os.chdir(start_dir)
 
-def make_plot(args):
-    print_opening_message()
-    os.chdir(args.plotdir)
-    plot = BandUpPlot(args)
-    produce_figure(plot)
 
 def run_requested_task(args):
     if(args.main_task=='unfold'):
@@ -56,9 +47,13 @@ def run_requested_task(args):
         create_bandup_input(args)
         run_bandup(args)
     elif(args.main_task=='plot'):
-        mkdir(args.plotdir, ignore_existing=True)
-        create_bandup_plot_input(args)
-        make_plot(args)
+        if(args.gui):
+            from bandupy.plot_gui import open_plot_gui
+            open_plot_gui()
+        else:
+            mkdir(args.plotdir, ignore_existing=True)
+            create_bandup_plot_input(args)
+            make_plot(args)
     elif(args.main_task=='sckpts-get'):
        run_pre_bandup_tool(args)
     elif(args.main_task=='projected-unfold'):
