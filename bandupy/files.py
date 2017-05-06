@@ -287,33 +287,34 @@ def create_bandup_input(args):
 
 def create_bandup_plot_input(args):
     origin2dest = {}
-    # Energy file
-    if(args.dE is None):
-        # The other related options will have been garanteed to be None when
-        # parsing the arguments
-        efile_passed = (arg_passed('-efile') or arg_passed('--energy_info_file') or
-                        arg_passed('-energy_file'))
-        if(efile_passed):
-            fpath = getattr(args, 'energy_file')
-            new_fpath = None
+    if(not args.running_from_GUI):
+        # Energy file
+        if(args.dE is None):
+            # The other related options will have been garanteed to be None when
+            # parsing the arguments
+            efile_passed = (arg_passed('-efile') or arg_passed('--energy_info_file') or
+                            arg_passed('-energy_file'))
+            if(efile_passed):
+                fpath = getattr(args, 'energy_file')
+                new_fpath = None
+            else:
+                new_fpath = os.path.join(args.plotdir, 'energy_info.in').strip()
+                fpath = os.path.join(args.results_dir, 'energy_info.in')
+                if(not os.path.isfile(fpath)):
+                    fpath = os.path.join(WORKING_DIR, 'energy_info.in')
+            fpath = fpath.strip()
+            origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
         else:
-            new_fpath = os.path.join(args.plotdir, 'energy_info.in').strip()
-            fpath = os.path.join(args.results_dir, 'energy_info.in')
-            if(not os.path.isfile(fpath)):
-                fpath = os.path.join(WORKING_DIR, 'energy_info.in')
-        fpath = fpath.strip()
-        origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
-    else:
-        # The other related options will have been garanteed not to be None when
-        # parsing the arguments
-        energy_info_file = os.path.join(args.plotdir, 'energy_info.in')
-        energy_info_file_contents = OrderedDict([("E_Fermi",args.efermi),
-                                                 ("emin",args.emin),
-                                                 ("emax",args.emax),
-                                                 ("dE",args.dE)])
-        with open(energy_info_file, 'w') as f:
-            for k,v in energy_info_file_contents.iteritems():
-                f.write("%.5f  ! %s \n"%(v,k))
+            # The other related options will have been garanteed not to be None when
+            # parsing the arguments
+            energy_info_file = os.path.join(args.plotdir, 'energy_info.in')
+            energy_info_file_contents = OrderedDict([("E_Fermi",args.efermi),
+                                                     ("emin",args.emin),
+                                                     ("emax",args.emax),
+                                                     ("dE",args.dE)])
+            with open(energy_info_file, 'w') as f:
+                for k,v in energy_info_file_contents.iteritems():
+                    f.write("%.5f  ! %s \n"%(v,k))
 
     # PC, SC, PC-KPT, and main input files
     input_file_args_var_names = ['pckpts_file', 'pc_file', 'input_file']
