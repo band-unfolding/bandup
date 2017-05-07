@@ -14,12 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
-import sys
-import os
-import matplotlib.colors
-import matplotlib.pyplot as plt
-from fractions import Fraction
 try:
+    pyqt_version = 5
     from PyQt5 import QtCore, uic
     from PyQt5.QtWidgets import (
         QWidget, 
@@ -36,8 +32,11 @@ try:
         QScrollArea,
         QHBoxLayout,
     )
+    # Reconstructing QString
+    QString = str
 except ImportError:
     try:
+        pyqt_version = 4
         from PyQt4 import QtCore, uic
         from PyQt4.QtCore import QString
         from PyQt4.QtGui import (
@@ -55,6 +54,8 @@ except ImportError:
             QScrollArea,
             QHBoxLayout,
         )
+        # To be compatible with PyQt5
+        QFileDialog.getOpenFileName = QFileDialog.getOpenFileNameAndFilter
     except ImportError:
         try:
             import Tkinter as tkinter
@@ -71,6 +72,11 @@ except ImportError:
             "Please use the plotting tool through the command line."
         )
         sys.exit(0)
+import sys
+import os
+import matplotlib.colors
+import matplotlib.pyplot as plt
+from fractions import Fraction
 import json
 from .figs import (
     allowed_fig_formats,
@@ -79,16 +85,22 @@ from .figs import (
 )
 from .constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
 
+def lower_QString(val):
+    if(pyqt_version==4):
+        return val.toLower()
+    else:
+        return val.lower()
+
 # Trick to avoid errors with PlaceholderText for Qt4.X, X<7.
-#if('setPlaceholderText' not in dir(QLineEdit)):
-#    def redefined_setPlaceholderText(lineEdit, text):
-#        lineEdit._placeholderText = QString(text)
-#        lineEdit.setText(text)
-#    def redefined_PlaceholderText(lineEdit):
-#        return lineEdit._placeholderText
-#
-#    QLineEdit.setPlaceholderText = redefined_setPlaceholderText
-#    QLineEdit.PlaceholderText = redefined_PlaceholderText
+if('setPlaceholderText' not in dir(QLineEdit)):
+    def redefined_setPlaceholderText(lineEdit, text):
+        lineEdit._placeholderText = QString(text)
+        lineEdit.setText(text)
+    def redefined_PlaceholderText(lineEdit):
+        return lineEdit._placeholderText
+
+    QLineEdit.setPlaceholderText = redefined_setPlaceholderText
+    QLineEdit.PlaceholderText = redefined_PlaceholderText
 
 
 def find(name, path):
@@ -421,7 +433,6 @@ class BandupPlotToolWindow(QMainWindow):
         elif(lineEdit == self.select_EBS_file_lineEdit):
             self.EBS_file_path = file_path
 
-
     def on_editing_output_file_lineEdit(self):
         # lineEdit.isModified() returns False unless the text has been manually changed by the user
         if(not self.select_out_figure_file_lineEdit.isModified()): 
@@ -541,7 +552,8 @@ class BandupPlotToolWindow(QMainWindow):
                 self.out_figure_file_path = QString(file_path)
                 lineEdit.setText(self.out_figure_file_path)  # setText does NOT send a 'textEdited' signal. It only sends 'textChanged'
         else:
-            file_path = str(QFileDialog.getOpenFileName(self, self.windowTitle() + ' - Select file'))
+            file_path = str(QFileDialog.getOpenFileName(self, self.windowTitle() + 
+                                                        ' - Select file')[0])
             file_path = os.path.abspath(file_path)
 
             file_exists = os.path.isfile(file_path)
@@ -601,17 +613,24 @@ class BandupPlotToolWindow(QMainWindow):
                 warn_file_not_selected('energy grid configuration file')
                 return
         # comboBox objects
-        if(self.colormap_comboBox.currentText().toLower() != 'default'): 
+        if(lower_QString(self.colormap_comboBox.currentText()) != 'default'): 
             args_for_plotting_tool += ['-cmap', self.colormap_comboBox.currentText()]
-        if(self.e_fermi_color_comboBox.currentText().toLower() != 'default'): 
-            args_for_plotting_tool += ['--e_fermi_linecolor', self.e_fermi_color_comboBox.currentText()]
-        if(self.high_symm_lines_color_comboBox.currentText().toLower() != 'default'): 
-            args_for_plotting_tool += ['--high_symm_linecolor', self.high_symm_lines_color_comboBox.currentText()]
-        args_for_plotting_tool += ['-res', self.fig_resolution_comboBox.currentText()[0].toLower()]
-        args_for_plotting_tool += ['--interpolation', self.interpolation_comboBox.currentText().toLower()]
-        args_for_plotting_tool.append('--' + self.fig_orientation_comboBox.currentText().toLower())
-        args_for_plotting_tool += ['--line_style_high_symm_points', self.high_symm_lines_style_comboBox.currentText().toLower()]
-        args_for_plotting_tool += ['--line_style_E_f', self.e_fermi_line_style_comboBox.currentText().toLower()]
+        if(lower_QString(self.e_fermi_color_comboBox.currentText()) != 'default'): 
+            args_for_plotting_tool += ['--e_fermi_linecolor', 
+                                       self.e_fermi_color_comboBox.currentText()]
+        if(lower_QString(self.high_symm_lines_color_comboBox.currentText())!='default'): 
+            args_for_plotting_tool += ['--high_symm_linecolor', 
+                                       self.high_symm_lines_color_comboBox.currentText()]
+        args_for_plotting_tool += ['-res', 
+            lower_QString(self.fig_resolution_comboBox.currentText()[0])]
+        args_for_plotting_tool += ['--interpolation', 
+            lower_QString(self.interpolation_comboBox.currentText())]
+        args_for_plotting_tool.append('--'+ 
+            lower_QString(self.fig_orientation_comboBox.currentText()))
+        args_for_plotting_tool += ['--line_style_high_symm_points', 
+            lower_QString(self.high_symm_lines_style_comboBox.currentText())]
+        args_for_plotting_tool += ['--line_style_E_f', 
+            lower_QString(self.e_fermi_line_style_comboBox.currentText())]
         # spinBox objects
         args_for_plotting_tool += ['--n_levels', self.n_levels_spinBox.text()]
         if(self.show_colorbar_checkBox.isChecked()):
