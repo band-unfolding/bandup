@@ -78,12 +78,12 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 from fractions import Fraction
 import json
-from bandupy.figs import (
+from ..figs import (
     allowed_fig_formats,
     set_default_fig_format,
     get_available_cmaps,
 )
-from bandupy.constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
+from ..constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
 
 def lower_QString(val):
     if(pyqt_version==4):
