@@ -799,12 +799,15 @@ def produce_figure(plot):
         # 'xdg-open' might fail to find the defualt program in some systems
         # For such cases, one can try to use other alternatives 
         # (just add more to the list below)
-        image_viewer_list = ['xdg-open', 'eog']
+        image_viewer_list = ['xdg-open', 'eog', 'open']
         for image_viewer in image_viewer_list:
-            open_saved_fig = Popen([image_viewer, args.output_file], 
-                                    stdout=PIPE, stderr=PIPE)
-            std_out, std_err = open_saved_fig.communicate()
-            success_opening_file = std_err.strip() == ''
+            try:
+                open_saved_fig = Popen([image_viewer, args.output_file], 
+                                        stdout=PIPE, stderr=PIPE)
+                std_out, std_err = open_saved_fig.communicate()
+                success_opening_file = std_err.strip() == ''
+            except(OSError):
+                success_opening_file = False
             if(success_opening_file):
                 break
         if(not success_opening_file):
