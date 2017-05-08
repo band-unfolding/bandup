@@ -78,12 +78,12 @@ import matplotlib.colors
 import matplotlib.pyplot as plt
 from fractions import Fraction
 import json
-from .figs import (
+from bandupy.figs import (
     allowed_fig_formats,
     set_default_fig_format,
     get_available_cmaps,
 )
-from .constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
+from bandupy.constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
 
 def lower_QString(val):
     if(pyqt_version==4):
@@ -123,8 +123,7 @@ class MyOutputWindow(QMainWindow):
         self.initUI(dimensions)
     def initUI(self, dimensions):
         # Loading the base UI I've created using QT Designer
-        ui_file = os.path.join(PACKAGE_DIR, 
-                  'BandUP_plot_GUI_output_window.ui') 
+        ui_file = os.path.join(PACKAGE_DIR, 'plot_gui', 'output_window.ui') 
         uic.loadUi(ui_file, self)
         self.resize(dimensions[0], dimensions[1])
         self.actionSave_as.triggered.connect(self.saveFileDialog)
@@ -252,7 +251,7 @@ class BandupPlotToolWindow(QMainWindow):
 
     def initUI(self):
         # Loading the base UI I've created using QT Designer
-        ui_file = os.path.join(self.folder_gui_script_is_located, 'BandUP_plot_GUI.ui') 
+        ui_file = os.path.join(PACKAGE_DIR, 'plot_gui', 'main_window.ui') 
         uic.loadUi(ui_file, self)
 
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)

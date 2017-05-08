@@ -48,7 +48,7 @@ def run_requested_task(args):
         run_bandup(args)
     elif(args.main_task=='plot'):
         if(args.gui):
-            from bandupy.plot_gui import open_plot_gui
+            from bandupy.plot_gui.main_window import open_plot_gui
             open_plot_gui()
         else:
             mkdir(args.plotdir, ignore_existing=True)
