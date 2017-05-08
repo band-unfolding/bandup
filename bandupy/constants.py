@@ -44,6 +44,5 @@ with open(os.path.join(BANDUP_DIR, 'src', 'general_io_mod.f90'), 'r') as f:
 ORIGINAL_MATPLOTLIB_BACKEND = mpl.get_backend()
 
 USER_HOME = os.path.expanduser('~')
-#WORKING_DIR = os.getcwd()
-WORKING_DIR = os.getenv('PWD')
+WORKING_DIR = os.getcwd()
 
