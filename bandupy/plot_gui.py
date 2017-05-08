@@ -14,6 +14,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import division
+import sys
+import os
 try:
     pyqt_version = 5
     from PyQt5 import QtCore, uic
@@ -72,8 +74,6 @@ except ImportError:
             "Please use the plotting tool through the command line."
         )
         sys.exit(0)
-import sys
-import os
 import matplotlib.colors
 import matplotlib.pyplot as plt
 from fractions import Fraction
@@ -160,7 +160,8 @@ class MyQProcess(QtCore.QProcess):
     def dataReady(self):
         cursor = self.w.edit.textCursor()
         cursor.movePosition(cursor.End)
-        cursor.insertText(str(self.readAll()))
+        #print(self.readAll()) # TEST
+        cursor.insertText(str(self.readAll().data().decode()))
         self.w.edit.ensureCursorVisible()
 
 
