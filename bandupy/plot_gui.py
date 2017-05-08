@@ -34,7 +34,7 @@ try:
         QScrollArea,
         QHBoxLayout,
     )
-    # Reconstructing QString
+    # QString does not exist in PyQt5
     QString = str
 except ImportError:
     try:
@@ -173,7 +173,6 @@ class MyQProcess(QtCore.QProcess):
 class BandupPlotToolWindow(QMainWindow):
     def __init__(self):
         super(BandupPlotToolWindow, self).__init__()
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
 
         self.folder_gui_script_is_located = PACKAGE_DIR
         try:
@@ -255,6 +254,13 @@ class BandupPlotToolWindow(QMainWindow):
         # Loading the base UI I've created using QT Designer
         ui_file = os.path.join(self.folder_gui_script_is_located, 'BandUP_plot_GUI.ui') 
         uic.loadUi(ui_file, self)
+
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+
+        # Preventing window from expanding
+        width = self.frameGeometry().width()
+        height = self.frameGeometry().height()
+        self.setMaximumSize(width, height)
 
         self.aspect_ratio_lineEdit.setPlaceholderText(self.default_aspect_ratio)
 
