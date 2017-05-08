@@ -1,4 +1,4 @@
-# Copyright (C) 2014 Paulo V. C. Medeiros (paume@ifm.liu.se)
+# Copyright (C) 2014-2017 Paulo V. C. Medeiros (paume@ifm.liu.se)
 # This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 # BandUP is free software: you can redistribute it and/or modify
@@ -140,9 +140,11 @@ class MyOutputWindow(QWidget):
 
 class MyQProcess(QtCore.QProcess):    
     ''' Adapted from 
-        http://codeprogress.com/python/libraries/pyqt/showPyQTExample.php?index=408&key=QTextEditRedStdOutput 
+        http://codeprogress.com/python/libraries/pyqt/
+             showPyQTExample.php?index=408&key=QTextEditRedStdOutput 
         and
-        http://stackoverflow.com/questions/22069321/realtime-output-from-a-subprogram-to-stdout-of-a-pyqt-widget'''
+        http://stackoverflow.com/questions/22069321/
+               realtime-output-from-a-subprogram-to-stdout-of-a-pyqt-widget'''
     def __init__(self, parent=None, output_window_title=''):    
         super(MyQProcess, self).__init__()
         self.setParent(parent)
@@ -271,10 +273,12 @@ class BandupPlotToolWindow(QMainWindow):
             if(len(str(file_lineEdit.default_text)) < 30):
                 file_lineEdit.setPlaceholderText(file_lineEdit.default_text)
             else:
-                file_lineEdit.setPlaceholderText('...' + str(file_lineEdit.default_text)[-30:])
+                file_lineEdit.setPlaceholderText('...' + 
+                                                 str(file_lineEdit.default_text)[-30:])
         
         # Defaults for the input prim. cell file
-        set_defualt_file_path(self.select_prim_cell_file_lineEdit, 'prim_cell_lattice.in')
+        set_defualt_file_path(self.select_prim_cell_file_lineEdit, 
+                              'prim_cell_lattice.in')
         self.prim_cell_file_path = self.select_prim_cell_file_lineEdit.default_file_path
         # Defaults for the input pc-kpts file
         set_defualt_file_path(self.select_pckpts_file_lineEdit, 'KPOINTS_prim_cell.in')
@@ -284,21 +288,40 @@ class BandupPlotToolWindow(QMainWindow):
         self.energy_file_path = self.select_energy_file_lineEdit.default_file_path
         self.try_to_get_plot_boundaries_from_energy_file()
         # Defaults for the input EBS file (BandUP's output)
-        set_defualt_file_path(self.select_EBS_file_lineEdit, 'unfolded_EBS_symmetry-averaged.dat')
+        set_defualt_file_path(self.select_EBS_file_lineEdit, 
+                              'unfolded_EBS_symmetry-averaged.dat')
         self.EBS_file_path = self.select_EBS_file_lineEdit.default_file_path
         # Defaults for the out fig. file
         self.default_out_figure_file_path = None
         self.out_figure_file_path = self.default_out_figure_file_path
-        self.select_out_figure_file_lineEdit.default_text = "Auto, derived from input file"
-        self.select_out_figure_file_lineEdit.setPlaceholderText(self.select_out_figure_file_lineEdit.default_text)
+        self.select_out_figure_file_lineEdit.default_text = (
+            "Auto, derived from input file"
+        )
+        self.select_out_figure_file_lineEdit.setPlaceholderText(
+            self.select_out_figure_file_lineEdit.default_text
+        )
         self.update_lineEdit_completer()
 
         # Connecting lineEdit objects
-        self.select_prim_cell_file_lineEdit.editingFinished.connect(lambda: self.on_editing_input_file_lineEdits(self.select_prim_cell_file_lineEdit))
-        self.select_pckpts_file_lineEdit.editingFinished.connect(lambda: self.on_editing_input_file_lineEdits(self.select_pckpts_file_lineEdit))
-        self.select_energy_file_lineEdit.editingFinished.connect(lambda: self.on_editing_input_file_lineEdits(self.select_energy_file_lineEdit))
-        self.select_EBS_file_lineEdit.editingFinished.connect(lambda: self.on_editing_input_file_lineEdits(self.select_EBS_file_lineEdit))
-        self.select_out_figure_file_lineEdit.editingFinished.connect(self.on_editing_output_file_lineEdit)
+        self.select_prim_cell_file_lineEdit.editingFinished.connect(
+            lambda: self.on_editing_input_file_lineEdits(
+                        self.select_prim_cell_file_lineEdit)
+        )
+        self.select_pckpts_file_lineEdit.editingFinished.connect(
+            lambda: self.on_editing_input_file_lineEdits(
+                        self.select_pckpts_file_lineEdit)
+        )
+        self.select_energy_file_lineEdit.editingFinished.connect(
+            lambda: self.on_editing_input_file_lineEdits(
+                        self.select_energy_file_lineEdit)
+        )
+        self.select_EBS_file_lineEdit.editingFinished.connect(
+            lambda: self.on_editing_input_file_lineEdits(
+                        self.select_EBS_file_lineEdit)
+        )
+        self.select_out_figure_file_lineEdit.editingFinished.connect(
+            self.on_editing_output_file_lineEdit
+        )
         self.vmin_lineEdit.editingFinished.connect(self.on_vmin_change)
         self.vmax_lineEdit.editingFinished.connect(self.on_vmax_change)
         self.aspect_ratio_lineEdit.editingFinished.connect(self.on_aspect_ratio_change)
@@ -307,17 +330,39 @@ class BandupPlotToolWindow(QMainWindow):
         self.min_k_lineEdit.editingFinished.connect(self.on_min_k_change)
         self.max_k_lineEdit.editingFinished.connect(self.on_max_k_change)
         # Connecting the file choice buttons
-        self.select_prim_cell_file_Button.clicked.connect(lambda: self.selectFile(self.select_prim_cell_file_Button, self.select_prim_cell_file_lineEdit))
-        self.select_pckpts_file_Button.clicked.connect(lambda: self.selectFile(self.select_pckpts_file_Button, self.select_pckpts_file_lineEdit))
-        self.select_energy_file_Button.clicked.connect(lambda: self.selectFile(self.select_energy_file_Button, self.select_energy_file_lineEdit))
-        self.select_EBS_file_Button.clicked.connect(lambda: self.selectFile(self.select_EBS_file_Button, self.select_EBS_file_lineEdit))
-        self.select_out_figure_file_Button.clicked.connect(lambda: self.selectFile(self.select_out_figure_file_Button, self.select_out_figure_file_lineEdit))
+        self.select_prim_cell_file_Button.clicked.connect(
+            lambda: self.selectFile(self.select_prim_cell_file_Button, 
+                                    self.select_prim_cell_file_lineEdit)
+         )
+        self.select_pckpts_file_Button.clicked.connect(
+            lambda: self.selectFile(self.select_pckpts_file_Button, 
+                                    self.select_pckpts_file_lineEdit)
+        )
+        self.select_energy_file_Button.clicked.connect(
+            lambda: self.selectFile(self.select_energy_file_Button, 
+                                    self.select_energy_file_lineEdit)
+        )
+        self.select_EBS_file_Button.clicked.connect(
+            lambda: self.selectFile(self.select_EBS_file_Button, 
+                                    self.select_EBS_file_lineEdit)
+        )
+        self.select_out_figure_file_Button.clicked.connect(
+            lambda: self.selectFile(self.select_out_figure_file_Button, 
+                                    self.select_out_figure_file_lineEdit)
+        )
         # Managing checkBox objects
-        self.show_colorbar_checkBox.stateChanged.connect(self.on_show_colorbar_checkBox_stateChanged)
-        self.show_colorbar_full_label_checkBox.setEnabled(self.show_colorbar_label_checkBox.isEnabled() and 
-                                                          self.show_colorbar_label_checkBox.isChecked())
-        self.save_figure_checkBox.stateChanged.connect(self.on_save_figure_checkBox_stateChanged)
-        self.show_figure_checkBox.stateChanged.connect(self.on_show_figure_checkBox_stateChanged)
+        self.show_colorbar_checkBox.stateChanged.connect(
+            self.on_show_colorbar_checkBox_stateChanged)
+        self.show_colorbar_full_label_checkBox.setEnabled(
+            self.show_colorbar_label_checkBox.isEnabled() and 
+            self.show_colorbar_label_checkBox.isChecked()
+        )
+        self.save_figure_checkBox.stateChanged.connect(
+            self.on_save_figure_checkBox_stateChanged
+        )
+        self.show_figure_checkBox.stateChanged.connect(
+            self.on_show_figure_checkBox_stateChanged
+        )
         # Managing comboBox objects        
         self.colormap_comboBox.insertItems(1, self.get_available_cmaps(only_names=True))
         mpl_colors = sorted(matplotlib.colors.cnames.keys())
@@ -328,32 +373,15 @@ class BandupPlotToolWindow(QMainWindow):
         # Scheduling the window to be shown at the center of the screen 
         center_window(self)
         self.show()
-    
-        
-    #def setup_scrollbar(self):
-        #self.centralWidget = QWidget(self)
-        #layout = QVBoxLayout(self.centralWidget)
-
-        #self.scrollArea = QScrollArea(self.centralWidget)
-        #layout.addWidget(self.scrollArea)
-
-        #self.scrollAreaWidgetContents = QWidget()
-        #self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 1112, 932))
-
-        #self.scrollArea.setWidget(self.scrollAreaWidgetContents)
-
-        #layout = QHBoxLayout(self.scrollAreaWidgetContents)
-
-        #self.setCentralWidget(self.centralWidget)
-
 
     def get_available_cmaps(self, only_names=False):
         return get_available_cmaps(only_names=only_names)
 
     def update_lineEdit_completer(self):
-        self.files_in_current_folder = [QString(item) for item in 
-                                        os.listdir(str(self.last_folder)) if 
-                                        os.path.isfile(os.path.join(str(self.last_folder), item))]
+        self.files_in_current_folder = [
+            QString(item) for item in os.listdir(str(self.last_folder)) if 
+            os.path.isfile(os.path.join(str(self.last_folder), item))
+        ]
         self.file_lineEdit_completer = QCompleter(self.files_in_current_folder)
         self.file_lineEdit_completer.setCompletionMode(QCompleter.InlineCompletion)
 
@@ -364,8 +392,10 @@ class BandupPlotToolWindow(QMainWindow):
 
 
     def on_show_colorbar_checkBox_stateChanged(self): 
-        self.show_colorbar_full_label_checkBox.setEnabled(self.show_colorbar_label_checkBox.isEnabled() and 
-                                                          self.show_colorbar_label_checkBox.isChecked())
+        self.show_colorbar_full_label_checkBox.setEnabled(
+            self.show_colorbar_label_checkBox.isEnabled() and 
+            self.show_colorbar_label_checkBox.isChecked()
+        )
 
     def on_save_figure_checkBox_stateChanged(self):
         if((not self.save_figure_checkBox.isChecked()) and
@@ -378,7 +408,9 @@ class BandupPlotToolWindow(QMainWindow):
 
 
     def on_editing_input_file_lineEdits(self, lineEdit):
-        os.chdir(str(self.last_folder)) # This is to make the open/save file dialog screens remember the last folder
+        # This is to make the open/save file dialog screens remember the last folder
+        os.chdir(str(self.last_folder)) 
+
         entered_file_path = os.path.abspath(str(lineEdit.text()).strip())
         if(entered_file_path.startswith('file:')):
             entered_file_path = entered_file_path[5:]
@@ -392,7 +424,8 @@ class BandupPlotToolWindow(QMainWindow):
             else:
                 lineEdit.setText('')
         else:
-            if(str(lineEdit.text()).strip() == ''): # i.e., if the user resets the lineEdit
+            if(str(lineEdit.text()).strip() == ''): 
+                # i.e., if the user resets the lineEdit
                 lineEdit.previous_valid_file_path = lineEdit.default_file_path
                 file_path = lineEdit.default_file_path
                 lineEdit.setText('')
@@ -400,7 +433,9 @@ class BandupPlotToolWindow(QMainWindow):
                     if(len(str(lineEdit.default_file_path)) < 30):
                         lineEdit.setPlaceholderText(lineEdit.default_file_path)
                     else:
-                        lineEdit.setPlaceholderText('...' + str(lineEdit.default_file_path)[-30:])
+                        lineEdit.setPlaceholderText(
+                            '...' + str(lineEdit.default_file_path)[-30:]
+                        )
                 else:
                     if(lineEdit == self.select_energy_file_lineEdit):
                         lineEdit.setPlaceholderText('Optional')
@@ -416,7 +451,9 @@ class BandupPlotToolWindow(QMainWindow):
                         if(len(str(lineEdit.default_file_path)) < 30):
                             lineEdit.setPlaceholderText(lineEdit.default_file_path)
                         else:
-                            lineEdit.setPlaceholderText('...' + str(lineEdit.default_file_path)[-30:])
+                            lineEdit.setPlaceholderText(
+                                '...' + str(lineEdit.default_file_path)[-30:]
+                            )
                 else:
                     file_path =  None
                     lineEdit.setText('')
@@ -435,7 +472,8 @@ class BandupPlotToolWindow(QMainWindow):
             self.EBS_file_path = file_path
 
     def on_editing_output_file_lineEdit(self):
-        # lineEdit.isModified() returns False unless the text has been manually changed by the user
+        # lineEdit.isModified() returns False unless the text has been manually 
+        # changed by the user
         if(not self.select_out_figure_file_lineEdit.isModified()): 
             return
 
@@ -447,7 +485,9 @@ class BandupPlotToolWindow(QMainWindow):
         if(new_file_path == ''):
             self.out_figure_file_path  = None
             self.select_out_figure_file_lineEdit.setText('')
-            self.select_out_figure_file_lineEdit.setPlaceholderText(self.select_out_figure_file_lineEdit.default_text)
+            self.select_out_figure_file_lineEdit.setPlaceholderText(
+                self.select_out_figure_file_lineEdit.default_text
+            )
             return
 
         file_format_is_valid = False
@@ -456,15 +496,19 @@ class BandupPlotToolWindow(QMainWindow):
                 file_format_is_valid = True
                 break
         if(not file_format_is_valid):
-            new_file_path = new_file_path.strip() + '.' + set_default_fig_format(allowed_fig_formats())
+            new_file_path = (new_file_path.strip() + 
+                             '.' + set_default_fig_format(allowed_fig_formats())
+            )
 
         new_file_path = os.path.abspath(new_file_path)
         file_exists = os.path.isfile(new_file_path)
         is_directory = os.path.isdir(new_file_path)
         if(file_exists or is_directory): 
-            reply = QMessageBox.question(self, ' ', 'File "%s" exists. Overwrite?' % new_file_path, 
-                                               QMessageBox.Yes | QMessageBox.No, 
-                                               QMessageBox.No)
+            reply = QMessageBox.question(self, ' ', 
+                                         'File "%s" exists. Overwrite?' % new_file_path, 
+                                         QMessageBox.Yes | QMessageBox.No, 
+                                         QMessageBox.No
+                                        )
             if reply == QMessageBox.Yes:
                 self.out_figure_file_path = QString(new_file_path)
             else:
@@ -480,12 +524,18 @@ class BandupPlotToolWindow(QMainWindow):
             self.select_out_figure_file_lineEdit.setText(self.out_figure_file_path)
         else: 
             self.select_out_figure_file_lineEdit.setText('')
-            self.select_out_figure_file_lineEdit.setPlaceholderText(self.select_out_figure_file_lineEdit.default_text)
+            self.select_out_figure_file_lineEdit.setPlaceholderText(
+                self.select_out_figure_file_lineEdit.default_text
+            )
         return
 
     def on_aspect_ratio_change(self):
         try:
-            new_ar = QString(str(abs(Fraction(str(self.aspect_ratio_lineEdit.text())).limit_denominator(max_denominator=99))))
+            new_ar = QString(str(abs(
+                Fraction(str(self.aspect_ratio_lineEdit.text())).limit_denominator(
+                                                                     max_denominator=99
+                                                                 )
+                     )))
             if(new_ar == self.default_aspect_ratio):
                 new_ar = None
         except (SyntaxError, ValueError):
@@ -499,12 +549,16 @@ class BandupPlotToolWindow(QMainWindow):
 
         if(self.aspect_ratio is None):
             self.aspect_ratio_lineEdit.setText('')
-            # The next line might look a bit odd, but it's part of the trick to overcome the lack of placeholder text in Qt4.6 and lower
-            self.aspect_ratio_lineEdit.setPlaceholderText(self.aspect_ratio_lineEdit.PlaceholderText())
+            # The next line might look a bit odd, but it's part of the trick to 
+            # overcome the lack of placeholder text in Qt4.6 and lower
+            self.aspect_ratio_lineEdit.setPlaceholderText(
+                self.aspect_ratio_lineEdit.PlaceholderText()
+            )
         else:
             self.aspect_ratio_lineEdit.setText(new_ar)
 
-    def __validated_numeric_lineEdit(self, lineEdit, current_value, lower_bound=float("-inf"), upper_bound=float("inf")):
+    def __validated_numeric_lineEdit(self, lineEdit, current_value, 
+                                     lower_bound=float("-inf"),upper_bound=float("inf")):
         try:
             new_value = float(lineEdit.text())
             if(((lower_bound is not None) and (new_value <= lower_bound)) or
@@ -518,7 +572,8 @@ class BandupPlotToolWindow(QMainWindow):
 
         if(new_value is None):
             lineEdit.setText('')
-            # The next line might look a bit odd, but it's part of the trick to overcome the lack of placeholder text in Qt4.6 and lower
+            # The next line might look a bit odd, but it's part of the trick to 
+            # overcome the lack of placeholder text in Qt4.6 and lower
             lineEdit.setPlaceholderText(lineEdit.PlaceholderText())
         else:
             lineEdit.setText(str(new_value))
@@ -526,32 +581,57 @@ class BandupPlotToolWindow(QMainWindow):
         return new_value
 
     def on_vmin_change(self):
-        self.vmin = self.__validated_numeric_lineEdit(self.vmin_lineEdit, self.vmin, upper_bound=self.vmax)
+        self.vmin = self.__validated_numeric_lineEdit(
+                        self.vmin_lineEdit, self.vmin, upper_bound=self.vmax
+                    )
     def on_vmax_change(self):
-        self.vmax = self.__validated_numeric_lineEdit(self.vmax_lineEdit, self.vmax, lower_bound=self.vmin)
+        self.vmax = self.__validated_numeric_lineEdit(
+                        self.vmax_lineEdit, self.vmax, lower_bound=self.vmin
+                    )
     def on_min_E_change(self):
-        self.min_E = self.__validated_numeric_lineEdit(self.min_E_lineEdit, self.min_E, upper_bound=self.max_E)
+        self.min_E = self.__validated_numeric_lineEdit(
+                         self.min_E_lineEdit, self.min_E, upper_bound=self.max_E
+                     )
     def on_max_E_change(self):
-        self.max_E = self.__validated_numeric_lineEdit(self.max_E_lineEdit, self.max_E, lower_bound=self.min_E)
+        self.max_E = self.__validated_numeric_lineEdit(
+                         self.max_E_lineEdit, self.max_E, lower_bound=self.min_E
+                     )
     def on_min_k_change(self):
-        self.min_k = self.__validated_numeric_lineEdit(self.min_k_lineEdit, self.min_k, upper_bound=self.max_k)
+        self.min_k = self.__validated_numeric_lineEdit(
+                         self.min_k_lineEdit, self.min_k, upper_bound=self.max_k
+                     )
     def on_max_k_change(self):
-        self.max_k = self.__validated_numeric_lineEdit(self.max_k_lineEdit, self.max_k, lower_bound=self.min_k)
+        self.max_k = self.__validated_numeric_lineEdit(
+                         self.max_k_lineEdit, self.max_k, lower_bound=self.min_k
+                     )
 
 
 
     def selectFile(self, button, lineEdit):
-        os.chdir(str(self.last_folder)) # This is to make the open/save file dialog screens remember the last folder
+        # This is to make the open/save file dialog screens remember the last folder
+        os.chdir(str(self.last_folder)) 
+
         if(button == self.select_out_figure_file_Button):
             if(self.default_out_figure_file_path):
                 default_out_figure_file_path = self.default_out_figure_file_path
             else:
-                default_output_file_name = 'plot_EBS_BandUP.' + set_default_fig_format(allowed_fig_formats())
-            allowed_file_types_string = "Images (*." + " *.".join(allowed_fig_formats()) + ")"
-            file_path = str(QFileDialog.getSaveFileName(self, self.windowTitle() + ' - Save file', default_output_file_name, allowed_file_types_string))
+                default_output_file_name = (
+                    'plot_EBS_BandUP.' + 
+                    set_default_fig_format(allowed_fig_formats())
+                )
+            allowed_file_types_string = (
+                "Images (*." + " *.".join(allowed_fig_formats()) + ")"
+            )
+            file_path = str(QFileDialog.getSaveFileName(self, self.windowTitle() + 
+                                ' - Save file', default_output_file_name, 
+                                allowed_file_types_string
+                            )
+                        )
             if(file_path.strip()):
                 self.out_figure_file_path = QString(file_path)
-                lineEdit.setText(self.out_figure_file_path)  # setText does NOT send a 'textEdited' signal. It only sends 'textChanged'
+                # setText does NOT send a 'textEdited' signal. 
+                # It only sends 'textChanged'
+                lineEdit.setText(self.out_figure_file_path)  
         else:
             file_path = str(QFileDialog.getOpenFileName(self, self.windowTitle() + 
                                                         ' - Select file')[0])
@@ -635,13 +715,16 @@ class BandupPlotToolWindow(QMainWindow):
         # spinBox objects
         args_for_plotting_tool += ['--n_levels', self.n_levels_spinBox.text()]
         if(self.show_colorbar_checkBox.isChecked()):
-            args_for_plotting_tool += ['--round_cb', self.decimal_digits_cb_spinBox.text()]
+            args_for_plotting_tool += ['--round_cb', 
+                                       self.decimal_digits_cb_spinBox.text()]
         try:
-            args_for_plotting_tool += ['--line_width_E_f', float(self.e_fermi_linewidth_SpinBox.text())]
+            args_for_plotting_tool += ['--line_width_E_f', 
+                                       float(self.e_fermi_linewidth_SpinBox.text())]
         except ValueError:
             pass
         try:
-            args_for_plotting_tool += ['--line_width_high_symm_points', float(self.high_symm_linewidth_SpinBox.text())]
+            args_for_plotting_tool += ['--line_width_high_symm_points', 
+                                       float(self.high_symm_linewidth_SpinBox.text())]
         except ValueError:
             pass
         # lineEdit objects
@@ -666,15 +749,19 @@ class BandupPlotToolWindow(QMainWindow):
         if(self.min_k): args_for_plotting_tool += ['-kmin', self.min_k]
         if(self.max_k): args_for_plotting_tool += ['-kmax', self.max_k]
         # CheckBoxes
-        if(self.show_figure_checkBox.isChecked()): args_for_plotting_tool.append('--show')
+        if(self.show_figure_checkBox.isChecked()): 
+            args_for_plotting_tool.append('--show')
         if(self.save_figure_checkBox.isChecked()): 
             if(self.open_saved_file_checkBox.isChecked()):
                 args_for_plotting_tool.append('--saveshow')
             else:
                 args_for_plotting_tool.append('--save')
-        if(not self.draw_e_fermi_checkBox.isChecked()): args_for_plotting_tool.append('--no_ef')
-        if(not self.draw_hygh_symm_kpts_lines_checkBox.isChecked()): args_for_plotting_tool.append('--no_symm_lines')
-        if(not self.draw_high_symm_kpts_labels_checkBox.isChecked()): args_for_plotting_tool.append('--no_symm_labels')
+        if(not self.draw_e_fermi_checkBox.isChecked()): 
+            args_for_plotting_tool.append('--no_ef')
+        if(not self.draw_hygh_symm_kpts_lines_checkBox.isChecked()): 
+            args_for_plotting_tool.append('--no_symm_lines')
+        if(not self.draw_high_symm_kpts_labels_checkBox.isChecked()): 
+            args_for_plotting_tool.append('--no_symm_labels')
         if(self.show_colorbar_checkBox.isChecked()): 
             if(self.show_colorbar_label_checkBox.isChecked()):
                 if(self.show_colorbar_full_label_checkBox.isChecked()):
