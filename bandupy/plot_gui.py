@@ -116,27 +116,18 @@ def center_window(window):
     qr.moveCenter(cp)
     window.move(qr.topLeft())
 
-class MyOutputWindow(QWidget):
+class MyOutputWindow(QMainWindow):
     def __init__(self, parent=None, dimensions=(1000, 750)):
         super(MyOutputWindow, self).__init__()
         self.setParent(parent)
         self.initUI(dimensions)
-
     def initUI(self, dimensions):
+        # Loading the base UI I've created using QT Designer
+        ui_file = os.path.join(PACKAGE_DIR, 
+                  'BandUP_plot_GUI_output_window.ui') 
+        uic.loadUi(ui_file, self)
         self.resize(dimensions[0], dimensions[1])
-        center_window(self)
-        # Menu bar
-        menubar_end_y = 31
-        self.menubar = QMenuBar(self)
-        self.menubar.resize(dimensions[0], menubar_end_y)
-        fileMenu = self.menubar.addMenu('File')
-        # QTextEdit
-        self.edit = QTextEdit(self)
-        self.edit.setGeometry(QtCore.QRect(0, menubar_end_y, dimensions[0], dimensions[1]))
-        self.edit.setReadOnly(True)
-
-        self.show()  
-
+        self.show()
 
 class MyQProcess(QtCore.QProcess):    
     ''' Adapted from 
@@ -160,11 +151,10 @@ class MyQProcess(QtCore.QProcess):
         self.readyRead.connect(lambda: self.dataReady())
 
     def dataReady(self):
-        cursor = self.w.edit.textCursor()
+        cursor = self.w.textBrowser.textCursor()
         cursor.movePosition(cursor.End)
-        #print(self.readAll()) # TEST
         cursor.insertText(str(self.readAll().data().decode()))
-        self.w.edit.ensureCursorVisible()
+        self.w.textBrowser.ensureCursorVisible()
 
 
 class BandupPlotToolWindow(QMainWindow):
