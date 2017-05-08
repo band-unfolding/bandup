@@ -127,7 +127,20 @@ class MyOutputWindow(QMainWindow):
                   'BandUP_plot_GUI_output_window.ui') 
         uic.loadUi(ui_file, self)
         self.resize(dimensions[0], dimensions[1])
+        self.actionSave_as.triggered.connect(self.saveFileDialog)
         self.show()
+    def saveFileDialog(self):    
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getSaveFileName(
+                          self,"BandUP Plot: Save output log as...","",
+                          "All Files (*);;Text Files (*.txt *.dat)", 
+                           options=options
+                      )
+        if fileName:
+            file_text = self.textBrowser.toPlainText()
+            with open(fileName, 'w') as f:
+                f.writelines(file_text)
 
 class MyQProcess(QtCore.QProcess):    
     ''' Adapted from 
