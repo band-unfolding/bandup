@@ -83,7 +83,9 @@ from ..figs import (
     set_default_fig_format,
     get_available_cmaps,
 )
+from ..argparse_wrapper import BandUpPythonArgumentParser
 from ..constants import PACKAGE_DIR, INTERFACE_MAIN_SOURCE_DIR
+from ..plot import make_plot
 
 def lower_QString(val):
     if(pyqt_version==4):
@@ -102,7 +104,6 @@ if('setPlaceholderText' not in dir(QLineEdit)):
     QLineEdit.setPlaceholderText = redefined_setPlaceholderText
     QLineEdit.PlaceholderText = redefined_PlaceholderText
 
-
 def find(name, path):
     # From http://stackoverflow.com/questions/1724693/find-a-file-in-python
     for root, dirs, files in os.walk(path):
@@ -116,17 +117,31 @@ def center_window(window):
     qr.moveCenter(cp)
     window.move(qr.topLeft())
 
+class EmittingStream(QtCore.QObject):
+        textWritten = QtCore.pyqtSignal(str)
+        def write(self, text):
+            self.textWritten.emit(str(text))
+        def flush(self):
+            # Avoiding "AttributeError: object has no attribute 'flush'"
+            pass
 class MyOutputWindow(QMainWindow):
-    def __init__(self, parent=None, dimensions=(1000, 750)):
+    def __init__(self, dimensions=(1000, 750)):
         super(MyOutputWindow, self).__init__()
-        self.setParent(parent)
+        os.environ['PYTHONUNBUFFERED'] = 'True'
         self.initUI(dimensions)
+        # Install the custom output stream (adapted from )
+        sys.stdout = EmittingStream(textWritten=self.normalOutputWritten)
+    def __del__(self):
+        # Restore sys.stdout (adapted from)
+        sys.stdout = sys.__stdout__
+
     def initUI(self, dimensions):
         # Loading the base UI I've created using QT Designer
         ui_file = os.path.join(PACKAGE_DIR, 'plot_gui', 'output_window.ui') 
         uic.loadUi(ui_file, self)
         self.resize(dimensions[0], dimensions[1])
         self.actionSave_as.triggered.connect(self.saveFileDialog)
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         self.show()
     def saveFileDialog(self):    
         options = QFileDialog.Options()
@@ -140,6 +155,15 @@ class MyOutputWindow(QMainWindow):
             file_text = self.textBrowser.toPlainText()
             with open(fileName, 'w') as f:
                 f.writelines(file_text)
+    def normalOutputWritten(self, text):
+        """Append text to the textBrowser."""
+        cursor = self.textBrowser.textCursor()
+        cursor.movePosition(cursor.End)
+        cursor.insertText(text)
+        self.textBrowser.ensureCursorVisible()
+        # To update the output window every time a new line is inserted:
+        QApplication.processEvents() 
+
 
 class MyQProcess(QtCore.QProcess):    
     ''' Adapted from 
@@ -155,13 +179,11 @@ class MyQProcess(QtCore.QProcess):
         # See http://stackoverflow.com/questions/107705/python-output-buffering
         os.environ['PYTHONUNBUFFERED'] = 'True'
         self.initUI(output_window_title)
-
     def initUI(self, window_title=''):
         self.w = MyOutputWindow()
         self.w.setWindowTitle(window_title)
         self.setProcessChannelMode(QtCore.QProcess.MergedChannels)
         self.readyRead.connect(lambda: self.dataReady())
-
     def dataReady(self):
         cursor = self.w.textBrowser.textCursor()
         cursor.movePosition(cursor.End)
@@ -196,8 +218,20 @@ class BandupPlotToolWindow(QMainWindow):
         self.vmin = None
         self.vmax = None
         self.aspect_ratio = None
+        self.children = []
 
         self.initUI()
+    def closeEvent(self, evnt):
+        # Reimplementing closeEvent
+        for child in self.children:
+            try:
+                child.close()
+            except(RuntimeError):
+                # In case the child opject has already been deleted, for instance
+                pass
+        super(BandupPlotToolWindow, self).closeEvent(evnt)
+        sys.exit(0)
+
 
     def default_from_placeholderText(self, obj_name, cast=float):
         obj = getattr(self, obj_name)
@@ -780,13 +814,23 @@ class BandupPlotToolWindow(QMainWindow):
             args_for_plotting_tool.append('--no_cb')
 
         # Running
-        args_for_plotting_tool = ([self.plot_script] + ['plot'] +
-                                  [str(arg) for arg in args_for_plotting_tool] + 
-                                  ['--running_from_GUI'])
         os.chdir(str(self.folder_where_gui_has_been_called)) 
-        qProcess = MyQProcess(parent=self, 
-                              output_window_title=self.windowTitle() + ' - Output')
-        qProcess.start(' '.join(args_for_plotting_tool))
+        plot_argv = (['plot'] +
+                     [str(arg) for arg in args_for_plotting_tool] +
+                     ['--running_from_GUI'])
+        run_as_external = False
+        if(run_as_external):
+            plot_argv = [self.plot_script] + plot_argv
+            qProcess = MyQProcess(parent=self, 
+                                  output_window_title=self.windowTitle() + ' - Output')
+            qProcess.start(' '.join(plot_argv))
+        else:
+            plot_parser = BandUpPythonArgumentParser()
+            plot_args = plot_parser.parse_args(plot_argv)
+            self.out_window = MyOutputWindow()
+            self.children.append(self.out_window)
+            self.plot = make_plot(plot_args)
+
 
 def open_plot_gui():
     app = QApplication(sys.argv)
