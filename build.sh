@@ -59,7 +59,9 @@ if [ ${FC} = 'ifort' ]; then
     CC=icc
     OMP_FLAG='-openmp'
 elif [ ${FC} = 'gfortran' ]; then
-    if hash gcc-5 2>/dev/null; then
+    if hash gcc-6 2>/dev/null; then
+        CC=gcc-6
+    elif hash gcc-5 2>/dev/null; then
         CC=gcc-5
     else
         CC=gcc
