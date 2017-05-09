@@ -287,7 +287,6 @@ class BandUpPlot():
 
 
     def define_plot_boundaries(self):
-
         args = self.args
         kmin = args.kmin
         kmax = args.kmax
@@ -497,7 +496,7 @@ class BandUpPlot():
                      'SIGMA':'$\Sigma$', 'SIGMA-':'$\overline{\Sigma}$'}
         output_list = input_list[:]
         for i in range(len(input_list)):
-            if symb_dict.has_key(input_list[i].upper()):
+            if (input_list[i].upper() in symb_dict):
                 output_list[i] = symb_dict[input_list[i].upper()]
             if output_list[i].endswith('-'):
                 output_list[i] = '$\overline{\mathrm{' + output_list[i][:-1] + '}}$'
@@ -805,7 +804,7 @@ def produce_figure(plot):
                 open_saved_fig = Popen([image_viewer, args.output_file], 
                                         stdout=PIPE, stderr=PIPE)
                 std_out, std_err = open_saved_fig.communicate()
-                success_opening_file = std_err.strip() == ''
+                success_opening_file = std_err.decode().strip() == ''
             except(OSError):
                 success_opening_file = False
             if(success_opening_file):
