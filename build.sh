@@ -107,31 +107,3 @@ BANDUPCONFIGFILE="${BANDUPCONFIGDIR}/config"
 mkdir -p ${BANDUPCONFIGDIR}
 echo "# Created by BandUP in ${now}" >| ${BANDUPCONFIGFILE}
 echo "BANDUPDIR=${BANDUPDIR}" >> ${BANDUPCONFIGFILE}
-
-# Comment the next line if you want BandUP to set some environment vars
-exit 
-
-for var_name in 'BANDUP' 'BANDUPBINPATH' 'BANDUPPLOTPATH' 'bandup_folder' 'BANDUPDIR'
-do
-    export_statement="export $var_name=${!var_name}"
-    for filename in ".bashrc" ".bash_profile" ".profile" 
-    do
-        file="${HOME}/${filename}"
-        if [ -e "${file}" ] && [ ! -L "${file}" ]
-        then
-            if ! grep -Fq "$export_statement" $file # if environment variable has not been exported before
-            then
-                # Making a backup of the file in case it needs to be changed
-                backup_file="${file}.backup.before_installing_BandUP_${now}"
-                if [ ! -e "${backup_file}" ]
-                then
-                    cp "${file}" "${backup_file}"
-                    echo "" >> ${file}
-                fi
-                echo "${export_statement} # Set by BandUP in ${now}" >> ${file}
-            fi
-        fi
-    done
-done
-
-# End of script
