@@ -172,6 +172,8 @@ def get_efermi(args):
                 if("Fermi energy" in line):
                     efermi_au = float(line.split()[-1])
         efermi = efermi_au / physical_constants["electron volt-hartree relationship"][0]
+    elif(args.abinit):
+        raise Exception # TEMP
 
     return efermi
 
