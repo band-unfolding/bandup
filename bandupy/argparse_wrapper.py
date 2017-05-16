@@ -605,7 +605,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
         # Defining available tasks and setting the default one to 'unfolding'
         self.allowed_tasks = OrderedDict()
-        self.allowed_tasks['sckpts-get'] = {'subparser_name':'bandup_pre_unf',
+        self.allowed_tasks['kpts-sc-get'] = {'subparser_name':'bandup_pre_unf',
                                             'help':"Runs BandUP's pre-unfolding tool "+
                                             "to get the SC-KPTs needed for unfolding.",
                                             'parents':[self.bandup_pre_unf_parser],
@@ -693,7 +693,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                                      ' only through this Python interface')
         bandup_pre_unf_extra_opts.add_argument('-inputs_dir', 
             default=defaults['pre_unfolding_inputs_dir'],
-            help=('Dir where the input files for the pre-unfolding "sckpts-get" task '+
+            help=('Dir where the input files for the pre-unfolding "kpts-sc-get" task '+
                   'are located. This is also the directory where the output files '+
                   'will be saved.'
                  )
@@ -778,7 +778,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         return args, unknown_args
 
     def filter_args(self, args, *fargs, **fkwargs):
-        if(args.main_task == 'sckpts-get'):
+        if(args.main_task == 'kpts-sc-get'):
             subparser = self.bandup_pre_unf_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
             args.argv = subparser.get_argv(args, run_dir=args.inputs_dir)
