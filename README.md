@@ -113,7 +113,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
       * This requires that you have either PyQt4 or PyQt5 in your python install. If
         the GUI doesn't work for you, you can still do the plots using the command line
     * It might be handy placing a symlink to the "bandup" executable in some directory 
-      in your PATH, or, less preferably, including the whole BandUP_bin in your PATH. 
+      in your PATH, or, less preferably, including the current directory in your PATH. 
       By doing so, you'll be able to use BandUP in whataver directory you're working at.
 
 
