@@ -70,11 +70,7 @@ elif [ ${FC} = 'gfortran' ]; then
 fi
 
 working_dir=`pwd`
-bin_folder="${working_dir}/BandUP_bin"
-mkdir -p ${bin_folder}
-rm -f ${bin_folder}/BandUP.x
-rm -f ${bin_folder}/bandup
-
+BANDUP_EXE="${working_dir}/src/python_interface/bandup"
 cd ${working_dir}/src/external
     ./BandUP_configure_espresso.sh $FC $CC
     tar -xvzf check2xsf2_modules_for_BandUP.tgz
@@ -83,27 +79,13 @@ cd ${working_dir}/src/external
 cd ${working_dir}/src
     make FC=$FC CC=$CC
     make clean
-    mv -f BandUP.x  ${bin_folder}
-    mv -f get_SCKPTS_pre_BandUP.x ${bin_folder}
-    ln -s ${working_dir}/src/python_interface/bandup  ${bin_folder}/bandup
 cd ${working_dir}
+ln -s ${BANDUP_EXE} bandup
 
-BANDUP="${bin_folder}/BandUP.x"
-BANDUPBINPATH="${bin_folder}"
-BANDUPPLOTPATH="${working_dir}/utils/post_unfolding/plot/"
-bandup_folder="${working_dir}"
 BANDUPDIR="${working_dir}"
-
-rm -f ${BANDUPBINPATH}/'bandup_plot'
-rm -f ${BANDUPBINPATH}/'BandUP_plot_GUI.ui'
-rm -f ${BANDUPBINPATH}/'plot_unfolded_EBS_BandUP.py'
-ln -s ${BANDUPPLOTPATH}/plotting_tool_GUI/BandUP_plot_GUI.pyw ${BANDUPBINPATH}/'bandup_plot'
-ln -s ${BANDUPPLOTPATH}/plotting_tool_GUI/BandUP_plot_GUI.ui ${BANDUPBINPATH}/'BandUP_plot_GUI.ui'
-ln -s ${BANDUPPLOTPATH}/plot_unfolded_EBS_BandUP.py ${BANDUPBINPATH}/'plot_unfolded_EBS_BandUP.py'
-
-now="$(date +'%Y_%m_%d-%T')"
 BANDUPCONFIGDIR="${HOME}/.bandup"
 BANDUPCONFIGFILE="${BANDUPCONFIGDIR}/config"
 mkdir -p ${BANDUPCONFIGDIR}
+now="$(date +'%Y_%m_%d-%T')"
 echo "# Created by BandUP in ${now}" >| ${BANDUPCONFIGFILE}
 echo "BANDUPDIR=${BANDUPDIR}" >> ${BANDUPCONFIGFILE}

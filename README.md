@@ -36,14 +36,17 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 #### How to compile BandUP
 --------------------------------------------------------------------------------------
     * Run the "build.sh" script: ./build.sh
-    * A directory named "BandUP_bin" will be created.
-        * You'll find the executables for BandUP in it.
-        * NB: As of May 2017, you should use the executable "bandup". This is a Python
-              interface for all BandUP functionalities (getting SC-Kpoints pre-unfolding,
-              the main unfolding code, as well as the plotting tool).
+    * A symlink named "bandup" will be created after the code is compiled. 
+      This is a single executable that wraps all BandUP main functionalities: 
+        * Getting SC-Kpoints pre-unfolding (task "kpts-sc-get")
+        * Actual unfolding code (task "unfold")
+        * Plotting (task "plot")
+        * Atom/orbital-decomposed unfolded band structure (task "projected-unfold",
+          currently only available for VASP)
     * This should work in most Unix environments with up-to-date Intel or GNU compilers 
       installed. 
         * Do check, however, the system requirements below if you have any problem.
+    * *Please run BandUP with the option "-h" for instructions* about usage
 
 <!-- ============================================================================= -->
 #### System requirements:
