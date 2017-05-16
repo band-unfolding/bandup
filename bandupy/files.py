@@ -25,7 +25,7 @@ import argparse
 import time
 # Imports from within the package
 from .defaults import defaults
-from .warnings_wrapper import warnings
+from .warnings_wrapper import warnings, WarningError
 from .constants import WORKING_DIR, PACKAGE_VERSION
 from .sysargv import arg_passed
 
@@ -87,6 +87,13 @@ def assert_valid_path(path):
             raise IOError('"%s" is not a valid path!' % (path))
         else:
             raise e
+def is_exe(fpath):
+    return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+def assert_exec_exists(exec_path):
+    if(not is_exe(exec_path)):
+        msg = 'The path below does not point to a valid executable:\n%s\n'%(exec_path)
+        msg += 'Have you compiled BandUP?'
+        warnings.warn(msg, category=WarningError)
 
 def pickle_load(filename):
     # Source: http://stackoverflow.com/questions/20716812/saving-and-loading-multiple-objects-in-pickle-file

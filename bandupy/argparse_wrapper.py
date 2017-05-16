@@ -24,9 +24,17 @@ from six import iteritems
 from .constants import (
     BANDUP_DIR,
     WORKING_DIR,
+    BANDUP_BIN,
+    BANDUP_PRE_UNFOLDING_BIN,
 )
 from .defaults import defaults
-from .files import continuation_lines, get_efermi, valid_path, guess_castep_seed
+from .files import (
+    continuation_lines, 
+    get_efermi, 
+    valid_path, 
+    assert_exec_exists,
+    guess_castep_seed,
+)
 from .figs import (
     get_matplotlib_color_names,
     get_available_cmaps,
@@ -783,10 +791,12 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
     def filter_args(self, args, *fargs, **fkwargs):
         if(args.main_task == 'kpts-sc-get'):
+            assert_exec_exists(BANDUP_PRE_UNFOLDING_BIN)
             subparser = self.bandup_pre_unf_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
             args.argv = subparser.get_argv(args, run_dir=args.inputs_dir)
         elif(args.main_task == 'unfold'):
+            assert_exec_exists(BANDUP_BIN)
             subparser = self.bandup_parser
             # args.argv will be passed to Popen to run BandUP's Fortran core code
             args.argv = subparser.get_argv(args, run_dir=args.results_dir)

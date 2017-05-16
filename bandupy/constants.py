@@ -26,16 +26,14 @@ def __get_parent_dir(path, level=1):
 
 PACKAGE_DIR = os.path.dirname(os.path.realpath(__file__))
 INTERFACE_MAIN_SOURCE_DIR = __get_parent_dir(PACKAGE_DIR, 1)
+BANDUP_SRC_DIR = __get_parent_dir(PACKAGE_DIR, 2)
 BANDUP_DIR = __get_parent_dir(PACKAGE_DIR, 3)
 
-BANDUP_BIN_DIR = os.path.join(BANDUP_DIR, 'BandUP_bin')
-BANDUP_BIN = os.path.join(BANDUP_BIN_DIR, 'BandUP.x')
-BANDUP_PRE_UNFOLDING_BIN = os.path.join(BANDUP_DIR, 'utils', 'pre_unfolding', 
-                                        'get_SCKPTS_pre_BandUP', 
-                                        'get_SCKPTS_pre_BandUP.x')
+BANDUP_BIN = os.path.join(BANDUP_SRC_DIR, 'BandUP.x')
+BANDUP_PRE_UNFOLDING_BIN = os.path.join(BANDUP_SRC_DIR, 'get_SCKPTS_pre_BandUP.x')
 
 PACKAGE_VERSION = 'UNKNOWN'
-with open(os.path.join(BANDUP_DIR, 'src', 'general_io_mod.f90'), 'r') as f:
+with open(os.path.join(BANDUP_SRC_DIR, 'general_io_mod.f90'), 'r') as f:
     for line in f:
         if('package_version' in line and '::' in line):
             PACKAGE_VERSION = line.split('=')[-1].replace('"','').strip()

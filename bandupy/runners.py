@@ -54,7 +54,7 @@ def run_requested_task(args):
             mkdir(args.plotdir, ignore_existing=True)
             create_bandup_plot_input(args)
             make_plot(args)
-    elif(args.main_task=='sckpts-get'):
+    elif(args.main_task=='kpts-sc-get'):
        run_pre_bandup_tool(args)
     elif(args.main_task=='projected-unfold'):
         get_unfolded_orb_projs(args, clip_contributions=True, verbose=True)
