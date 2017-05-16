@@ -594,7 +594,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
         if('formatter_class' not in kwargs):
             kwargs['formatter_class'] = argparse.ArgumentDefaultsHelpFormatter
         super(BandUpPythonArgumentParser, self).__init__(*args, **kwargs)
-        self._positionals.title = 'BandUP tasks'
+        self._positionals.title = 'BandUP tasks (positional arguments)'
 
         self.bandup_parser = BandUpArgumentParser(add_help=False)
         self.bandup_plot_parser = BandUpPlotArgumentParser(add_help=False)
@@ -702,7 +702,11 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
     def print_help(self, *args, **kwargs):
         calling_script = sys.argv[0]
         print(self.format_help())
-        extra_help_msg = "Each task has its own help as well, which can be requested\n"
+        extra_help_msg = 'Task name abbreviations are allowed. For instance,\n'
+        extra_help_msg += '"./bandup kpts" requests the same task as '
+        extra_help_msg += '"./bandup kpts-sc-get".\n'
+        extra_help_msg += '\n'
+        extra_help_msg += "Each task has its own help as well, which can be requested\n"
         extra_help_msg+= 'by passing "-h" or "--help" after the name of the task.\n'
         extra_help_msg+= 'Eg.: %s unfold -h'%(calling_script)
         print(extra_help_msg)

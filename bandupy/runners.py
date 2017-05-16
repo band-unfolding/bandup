@@ -11,7 +11,6 @@ from .files import (
 from .plot import make_plot
 from .vasp import procar2bandup
 from .orbital_contributions import get_unfolded_orb_projs
-from .plot_gui.main_window import open_plot_gui
 
 def run_bandup(args):
     #start_dir = os.getcwd()
@@ -49,6 +48,7 @@ def run_requested_task(args):
         run_bandup(args)
     elif(args.main_task=='plot'):
         if(args.gui):
+            from .plot_gui.main_window import open_plot_gui
             open_plot_gui()
         else:
             mkdir(args.plotdir, ignore_existing=True)
