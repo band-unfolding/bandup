@@ -26,20 +26,6 @@ FCFLAGS_for_gfortran += -O2
 # Enable/disable warnings and remarks
 FCFLAGS_for_ifort += -diag-disable remark
 FCFLAGS_for_gfortran += -w
-# Enable preprocessor
-FPPFLAGS_for_ifort += -fpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
-FPPFLAGS_for_ifort += -fpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
-FPPFLAGS_for_gfortran += -cpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
-FPPFLAGS_for_gfortran += -cpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
-
-# Setting correct compiler options
-ifeq ($(FC),ifort)
-  FCFLAGS=$(FCFLAGS_for_ifort)
-  FPPFLAGS=$(FPPFLAGS_for_ifort)
-else ifeq ($(FC),gfortran)
-  FCFLAGS=$(FCFLAGS_for_gfortran)
-  FPPFLAGS=$(FPPFLAGS_for_gfortran)
-endif
 
 # Aliases
 current_dir = $(shell pwd)
@@ -56,6 +42,30 @@ QE_modules=$(espresso_folder)/Modules
 QE_iotk=$(espresso_folder)/iotk/src
 QE_flib=$(espresso_folder)/flib
 QE_clib=$(espresso_folder)/clib
+# Checking whether CASTEP interface dir exists
+ifneq ($(wildcard $(castep_related_modules_folder)), )
+    CASTEP_SUPPORT = true
+    # Enable preprocessor
+    FPPFLAGS_for_ifort += -fpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
+    FPPFLAGS_for_gfortran += -cpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
+else
+    CASTEP_SUPPORT =
+endif
+
+# More preprocessor stuff
+FPPFLAGS_for_ifort += -fpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
+FPPFLAGS_for_ifort += -fpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
+FPPFLAGS_for_gfortran += -cpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
+FPPFLAGS_for_gfortran += -cpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
+
+# Setting correct compiler options
+ifeq ($(FC),ifort)
+  FCFLAGS=$(FCFLAGS_for_ifort)
+  FPPFLAGS=$(FPPFLAGS_for_ifort)
+else ifeq ($(FC),gfortran)
+  FCFLAGS=$(FCFLAGS_for_gfortran)
+  FPPFLAGS=$(FPPFLAGS_for_gfortran)
+endif
 
 # libraries needed for linking
 LIBS = $(spglib_folder)/src/.libs/libsymspg.a
@@ -63,7 +73,9 @@ LIBS += $(QE_modules)/libqemod.a $(QE_flib)/ptools.a $(QE_flib)/flib.a \
         $(QE_clib)/clib.a $(QE_iotk)/libiotk.a
 # Additional module search paths
 FCFLAGS += -I$(espresso_folder)/Modules -I$(espresso_folder)/iotk/src
-CFLAGS += -I$(castep_related_modules_folder)
+ifneq ($(CASTEP_SUPPORT), )
+    CFLAGS += -I$(castep_related_modules_folder)
+endif
 
 # Folders containing needed sources
 vpath %.f90 $(cla_folder)
@@ -72,8 +84,10 @@ vpath %.f90 $(BandUP_src_folder)
 vpath %.f90 $(vasp_related_modules_folder)
 vpath %.f90 $(qe_related_modules_folder)
 vpath %.f90 $(abinit_related_modules_folder)
-vpath %.f90 $(castep_related_modules_folder)
-vpath %.c $(castep_related_modules_folder)
+ifneq ($(CASTEP_SUPPORT), )
+    vpath %.f90 $(castep_related_modules_folder)
+    vpath %.c $(castep_related_modules_folder)
+endif
 vpath %.c $(check2xsf_modules)
 
 # List of executables to be built within the package
@@ -84,14 +98,18 @@ BANDUP_GET_SCKPTS_SRC_OBJ = $(patsubst %.f90, %.o, $(BANDUP_GET_SCKPTS_SRC))
 BANDUP_EXE = BandUP.x
 BANDUP_GET_SCKPTS_EXE = get_SCKPTS_pre_BandUP.x
 
-C2XSF_C_OBJS = check2xsf_mod_for_bandup.o check_read_for_bandup.o \
-               periodic_table_c2xsf.o basis_c2xsf.o super_c2xsf.o gpfa_c2xsf.o \
-               interpolate_c2xsf.o line_write_c2xsf.o ident_sym_c2xsf.o \
-               primitive_c2xsf.o ksym_c2xsf.o sort_atoms_c2xsf.o
+ifneq ($(CASTEP_SUPPORT), )
+    C2XSF_C_OBJS = check2xsf_mod_for_bandup.o check_read_for_bandup.o \
+                   periodic_table_c2xsf.o basis_c2xsf.o super_c2xsf.o gpfa_c2xsf.o \
+                   interpolate_c2xsf.o line_write_c2xsf.o ident_sym_c2xsf.o \
+                   primitive_c2xsf.o ksym_c2xsf.o sort_atoms_c2xsf.o
+    CASTEP_READ_WF_OBJ = read_castep_wavefunctions_mod.o
+endif
+
 OBJ := cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o \
        math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o \
        read_vasp_files_mod.o read_qe_wavefunctions_mod.o \
-       read_abinit_wavefunctions_mod.o read_castep_wavefunctions_mod.o \
+       read_abinit_wavefunctions_mod.o $(CASTEP_READ_WF_OBJ) \
        write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(C2XSF_C_OBJS)
 
 # First rule: "make" will build all
@@ -117,7 +135,7 @@ io_routines_mod.o: constants_and_types_mod.o math_mod.o cla_wrappers_mod.o \
                    strings_mod.o general_io_mod.o read_vasp_files_mod.o \
                    write_vasp_files_mod.o read_wavecar_mod.o \
                    read_qe_wavefunctions_mod.o read_abinit_wavefunctions_mod.o \
-                   read_castep_wavefunctions_mod.o
+                   $(CASTEP_READ_WF_OBJ)
 band_unfolding_routines_mod.o: constants_and_types_mod.o cla_wrappers_mod.o math_mod.o \
                                general_io_mod.o io_routines_mod.o
 $(BANDUP_SRC_OBJ) $(BANDUP_GET_SCKPTS_SRC_OBJ): $(OBJ) 

@@ -301,14 +301,21 @@ logical :: main_code
             endif
         endif
     else if(cla_key_present('-castep'))then
-        args%pw_code = 'castep'
-        if(cla_key_present('-seed'))then
-            call cla_get('-seed', args%castep_seed)
-            args%WF_file = trim(adjustl(args%castep_seed)) // '.orbitals'
-        else
-            write(*,'(A)')'You must specify a CASTEP seed using "-seed". Stopping now.'
+#       if defined (__CASTEP_SUPPORT__)
+            args%pw_code = 'castep'
+            if(cla_key_present('-seed'))then
+                call cla_get('-seed', args%castep_seed)
+                args%WF_file = trim(adjustl(args%castep_seed)) // '.orbitals'
+            else
+                write(*,'(A)')&
+                    'You must specify a CASTEP seed using "-seed". Stopping now.'
+                stop
+            endif
+#       else
+            write(*,'(A)')'ERROR: You have compiled BandUP without support for CASTEP!'
+            write(*,'(A)')'Cannot continue. Stopping now.'
             stop
-        endif
+#       endif
     else
         args%pw_code = 'vasp'
     endif

@@ -33,7 +33,9 @@ use general_io
 use qexml_module
 use read_qe_wavefunctions
 use read_abinit_wavefunctions
+# if defined (__CASTEP_SUPPORT__)
 use read_castep_wavefunctions
+# endif
 use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
@@ -724,16 +726,21 @@ type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
 type(comm_line_args), intent(in) :: args
 logical :: wf_file_exists
 
-    inquire(file=args%wf_file, exist=wf_file_exists)
-    if(.not. wf_file_exists)then
-        write(*,'(3A)')"ERROR: Wavefunction file '",trim(adjustl(args%wf_file)), &
-              "' not found."
-        write(*,'(A)')'       Cannot continue. Stopping now.'
+#   if defined (__CASTEP_SUPPORT__)
+        inquire(file=args%wf_file, exist=wf_file_exists)
+        if(.not. wf_file_exists)then
+            write(*,'(3A)')"ERROR: Wavefunction file '",trim(adjustl(args%wf_file)), &
+                  "' not found."
+            write(*,'(A)')'       Cannot continue. Stopping now.'
+            stop
+        endif
+        call get_list_of_kpts_in_orbitals_file(list_of_SCKPTS, args%wf_file)
+#   else
+        write(*,'(A)')'ERROR (get_SCKPTS_CASTEP): &
+                      CASTEP interface not compiled!'
+        write(*,'(A)')'Cannot continue. Stopping now.'
         stop
-    endif
-
-    call get_list_of_kpts_in_orbitals_file(list_of_SCKPTS, args%wf_file)
-
+#   endif
 
 end subroutine get_SCKPTS_CASTEP
 
@@ -1135,8 +1142,14 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
             call read_abinit_wfk_file(wf, file=args%WF_file, ikpt=i_kpt, &
                                       read_coeffs=read_coefficients, iostat=ios)
         case('castep')
-            call read_castep_orbitals_file(wf, args%WF_file, i_kpt, &
-                                           read_coefficients, ios)
+#           if defined (__CASTEP_SUPPORT__)
+                call read_castep_orbitals_file(wf, args%WF_file, i_kpt, &
+                                               read_coefficients, ios)
+#           else
+                write(*,'(A)')'ERROR (read_wavefunction): CASTEP interface not compiled!'
+                write(*,'(A)')'Cannot continue. Stopping now.'
+                stop
+#           endif
     end select
     if(read_coefficients .and. renormalize_wf)then
         !$omp parallel do default(none) schedule(guided) &
