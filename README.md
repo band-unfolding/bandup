@@ -102,6 +102,15 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
       also contains a plotting task that reimplements the previously available 
       "plot_unfolded_EBS_BandUP.py" script and its GUI, which no longer exist as 
       individual scripts since V3.0.0.
+    * The individual fortran executables maintain back-compatibility, but the older
+      (V<3) bash scripts provided in the tutorials will not work with BandUP V>3. The
+      tutorials have been updated and provide new bash scripts compatible with BandUP V3.
+      These new scripts are much simpler than their previous counterparts. If you were
+      using them in your actual calculations (which you didn't need to), please replace
+      them by the new ones to be able to use BandUP V3. Note, nonetheless, that you
+      still don't necessarily need any bash scripts to run BandUP. The scripts provided
+      in the tutorials serve primarily as practical tools to show how BandUP can be 
+      executed.
 
 <!-- ============================================================================= -->
 #### Tips:
