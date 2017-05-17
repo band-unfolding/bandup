@@ -5,6 +5,8 @@
 # print the help for the specific task requested.
 # Run BandUP with the "-h" option only to get a list of supported tasks
 # If the the task is not explicitly set, then "unfold" will be selected by default.
+# BandUP tries to get the Fermi energy automatically from the self-consistent calc.
+# If this fails, you can pass the Fermi energy by using the option "-efermi VALUE_IN_eV"
 # Expecting only *one* "files file" to exist under "step3_*/"!
 unfolding_task_args="-abinit -files_file ../step_3_*/*.files -emin -20 -emax 5 -dE 0.050"
 plot_task_args='-input_file unfolded_EBS_symmetry-averaged.dat --show --save'
