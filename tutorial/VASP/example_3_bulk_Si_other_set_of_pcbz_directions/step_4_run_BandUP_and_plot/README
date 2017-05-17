@@ -1,4 +1,4 @@
-1. Check the .sh file for the parts you need to change to make it work in your environment.
+1. Read and understand the .sh file. Instructions and tips are provided as comments.
 2. Execute the script.
 3. Compare the result to the PBE pc Si band diagram along the same pcbz directions
     * You can eitehr calculate it yourself with the files you've got here, 
