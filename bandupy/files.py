@@ -140,7 +140,11 @@ def get_efermi_fpath(args):
     elif(args.abinit):
         files_file = [os.path.join(args.self_consist_calc_dir,fname) for fname in 
                       os.listdir(args.self_consist_calc_dir) if 
-                      fname.endswith('.files')][0]
+                      fname.endswith('.files')]
+        if(len(files_file)>1):
+            msg = 'More than 1 "files file" found at "%s"!'%(args.self_consist_calc_dir)
+            warnings.warn(msg)
+        files_file = files_file[0]
         with open(files_file, 'r') as f:
             files_file_lines = f.readlines()
         for line in files_file_lines:
@@ -173,7 +177,11 @@ def get_efermi(args):
                     efermi_au = float(line.split()[-1])
         efermi = efermi_au / physical_constants["electron volt-hartree relationship"][0]
     elif(args.abinit):
-        raise Exception # TEMP
+        with open(fpath, 'r') as f:
+            for line in f:
+                if("Fermi (or HOMO) energy (hartree)" in line):
+                    efermi_au = float(line.split('=')[1].split()[0])
+        efermi = efermi_au / physical_constants["electron volt-hartree relationship"][0]
 
     return efermi
 
@@ -246,7 +254,7 @@ def create_bandup_input(args):
         with open(args.files_file, 'r') as f:
             flines = f.readlines()
         try:
-            wf_fname = flines[3].strip()
+            wf_fname = flines[3].strip() + '_WFK'
         except(IndexError):
             pass
     elif(args.qe):
