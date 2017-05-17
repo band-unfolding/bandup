@@ -814,13 +814,18 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             subparser = self.bandup_plot_parser
             args = subparser.filter_args_plot(args)
 
-        try:
-            if(args.efermi is None): 
-                args.efermi = get_efermi(args)
-                if(args.efermi is None):
+        if(hasattr(args, 'efermi')):
+            # Using hasattr here generated cleaner code than another try->except
+            try:
+                if(args.efermi is None): 
+                    args.efermi = get_efermi(args)
+                    if(args.efermi is None):
+                        warnings.warn('Could not get E-Fermi!') 
+            except(AttributeError):
+                if(args.efermi is None): 
                     warnings.warn('Could not get E-Fermi!') 
-        except(AttributeError):
-            pass
+                else:
+                    raise
 
         args.default_values = {}
         for arg in dir(args):

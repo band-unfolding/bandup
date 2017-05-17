@@ -128,15 +128,27 @@ def continuation_lines(fname, marker='&'):
 def get_efermi_fpath(args):
     # The Fermi energy is taken only from the self consistent calculation. 
     # Please ensure convergence w.r.t. k-point mesh for your self-consistent calcs!
+    efermi_file = None
     if(args.qe):
-        in_file = [os.path.join(args.self_consist_calc_dir,fname) for fname in 
-                   os.listdir(args.self_consist_calc_dir) if fname.endswith('.in')][0]
-        with open(in_file, 'r') as f:
-            in_file_lines = f.readlines()
-        for line in in_file_lines:
-            if('prefix' in line):
-                qe_prefix = line.split('=').split()[0]
-        efermi_file = os.path.join(args.self_consist_calc_dir, "%.out"%(qe_prefix))
+        out_files = [os.path.join(args.self_consist_calc_dir,fname) for fname in 
+                     os.listdir(args.self_consist_calc_dir) if fname.endswith('.out') and
+                     not fname.startswith('.')]
+        if(len(out_files)>1):
+            msg = 'More than 1 ".out" found at "%s"!'%(args.self_consist_calc_dir)
+            msg += '\nThese are: %s\n'%(', '.join(out_files))
+            msg += 'The first one containing "the Fermi energy is" will be used.'
+            warnings.warn(msg)
+            found_efermi = False
+            for out_file in out_files:
+                with open(out_file, 'r') as f:
+                    for line in f:
+                        if('the Fermi energy is' in line):
+                            found_efermi = True
+                            efermi_file = out_file
+                            break
+                        if(found_efermi): break
+        else: 
+            efermi_file = out_files[0]
     elif(args.abinit):
         files_file = [os.path.join(args.self_consist_calc_dir,fname) for fname in 
                       os.listdir(args.self_consist_calc_dir) if 
@@ -183,7 +195,11 @@ def get_efermi(args):
                 if("Fermi (or HOMO) energy (hartree)" in line):
                     efermi_au = float(line.split('=')[1].split()[0])
         efermi = efermi_au / physical_constants["electron volt-hartree relationship"][0]
-
+    elif(args.qe):
+        with open(fpath, 'r') as f:
+            for line in f:
+                if("the Fermi energy is" in line):
+                    efermi = float(line.split('is')[-1].split()[0])
     return efermi
 
 
@@ -246,7 +262,7 @@ def create_bandup_input(args):
         fpath = fpath.strip()
         origin2dest[fpath] = {'dest':new_fpath, 'copy':True}
 
-    # Wavefunction symlinks
+    # Wavefunction symlinks.
     wf_fname = None
     wf_file = None
     if(args.castep):
@@ -259,7 +275,8 @@ def create_bandup_input(args):
         except(IndexError):
             pass
     elif(args.qe):
-        raise Exception('Not yet implemmented!')
+        # For Quantum Espresso, the WFs will be searched in args.outdir
+        pass
     elif(not arg_passed('-wf_file')):
         wf_fname = args.default_values['wf_file']
     if(wf_fname is not None): 
