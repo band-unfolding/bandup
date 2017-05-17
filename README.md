@@ -54,7 +54,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
     * Preferably Linux
         * Might work in other environments based on Unix
     * Fortran 95 and C compilers
-        * Preferably Intel compilers (ifort and icc), version 15 (or higher)
+        * Preferably Intel compilers (ifort and icc), version 15.0.3 (or higher)
         * Should also work with GNU compilers (gfortran and gcc), version 5.2 (or higher)
     * Python 2.X (X>=7) (NB: Mandatory since BandUP V3.0.0)
         * You will need to have the following packages installed 
