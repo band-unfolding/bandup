@@ -37,7 +37,7 @@ PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           compiler_version, compilation_time, get_git_info_compiled_files, timestamp
 
 integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="3.0.0 (BETA), 2017-MM-DD"
+character(len=30), parameter :: package_version="3.0.0 (BETA), 2017-05-17"
 character(len=str_len), parameter :: &
     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
                                       for_your_reference_unit_cell.POSCAR", &
