@@ -143,6 +143,7 @@ def get_efermi_fpath(args):
                       fname.endswith('.files')]
         if(len(files_file)>1):
             msg = 'More than 1 "files file" found at "%s"!'%(args.self_consist_calc_dir)
+            msg += '\nThese are: %s'%(', '.join(files_file))
             warnings.warn(msg)
         files_file = files_file[0]
         with open(files_file, 'r') as f:
