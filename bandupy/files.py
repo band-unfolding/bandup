@@ -140,7 +140,7 @@ def get_efermi_fpath(args):
     elif(args.abinit):
         files_file = [os.path.join(args.self_consist_calc_dir,fname) for fname in 
                       os.listdir(args.self_consist_calc_dir) if 
-                      fname.endswith('.files')]
+                      fname.endswith('.files') and not fname.startswith('.')]
         if(len(files_file)>1):
             msg = 'More than 1 "files file" found at "%s"!'%(args.self_consist_calc_dir)
             msg += '\nThese are: %s'%(', '.join(files_file))
