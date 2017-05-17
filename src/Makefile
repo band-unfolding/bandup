@@ -8,8 +8,8 @@
 # ======================================================================
 # Declarations
 # ======================================================================
-GIT_HASH_LATEST_COMMIT := $(shell git log --format='%H' -n 1)
-GIT_USED_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+GIT_HASH_LATEST_COMMIT := $(shell git log --format='%H' -n 1 2> /dev/null)
+GIT_USED_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null)
 # The compiler
 FC = ifort
 # Required flags: 
