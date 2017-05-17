@@ -80,7 +80,7 @@ cd ${working_dir}/src
     make FC=$FC CC=$CC
     make clean
 cd ${working_dir}
-rm bandup
+rm -f bandup
 ln -s ${BANDUP_EXE} bandup
 
 BANDUPDIR="${working_dir}"
