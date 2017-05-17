@@ -1,5 +1,7 @@
-1. Check the .sh file for the parts you need to change to make it work in your environment.
+1. Read and understand the .sh file. Instructions and tips are provided as comments.
 2. Execute the script.
-3. Compare the result to the Si band diagram published by Cohen and Chelikowsky in the book
-       Electronic Structure and Optical Properties of Semiconductors, Solid-State Sciences 75, Springer-Verlag 1988
+3. Compare the result to the Si band diagram published by Cohen and Chelikowsky in the 
+   book
+       Electronic Structure and Optical Properties of Semiconductors, 
+       Solid-State Sciences 75, Springer-Verlag 1988
 
