@@ -54,11 +54,10 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
     * Preferably Linux
         * Might work in other environments based on Unix
     * Fortran 95 and C compilers
-        * Preferably Intel compilers (ifort and icc), version 12.1.4 (or higher)
+        * Preferably Intel compilers (ifort and icc), version 15 (or higher)
         * Should also work with GNU compilers (gfortran and gcc), version 5.2 (or higher)
-    * Python 2.X (X>=7) for the post-processing utilities
+    * Python 2.X (X>=7) (NB: Mandatory since BandUP V3.0.0)
         * You will need to have the following packages installed 
-          (you probably already have most of them; try running the code before worrying):
             * argparse
             * numpy 
             * scipy
@@ -70,12 +69,19 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
             * json
             * shutil
             * collections
-        * Please let me know if I've forgotten to list any other package!
-    * Optional: Either PyQt4 or PyQt5
-            * This is needed only if you want to use the graphical user interface 
-              (GUI) version of the plotting tool.
-            * If the GUI doesn't work with you, you can keep using the plotting tool 
-              in the command line, just as usual.
+        * Optional: Either PyQt4 or PyQt5
+                * This only needed only you wish to use the graphical user interface 
+                  (GUI) version of the plotting tool.
+                * If the GUI doesn't work with you, you can keep using the plotting tool 
+                  in the command line, just as usual. I'd appreciate it if you'd let me
+                  know should this happen. I can't promise, however, to provide much
+                  assistance with the GUI, as everything can be done without it.
+        * *You probably already have most of the mandatory packages*. Try running the 
+          code before worrying.
+        * If any Python package is missing, you can easily install them using, e.g., pip
+          For instance, "pip install --user matplotlib" should make matplotlib available
+          in you Python install without the need of root privileges. 
+        * *Please let me know if I've forgotten to list any other package!*
             
 <!-- ============================================================================= -->
 #### Publications:
@@ -102,6 +108,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
       also contains a plotting task that reimplements the previously available 
       "plot_unfolded_EBS_BandUP.py" script and its GUI, which no longer exist as 
       individual scripts since V3.0.0.
+    * This means that the Python system requirements are now mandatory
     * The individual fortran executables maintain back-compatibility, but the older
       (V<3) bash scripts provided in the tutorials will not work with BandUP V>3. The
       tutorials have been updated and provide new bash scripts compatible with BandUP V3.
