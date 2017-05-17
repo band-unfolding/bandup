@@ -1,1 +1,2 @@
-Check the .sh file for the parts you need to change to make it work in your environment, specially the first 2-7 lines.
+1. Edit the .sh file to make it work in your environment.
+2. Run it.
