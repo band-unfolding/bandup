@@ -71,13 +71,9 @@ fi
 
 working_dir=`pwd`
 cd ${working_dir}/src/external
-    ./BandUP_configure_espresso.sh $FC $CC
-    tar -xvzf check2xsf2_modules_for_BandUP.tgz
-    ./BandUP_configure_spglib.sh $FC $CC $OMP_FLAG
-    ./BandUP_configure_cla.sh
+    make FC=$FC CC=$CC OMP_FLAG=$OMP_FLAG
 cd ${working_dir}/src
     make FC=$FC CC=$CC
-    make clean
 cd ${working_dir}
 
 BANDUPDIR="${working_dir}"

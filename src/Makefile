@@ -32,6 +32,7 @@ current_dir = $(shell pwd)
 BandUP_root_dir = $(shell dirname $(current_dir))
 BandUP_src_folder = $(current_dir)
 BandUP_python_dir = $(BandUP_src_folder)/python_interface
+BandUP_external_mods_dir = $(BandUP_src_folder)/external
 cla_folder = $(BandUP_src_folder)/external/claf90
 spglib_folder = $(BandUP_src_folder)/external/spglib-1.5.2
 vasp_related_modules_folder = $(BandUP_src_folder)/vasp_related_modules
@@ -100,7 +101,11 @@ BANDUP_GET_SCKPTS_SRC_OBJ = $(patsubst %.f90, %.o, $(BANDUP_GET_SCKPTS_SRC))
 BANDUP_EXE = BandUP.x
 BANDUP_GET_SCKPTS_EXE = get_SCKPTS_pre_BandUP.x
 PYTHON_INTERFACE_SYMLINK = $(BandUP_root_dir)/bandup
+# First rule: "make" will build this rule if no target is specified
+bandup: all
+all: $(BANDUP_GET_SCKPTS_EXE) $(BANDUP_EXE) $(PYTHON_INTERFACE_SYMLINK)
 
+# Objects
 ifneq ($(CASTEP_SUPPORT), )
     C2XSF_C_OBJS = check2xsf_mod_for_bandup.o check_read_for_bandup.o \
                    periodic_table_c2xsf.o basis_c2xsf.o super_c2xsf.o gpfa_c2xsf.o \
@@ -108,15 +113,12 @@ ifneq ($(CASTEP_SUPPORT), )
                    primitive_c2xsf.o ksym_c2xsf.o sort_atoms_c2xsf.o
     CASTEP_READ_WF_OBJ = read_castep_wavefunctions_mod.o
 endif
-
 OBJ := cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o spglib_f08.o \
        math_mod.o band_unfolding_routines_mod.o general_io_mod.o read_wavecar_mod.o \
        read_vasp_files_mod.o read_qe_wavefunctions_mod.o \
        read_abinit_wavefunctions_mod.o $(CASTEP_READ_WF_OBJ) \
        write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(C2XSF_C_OBJS)
 
-# First rule: "make" will build all
-all: $(BANDUP_GET_SCKPTS_EXE) $(BANDUP_EXE) $(PYTHON_INTERFACE_SYMLINK)
 # Rules to make the executables individually
 main: $(BANDUP_EXE)
 prebandup: $(BANDUP_GET_SCKPTS_EXE)
