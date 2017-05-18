@@ -70,7 +70,6 @@ elif [ ${FC} = 'gfortran' ]; then
 fi
 
 working_dir=`pwd`
-BANDUP_EXE="${working_dir}/src/python_interface/bandup"
 cd ${working_dir}/src/external
     ./BandUP_configure_espresso.sh $FC $CC
     tar -xvzf check2xsf2_modules_for_BandUP.tgz
@@ -80,8 +79,6 @@ cd ${working_dir}/src
     make FC=$FC CC=$CC
     make clean
 cd ${working_dir}
-rm -f bandup
-ln -s ${BANDUP_EXE} bandup
 
 BANDUPDIR="${working_dir}"
 BANDUPCONFIGDIR="${HOME}/.bandup"
