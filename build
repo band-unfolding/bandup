@@ -9,11 +9,15 @@ from subprocess import Popen, PIPE, STDOUT
 supported_fortran_compilers = ['ifort', 'gfortran']
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    'compiler', nargs='?', default=None, choices=supported_fortran_compilers,
+    '-compiler', nargs='?', default=None, choices=supported_fortran_compilers,
     help=('If the fortran compiler is not explicitly chosen, the script will attempt '+
           'to use one of the allowed choices, in the same order they appear here.'),
 )
-parser.add_argument('--unbuild', action='store_true', 
+parser.add_argument(
+    '--doc', action='store_true', 
+    help='Attempts to use doxygen to generate source code documentation.'
+)
+parser.add_argument('--clean', action='store_true', 
                     help='Removes all files created when building BandUP.')
 args = parser.parse_args()
 
@@ -48,6 +52,16 @@ def silent_mkdir(path):
         os.makedirs(path)
     except(OSError):
         if(not os.path.isdir(path)): raise
+def run_doxygen(bandup_dir, verbose=False):
+    if(verbose): print('Creating source code documentation')
+    try:
+        os.environ['BANDUPDIR'] = bandup_dir
+        outdir = os.path.join(bandup_dir, 'doc', 'source_code')
+        os.environ['DOXIGENOUTDIR'] = outdir
+        silent_mkdir(outdir)
+        doxygen_call = Popen(['doxygen'], stdout=PIPE, stderr=STDOUT)
+    except(OSError):
+        print('WARNING: Could not create source code documentation!')
 
 user_chose_compiler = args.compiler is not None
 if(user_chose_compiler):
@@ -69,9 +83,9 @@ else:
     print('BandUP will be compiled using %s (compiler determined automatically)'%(
           args.compiler))
 
-# Building (or unbuilding, if "--unbuild" was passed)
+# Building (or cleaning, if "--clean" was passed)
 clean = ''
-if(args.unbuild):
+if(args.clean):
     clean = 'veryclean'
 omp_flag = compatible_omp(args.compiler)
 c_comp = compatible_c(args.compiler)
@@ -80,7 +94,9 @@ os.chdir(os.path.join(working_dir, 'src', 'external'))
 os.system('make FC=%s CC=%s OMP_FLAG=%s %s'%(args.compiler, c_comp, omp_flag, clean))
 os.chdir(os.path.join(working_dir, 'src'))
 os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
+if(args.doc): run_doxygen(bandup_dir=working_dir, verbose=True) 
 os.chdir(working_dir)
+
 # Creating config dir and file
 bandup_dir = working_dir
 bandup_config_dir = os.path.join(os.path.expanduser('~'), '.bandup')
