@@ -1,0 +1,22 @@
+# Ignore symlink to python interface main
+bandup
+# Do not track documentation (will be generated upon request)
+*doc/
+# Directories that will be created upon compilation
+src/external/claf90/
+src/external/spglib-1.5.2/
+src/external/espresso-5.1_modules_for_BandUP/
+src/external/check2xsf2_modules_for_BandUP/
+# No object, archive, executable or mod files
+*.[oa]
+*.x
+*.mod
+# Do not track aux/temp files and directories
+*.aux
+*.pyc
+*swp
+*debug*
+*profiling*
+*back*
+*test*
+temp*/
