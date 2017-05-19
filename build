@@ -1,11 +1,35 @@
 #! /usr/bin/env python
+# Copyright (C) 2017 Paulo V. C. Medeiros
+# This script builds BandUP
+# This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+#
+# BandUP is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+#  BandUP is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import print_function
 import argparse
 import sys
 import os
 import time
-import shutil
-from subprocess import Popen, PIPE, STDOUT
+working_dir = os.getcwd()
+bandupy_path = os.path.join(working_dir, 'src', 'python_interface', 'bandupy') 
+sys.path.insert(1, os.path.dirname(bandupy_path))
+from bandupy.files import mkdir
+from bandupy.build import (
+    assert_valid_compiler,
+    compatible_c,
+    compatible_omp,
+    doc_gen
+)
 
 supported_fortran_compilers = ['ifort', 'gfortran']
 parser = argparse.ArgumentParser()
@@ -16,100 +40,22 @@ parser.add_argument(
 )
 parser.add_argument(
     '--doc', action='store_true', 
-    help='Attempts to use doxygen to generate source code documentation.'
+    help='Attempts to generate source code documentation using doxygen.'
 )
 parser.add_argument('--clean', action='store_true', 
                     help='Removes all files created when building BandUP.')
 args = parser.parse_args()
-
-def error_exit(msg):
-    print('ERROR: %s'%(msg))
-    print('Cannot continue. Stopping now.')
-    sys.exit(1)
-def system_has_compiler(compiler):
-    try:
-        compiler_call = Popen([compiler], stdout=PIPE, stderr=STDOUT)
-        return True
-    except(OSError):
-        return False
-def get_gcc():
-    comp = 'gcc'
-    for v in range(2,7)[::-1]:
-        new_comp = 'gcc-%d'%(v)
-        if(system_has_compiler(new_comp)):
-            comp = new_comp
-            break
-    return comp
-def compatible_c(fortcomp):
-    if('ifort' in fortcomp): return 'icc'
-    elif('gfortran' in fortcomp): return get_gcc()
-    else: return None
-def compatible_omp(fortcomp):
-    if('ifort' in fortcomp): return '-openmp'
-    elif('gfortran' in fortcomp): return '-fopenmp'
-    else: return None
-def silent_mkdir(path):
-    try:
-        os.makedirs(path)
-    except(OSError):
-        if(not os.path.isdir(path)): raise
-def rmdir(path):
-    try:
-        shutil.rmtree(path)
-    except(OSError):
-        if(os.path.isdir(path)):
-            print('WARNING: Could not remove dir %s'%(path))
-def run_doxygen(bandup_dir, remove=False, verbose=False):
-    os.environ['BANDUPDIR'] = bandup_dir
-    main_doc_dir = os.path.join(bandup_dir, 'doc')
-    outdir = os.path.join(main_doc_dir, 'source_code')
-    os.environ['DOXIGENOUTDIR'] = outdir
-    config_file = os.path.join(bandup_dir, 'src', 'Doxyfile')
-    if(verbose): 
-        if(remove):
-            print('Removing dir %s'%(main_doc_dir))
-        else:
-            print('Creating source code documentation')
-    if(remove):
-        rmdir(main_doc_dir)
-    else:
-        try:
-            silent_mkdir(outdir)
-            doxygen_call = Popen(['doxygen', config_file], stdout=PIPE, stderr=STDOUT)
-            out, err = doxygen_call.communicate()
-        except(OSError):
-            print('WARNING: Could not create source code documentation!')
-
-user_chose_compiler = args.compiler is not None
-if(user_chose_compiler):
-    if(not system_has_compiler(args.compiler)):
-        error_exit('The compiler you chose (%s) is not available in your system.'%(
-                   args.compiler))
-else:
-    for comp in supported_fortran_compilers:
-        if(system_has_compiler(comp)):
-            args.compiler = comp
-            break
-    if(args.compiler is None):
-        error_exit('Could not find a supported Fortran compiler.')
-
-# If the code reaches this point, then the picked fortran compiler is valid
-if(user_chose_compiler):
-    print('BandUP will be compiled using %s (compiler chosen by you)'%(args.compiler))
-else: 
-    print('BandUP will be compiled using %s (compiler determined automatically)'%(
-          args.compiler))
+args = assert_valid_compiler(args, supported_fortran_compilers)
 
 # Building (or cleaning, if "--clean" was passed)
-working_dir = os.getcwd()
 omp_flag = compatible_omp(args.compiler)
 c_comp = compatible_c(args.compiler)
 clean = ''
 if(args.clean):
     clean = 'veryclean'
-    run_doxygen(bandup_dir=working_dir, remove=True, verbose=True)
+    doc_gen(bandup_dir=working_dir, remove=True, verbose=True)
 elif(args.doc): 
-    run_doxygen(bandup_dir=working_dir, verbose=True) 
+    doc_gen(bandup_dir=working_dir, verbose=True) 
 os.chdir(os.path.join(working_dir, 'src', 'external'))
 os.system('make FC=%s CC=%s OMP_FLAG=%s %s'%(args.compiler, c_comp, omp_flag, clean))
 os.chdir(os.path.join(working_dir, 'src'))
@@ -120,7 +66,7 @@ os.chdir(working_dir)
 bandup_dir = working_dir
 bandup_config_dir = os.path.join(os.path.expanduser('~'), '.bandup')
 bandup_config_file = os.path.join(bandup_config_dir, 'config')
-silent_mkdir(bandup_config_dir)
+mkdir(bandup_config_dir, ignore_existing=True)
 now = time.strftime('%-H:%M UTC%z on %b %d, %Y')
 with open(bandup_config_file, 'w') as f:
     f.write('# Created by BandUP on %s\n'%(now))
