@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python
 # Copyright (C) 2017 Paulo V. C. Medeiros
 # A python wrapper to BandUP and its plotting tool
 # This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
