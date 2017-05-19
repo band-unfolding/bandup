@@ -568,6 +568,7 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
+INPUT                  += $(BANDUPDIR)/README.md
 INPUT                  += $(BANDUPDIR)/src
 
 USE_MDFILE_AS_MAINPAGE = $(BANDUPDIR)/README.md
