@@ -36,6 +36,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 #### How to compile BandUP
 --------------------------------------------------------------------------------------
     * Run the "build" script: ./build
+        * Please run "./build -h" for more information
     * A symlink named "bandup" will be created in this directory if compilation is 
       successful. This is a single executable that wraps all BandUP main functionalities:
         * Getting SC-Kpoints pre-unfolding (task "kpts-sc-get")
