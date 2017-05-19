@@ -4,6 +4,7 @@ import argparse
 import sys
 import os
 import time
+import shutil
 from subprocess import Popen, PIPE, STDOUT
 
 supported_fortran_compilers = ['ifort', 'gfortran']
@@ -52,16 +53,32 @@ def silent_mkdir(path):
         os.makedirs(path)
     except(OSError):
         if(not os.path.isdir(path)): raise
-def run_doxygen(bandup_dir, verbose=False):
-    if(verbose): print('Creating source code documentation')
+def rmdir(path):
     try:
-        os.environ['BANDUPDIR'] = bandup_dir
-        outdir = os.path.join(bandup_dir, 'doc', 'source_code')
-        os.environ['DOXIGENOUTDIR'] = outdir
-        silent_mkdir(outdir)
-        doxygen_call = Popen(['doxygen'], stdout=PIPE, stderr=STDOUT)
+        shutil.rmtree(path)
     except(OSError):
-        print('WARNING: Could not create source code documentation!')
+        if(os.path.isdir(path)):
+            print('WARNING: Could not remove dir %s'%(path))
+def run_doxygen(bandup_dir, remove=False, verbose=False):
+    os.environ['BANDUPDIR'] = bandup_dir
+    main_doc_dir = os.path.join(bandup_dir, 'doc')
+    outdir = os.path.join(main_doc_dir, 'source_code')
+    os.environ['DOXIGENOUTDIR'] = outdir
+    config_file = os.path.join(bandup_dir, 'src', 'Doxyfile')
+    if(verbose): 
+        if(remove):
+            print('Removing dir %s'%(main_doc_dir))
+        else:
+            print('Creating source code documentation')
+    if(remove):
+        rmdir(main_doc_dir)
+    else:
+        try:
+            silent_mkdir(outdir)
+            doxygen_call = Popen(['doxygen', config_file], stdout=PIPE, stderr=STDOUT)
+            out, err = doxygen_call.communicate()
+        except(OSError):
+            print('WARNING: Could not create source code documentation!')
 
 user_chose_compiler = args.compiler is not None
 if(user_chose_compiler):
@@ -84,17 +101,19 @@ else:
           args.compiler))
 
 # Building (or cleaning, if "--clean" was passed)
+working_dir = os.getcwd()
+omp_flag = compatible_omp(args.compiler)
+c_comp = compatible_c(args.compiler)
 clean = ''
 if(args.clean):
     clean = 'veryclean'
-omp_flag = compatible_omp(args.compiler)
-c_comp = compatible_c(args.compiler)
-working_dir = os.getcwd()
+    run_doxygen(bandup_dir=working_dir, remove=True, verbose=True)
+elif(args.doc): 
+    run_doxygen(bandup_dir=working_dir, verbose=True) 
 os.chdir(os.path.join(working_dir, 'src', 'external'))
 os.system('make FC=%s CC=%s OMP_FLAG=%s %s'%(args.compiler, c_comp, omp_flag, clean))
 os.chdir(os.path.join(working_dir, 'src'))
 os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
-if(args.doc): run_doxygen(bandup_dir=working_dir, verbose=True) 
 os.chdir(working_dir)
 
 # Creating config dir and file
