@@ -35,9 +35,9 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 <!-- ============================================================================= -->
 #### How to compile BandUP
 --------------------------------------------------------------------------------------
-    * Run the "build.sh" script: ./build.sh
-    * A symlink named "bandup" will be created after the code is compiled. 
-      This is a single executable that wraps all BandUP main functionalities: 
+    * Run the "build" script: ./build
+    * A symlink named "bandup" will be created in this directory if compilation is 
+      successful. This is a single executable that wraps all BandUP main functionalities:
         * Getting SC-Kpoints pre-unfolding (task "kpts-sc-get")
         * Actual unfolding code (task "unfold")
         * Plotting (task "plot")
@@ -57,18 +57,12 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
         * Preferably Intel compilers (ifort and icc), version 15.0.3 (or higher)
         * Should also work with GNU compilers (gfortran and gcc), version 5.2 (or higher)
     * Python 2.X (X>=7) (NB: Mandatory since BandUP V3.0.0)
-        * You will need to have the following packages installed 
-            * argparse
+        * You might need to install the following packages (but try running the code
+          before worrying about this -- you might already have them) 
             * numpy 
             * scipy
             * matplotlib
-            * os
-            * sys
-            * subprocess
-            * fractions
-            * json
-            * shutil
-            * collections
+            * six
         * Optional: Either PyQt4 or PyQt5
                 * This only needed only you wish to use the graphical user interface 
                   (GUI) version of the plotting tool.
@@ -76,11 +70,25 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
                   in the command line, just as usual. I'd appreciate it if you'd let me
                   know should this happen. I can't promise, however, to provide much
                   assistance with the GUI, as everything can be done without it.
-        * *You probably already have most of the mandatory packages*. Try running the 
-          code before worrying.
-        * If any Python package is missing, you can easily install them using, e.g., pip
-          For instance, "pip install --user matplotlib" should make matplotlib available
-          in you Python install without the need of root privileges. 
+        * If you don't have any of the Python packages listed above, you can easily 
+          install them using, e.g., pip. For instance, "pip install --user matplotlib"
+          should make matplotlib available in your Python install without the need of 
+          root privileges. 
+        * Standard python library modules used (listed here just for completeness):
+            * argparse
+            * os
+            * sys
+            * time
+            * subprocess
+            * fractions
+            * json
+            * shutil
+            * collections
+            * glob
+            * pickle
+            * errno
+            * itertools
+            * warnings
         * *Please let me know if I've forgotten to list any other package!*
             
 <!-- ============================================================================= -->
