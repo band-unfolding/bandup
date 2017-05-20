@@ -43,23 +43,6 @@ def compatible_omp(fortcomp):
     if('ifort' in fortcomp): return '-openmp'
     elif('gfortran' in fortcomp): return '-fopenmp'
     else: return None
-def doc_gen(bandup_dir, remove=False, verbose=False):
-    os.environ['BANDUPDIR'] = bandup_dir
-    main_doc_dir = os.path.join(bandup_dir, 'doc')
-    outdir = os.path.join(main_doc_dir, 'source_code')
-    os.environ['DOXIGENOUTDIR'] = outdir
-    config_file = os.path.join(bandup_dir, 'src', 'Doxyfile')
-    if(remove):
-        if(verbose): print('Removing dir %s'%(main_doc_dir))
-        rmdir(main_doc_dir)
-    else:
-        try:
-            if(verbose): print('Creating source code documentation')
-            mkdir(outdir, ignore_existing=True)
-            doxygen_call = Popen(['doxygen', config_file], stdout=PIPE, stderr=STDOUT)
-            out, err = doxygen_call.communicate()
-        except(OSError):
-            warnings.warn('Could not create source code documentation!')
 def assert_valid_compiler(args, supported_fortran_compilers):
     user_chose_compiler = args.compiler is not None
     if(user_chose_compiler):

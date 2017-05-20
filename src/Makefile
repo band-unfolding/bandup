@@ -30,6 +30,8 @@ FCFLAGS_for_gfortran += -w
 # Aliases
 current_dir = $(shell pwd)
 BandUP_root_dir = $(shell dirname $(current_dir))
+doc_dir = $(BandUP_root_dir)/doc
+source_doc_dir = $(doc_dir)/source_code
 BandUP_src_folder = $(current_dir)
 BandUP_python_dir = $(BandUP_src_folder)/python_interface
 BandUP_external_mods_dir = $(BandUP_src_folder)/external
@@ -167,14 +169,19 @@ $(PYTHON_INTERFACE_SYMLINK): | prebandup main
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -c $<
 
 # Utility targets
-.PHONY: all clean veryclean print
+.PHONY: all sourcedoc clean veryclean print
 
+sourcedoc:
+	export BANDUPDIR=$(BandUP_root_dir);\
+	export DOXIGENOUTDIR=$(source_doc_dir);\
+	mkdir -p $(source_doc_dir);\
+	doxygen
 clean:
 	rm -f *.o *.mod *.MOD
 	find $(BandUP_python_dir) -name "*.pyc" -type f -delete
 	find $(BandUP_python_dir) -name "__pycache__" -type d -delete
-
 veryclean: clean
 	rm -f *~ $(BANDUP_EXE) $(BANDUP_GET_SCKPTS_EXE) $(PYTHON_INTERFACE_SYMLINK)
+	rm -rf $(doc_dir)
 print-%:
 	@echo '$*=$($*)'

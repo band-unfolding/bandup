@@ -28,7 +28,6 @@ from bandupy.build import (
     assert_valid_compiler,
     compatible_c,
     compatible_omp,
-    doc_gen
 )
 
 supported_fortran_compilers = ['ifort', 'gfortran']
@@ -51,15 +50,15 @@ args = assert_valid_compiler(args, supported_fortran_compilers)
 omp_flag = compatible_omp(args.compiler)
 c_comp = compatible_c(args.compiler)
 clean = ''
-if(args.clean):
+if(args.clean): 
     clean = 'veryclean'
-    doc_gen(bandup_dir=working_dir, remove=True, verbose=True)
-elif(args.doc): 
-    doc_gen(bandup_dir=working_dir, verbose=True) 
 os.chdir(os.path.join(working_dir, 'src', 'external'))
 os.system('make FC=%s CC=%s OMP_FLAG=%s %s'%(args.compiler, c_comp, omp_flag, clean))
 os.chdir(os.path.join(working_dir, 'src'))
-os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
+if(args.doc and not args.clean):
+    os.system('make sourcedoc')
+else:
+    os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
 os.chdir(working_dir)
 
 # Creating config dir and file
