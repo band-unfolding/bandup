@@ -24,7 +24,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
         * VASP
         * Quantum ESPRESSO
         * ABINIT
-        * CASTEP (academic version, at least)
+        * CASTEP (tested with academic version; currently available only upon request)
     * If you use another plane-wave (PW) code and would like to have 
       support to it added in BandUP
         * Please *send me a subroutine to read the wavefunctions
