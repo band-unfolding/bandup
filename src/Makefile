@@ -41,7 +41,7 @@ vasp_related_modules_folder = $(BandUP_src_folder)/vasp_related_modules
 qe_related_modules_folder = $(BandUP_src_folder)/qe_related_modules
 abinit_related_modules_folder = $(BandUP_src_folder)/abinit_related_modules
 castep_related_modules_folder = $(BandUP_src_folder)/castep_related_modules
-check2xsf_modules = $(BandUP_src_folder)/external/check2xsf2_modules_for_BandUP
+check2xsf_modules_dir = $(BandUP_src_folder)/external/check2xsf2_modules_for_BandUP
 espresso_folder = $(BandUP_src_folder)/external/espresso-5.1_modules_for_BandUP
 QE_modules=$(espresso_folder)/Modules
 QE_iotk=$(espresso_folder)/iotk/src
@@ -49,12 +49,12 @@ QE_flib=$(espresso_folder)/flib
 QE_clib=$(espresso_folder)/clib
 # Checking whether CASTEP interface dir exists
 ifneq ($(wildcard $(castep_related_modules_folder)), )
-    CASTEP_SUPPORT = true
-    # Enable preprocessor
-    FPPFLAGS_for_ifort += -fpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
-    FPPFLAGS_for_gfortran += -cpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
-else
-    CASTEP_SUPPORT =
+    ifneq ($(wildcard $(check2xsf_modules_dir)), )
+        CASTEP_SUPPORT = true
+        # Enable preprocessor
+        FPPFLAGS_for_ifort += -fpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
+        FPPFLAGS_for_gfortran += -cpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
+    endif
 endif
 
 # More preprocessor stuff
@@ -92,8 +92,8 @@ vpath %.f90 $(abinit_related_modules_folder)
 ifneq ($(CASTEP_SUPPORT), )
     vpath %.f90 $(castep_related_modules_folder)
     vpath %.c $(castep_related_modules_folder)
+    vpath %.c $(check2xsf_modules_dir)
 endif
-vpath %.c $(check2xsf_modules)
 
 # List of executables to be built within the package
 BANDUP_SRC = main_BandUP.f90 

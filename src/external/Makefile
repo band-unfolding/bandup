@@ -23,7 +23,9 @@ $(spglib): $(spglib_makefile)
 	$(MAKE) -j --max-load 2.5;\
 	cd $(rootdir)
 $(check2xsf):
+ifneq ($(wildcard $(check2xsf).tgz), )
 	tar -xvzf $@.tgz
+endif
 $(espresso_makefile):
 	tar -xvzf $(espresso).tgz
 	cd $(espresso);\

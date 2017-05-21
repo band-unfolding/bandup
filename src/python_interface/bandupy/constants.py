@@ -28,6 +28,8 @@ PACKAGE_DIR = os.path.dirname(os.path.realpath(__file__))
 INTERFACE_MAIN_SOURCE_DIR = __get_parent_dir(PACKAGE_DIR, 1)
 BANDUP_SRC_DIR = __get_parent_dir(PACKAGE_DIR, 2)
 BANDUP_DIR = __get_parent_dir(PACKAGE_DIR, 3)
+BANDUP_CONFIG_DIR = os.path.join(os.path.expanduser('~'), '.bandup')
+BANDUP_CONFIG_FILE = os.path.join(BANDUP_CONFIG_DIR, 'config')
 
 BANDUP_BIN = os.path.join(BANDUP_SRC_DIR, 'BandUP.x')
 BANDUP_PRE_UNFOLDING_BIN = os.path.join(BANDUP_SRC_DIR, 'get_SCKPTS_pre_BandUP.x')

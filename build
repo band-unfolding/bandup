@@ -28,7 +28,9 @@ from bandupy.build import (
     assert_valid_compiler,
     compatible_c,
     compatible_omp,
+    castep_interface_available,
 )
+from bandupy.constants import BANDUP_DIR, BANDUP_CONFIG_DIR, BANDUP_CONFIG_FILE
 
 supported_fortran_compilers = ['ifort', 'gfortran']
 parser = argparse.ArgumentParser()
@@ -45,10 +47,10 @@ parser.add_argument('--clean', action='store_true',
                     help='Removes all files created when building BandUP.')
 args = parser.parse_args()
 args = assert_valid_compiler(args, supported_fortran_compilers)
-
-# Building (or cleaning, if "--clean" was passed)
 omp_flag = compatible_omp(args.compiler)
 c_comp = compatible_c(args.compiler)
+
+# Building (or cleaning, if "--clean" was passed)
 clean = ''
 if(args.clean): 
     clean = 'veryclean'
@@ -62,11 +64,10 @@ else:
 os.chdir(working_dir)
 
 # Creating config dir and file
-bandup_dir = working_dir
-bandup_config_dir = os.path.join(os.path.expanduser('~'), '.bandup')
-bandup_config_file = os.path.join(bandup_config_dir, 'config')
-mkdir(bandup_config_dir, ignore_existing=True)
+mkdir(BANDUP_CONFIG_DIR, ignore_existing=True)
 now = time.strftime('%-H:%M UTC%z on %b %d, %Y')
-with open(bandup_config_file, 'w') as f:
+with open(BANDUP_CONFIG_FILE, 'w') as f:
     f.write('# Created by BandUP on %s\n'%(now))
-    f.write('BANDUPDIR=%s'%(bandup_dir))
+    f.write('BANDUPDIR=%s\n'%(BANDUP_DIR))
+    if(castep_interface_available(calling_from_build_script=True)):
+        f.write('CASTEP_SUPPORT=True\n')

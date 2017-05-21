@@ -19,6 +19,7 @@ from subprocess import Popen, PIPE, STDOUT
 import shutil
 import os
 from .files import mkdir, rmdir
+from .constants import BANDUP_SRC_DIR, BANDUP_CONFIG_FILE
 from .warnings_wrapper import warnings, WarningError
 
 def system_has_compiler(compiler):
@@ -62,3 +63,21 @@ def assert_valid_compiler(args, supported_fortran_compilers):
         print('BandUP will be compiled using %s (compiler determined automatically)'%(
               args.compiler))
     return args
+
+def castep_interface_available(calling_from_build_script=False):
+    ret = False
+    if(calling_from_build_script):
+        check2xsf_dir = os.path.join(BANDUP_SRC_DIR, 'external', 
+                                     'check2xsf2_modules_for_BandUP')
+        castep_modules_dir = os.path.join(BANDUP_SRC_DIR, 'castep_related_modules')
+        ret = os.path.isdir(check2xsf_dir) and os.path.isdir(castep_modules_dir)
+    else:
+        with open(BANDUP_CONFIG_FILE, 'r') as f:
+            for line in f:
+                if('CASTEP_SUPPORT' in line):
+                    support = line.split('=')[1].strip()
+                    if(support.lower() == 'true'):
+                        ret = True
+    return ret
+
+

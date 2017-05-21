@@ -43,7 +43,7 @@ from .figs import (
 from .warnings_wrapper import warnings
 from .sysargv import arg_passed
 from .lists import str_list_to_int_range
-
+from .build import castep_interface_available
 
 def store_abs_path_action_gen(assert_existence=False, rel_path_start=WORKING_DIR):
     class StoreAbsPath(argparse.Action):
@@ -70,6 +70,20 @@ def store_abs_path_action_gen(assert_existence=False, rel_path_start=WORKING_DIR
                         parser.error(msg)
             setattr(namespace, self.dest, new_path)
     return StoreAbsPath
+
+class AssertCastepInterfaceAvailable(argparse.Action):
+    """ Produce an error if using "-castep" without compiling BandUP with CASTEP support
+
+    """
+    def __init__(self, option_strings, dest, default=False, required=False, help=None):
+        super(AssertCastepInterfaceAvailable, self).__init__(
+            option_strings, dest, nargs=0, default=default, required=required, help=help)
+    def __call__(self, parser, namespace, values, option_string=None):
+        if(castep_interface_available()):
+            setattr(namespace, self.dest, True)
+        else:
+            msg = 'BandUP has been compiled without CASTEP support!'
+            parser.error(msg)
 
 def obsolete_arg_action_gen(alternative_option=None):
     class RefuseObsoleteArgs(argparse.Action):
@@ -273,6 +287,9 @@ class BandUpArgumentParser(argparse.ArgumentParser):
                 spinor_args.add_argument(arg_name, help=arg_help, 
                                          **parser_remaining_kwargs)
             elif(arg_name in ['-castep', '-seed']):
+                if(not castep_interface_available()):
+                    arg_help = argparse.SUPPRESS
+                parser_remaining_kwargs['action']=AssertCastepInterfaceAvailable
                 castep_args.add_argument(arg_name, help=arg_help, 
                                          **parser_remaining_kwargs)
             elif(arg_name in ['-abinit', '-files_file']):
