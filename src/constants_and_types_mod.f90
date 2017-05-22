@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -44,7 +44,8 @@ PUBLIC :: calc_spec_func_explicitly, stop_if_pckpt_cannot_be_parsed, &
 PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_point_properties, &
           star, bz_direction, eqv_bz_directions, irr_bz_directions, selected_pcbz_directions, &
           geom_unfolding_relations_for_each_SCKPT, UnfoldedQuantities, & 
-          UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction
+          UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction, &
+          UnfoldDensityOpContainer, MatrixIndices
 
 
 !! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
@@ -75,20 +76,24 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
 type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &
-                          output_file_symm_averaged_EBS, output_file_only_user_selec_direcs, &
-                          pw_code, qe_outdir, qe_prefix, abinit_files_file 
+                          output_file_symm_averaged_EBS, &
+                          output_file_only_user_selec_direcs, &
+                          output_file_symm_averaged_unf_dens_op, &
+                          output_file_only_user_selec_direcs_unf_dens_op, &
+                          pw_code, qe_outdir, qe_prefix, abinit_files_file, castep_seed 
     integer :: spin_channel, n_sckpts_to_skip
     real(kind=dp), dimension(1:3) :: saxis, normal_to_proj_plane, &
                                      origin_for_spin_proj_cartesian, origin_for_spin_proj_rec
     logical :: stop_if_not_commensurate, write_attempted_pc_corresp_to_input_pc, &
                write_attempted_pc_corresp_to_SC, no_symm_avg, no_symm_sckpts, &
                perform_unfold, origin_for_spin_proj_passed_in_rec, &
-               continue_if_npw_smaller_than_expected
+               continue_if_npw_smaller_than_expected, write_unf_dens_op
 end type comm_line_args
 
 type :: timekeeping 
     real(kind=dp) :: start, end, read_wf, calc_spec_weights, calc_SF, calc_dN, &
-                     calc_rho, calc_pauli_vec
+                     calc_rho, calc_pauli_vec, calc_pauli_vec_projs, &
+                     write_dN_files, write_unf_dens_op_files
 end type timekeeping 
 
 type :: vec3d
@@ -98,6 +103,10 @@ end type vec3d
 type :: vec3d_int
   integer, dimension(1:3) :: coord
 end type vec3d_int
+
+type :: MatrixIndices
+    integer, dimension(1:2) :: indices
+end type MatrixIndices
 
 type :: pw_wavefunction
     integer :: i_spin, n_pw, n_spin, n_bands, n_spinor, &
@@ -172,6 +181,7 @@ type :: trial_folding_pckpt
     ! calculate the spectral weights associated with a SC wavefunction psi(K,n),
     ! where K' = SK and S is a symmetry operation of the crystal's point group.
     real(kind=dp), dimension(1:3) :: coords_actual_unfolding_K, coords, &
+                                     coords_SCKPT_used_for_coeffs, &
                                      Scoords, Sfolding_vec, Sorigin_for_spin_proj
     logical :: folds
 end type trial_folding_pckpt
@@ -198,17 +208,28 @@ type :: geom_unfolding_relations_for_each_SCKPT
     integer :: n_pckpts,n_folding_pckpts
     type(vec3d), dimension(:), allocatable :: list_of_SCKPTS
     type(GUR_indices) :: current_index
+    real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC, b_matrix_pc
 end type geom_unfolding_relations_for_each_SCKPT
 
 
 !! Defining derived types to support a "UnfoldedQuantities" type.
+type :: UnfoldDensityOpContainer
+    complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: rho
+    type(MatrixIndices), dimension(:), allocatable :: band_indices
+    integer :: iener_in_full_pc_egrid, nbands
+end type UnfoldDensityOpContainer
+
 type :: unfolded_quantities_for_given_pckpt
     !! This type holds the unfolded quantities, for a given pc-kpt, 
     !! at ever point of the energy grid
     real(kind=dp), dimension(:), allocatable :: dN, SF, &  !! delta_Ns and spectral functions at each point of the energy grid
                                                 spin_proj_perp, spin_proj_para
     ! sigma(1:nener,1:3) holds the expected values of the Pauli matrices sigma_i; i=x, y, z (used if spinor WF)
-    real(kind=dp), dimension(:,:), allocatable :: sigma 
+    real(kind=dp), dimension(:,:), allocatable :: sigma
+    ! rho will hold the unfolding density operator, if needed
+    ! The dimension(:) statement is needed because there is one such operator for
+    ! each energy E in the PC energy grid such that delta_N(k,E)>0.
+    type(UnfoldDensityOpContainer), dimension(:), allocatable :: rhos 
 end type unfolded_quantities_for_given_pckpt
 
 type :: list_of_pckpts_for_unfolded_quantities
@@ -224,12 +245,13 @@ end type UnfoldedQuantities_info_for_needed_pcbz_dirs
 !! The structure of a variable unf of type(UnfoldedQuantities) is:
 !! unf%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(ipc_kpt)%PROPERTY(iener)
 type :: UnfoldedQuantities
+    integer :: n_SC_bands
     type(UnfoldedQuantities_info_for_needed_pcbz_dirs), dimension(:), allocatable :: selec_pcbz_dir
 end type UnfoldedQuantities
 
 type :: UnfoldedQuantitiesForOutput
+    integer :: n_SC_bands
     type(list_of_pckpts_for_unfolded_quantities), dimension(:), allocatable :: pcbz_dir
 end type UnfoldedQuantitiesForOutput
-
 
 end module constants_and_types

@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -38,15 +38,20 @@ PUBLIC :: star, time, n_digits_integer, cross, norm, angle, real_seq, integer_se
           check_if_pc_and_SC_are_commensurate, get_pcbz_dirs_2b_used_for_EBS, kpts_line, &
           allocate_UnfoldedQuantities, allocate_UnfoldedQuantitiesForOutput, create_crystal, &
           append,  versor, trace_AB, initialize, analise_symm_pc_SC, trace, formatted_time, &
-          to_ev, to_angstrom
+          to_ev, to_angstrom, list_index
 
 
 interface append
-  module procedure append_integer_list, append_character_list
+  module procedure append_integer_list, append_character_list, append_complex_list, &
+                   append_matrix_index_list
 end interface append
 
+interface list_index
+    module procedure list_index_integer, list_index_matrix_indices
+end interface list_index
+
 interface trace_AB
-    module procedure trace_AB_real, trace_AB_cplx
+    module procedure trace_AB_real, trace_AB_cplx, trace_AB_A_is_rho_B_is_cplx
 end interface trace_AB
 
 interface trace
@@ -77,13 +82,16 @@ implicit none
 type(timekeeping), intent(out) :: times
 
     times%start=time()
-    times%end = times%start
     times%read_wf=0.0_dp
     times%calc_spec_weights=0.0_dp
     times%calc_SF=0.0_dp
     times%calc_dN=0.0_dp
     times%calc_rho=0.0_dp
     times%calc_pauli_vec=0.0_dp
+    times%calc_pauli_vec_projs=0.0_dp
+    times%write_dN_files=0.0_dp
+    times%write_unf_dens_op_files=0.0_dp
+    times%end = time()
 
 end subroutine initialize
 
@@ -155,6 +163,52 @@ endif
 
 end subroutine append_integer_list
 
+subroutine append_matrix_index_list(item, list)
+!! Copyright (C) 2017 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
+implicit none
+integer, dimension(1:2), intent(in) :: item
+type(MatrixIndices), dimension(:), allocatable, intent(inout) :: list
+type(MatrixIndices), dimension(:), allocatable :: new_list
+
+if(.not.allocated(list))then
+    allocate(list(1:1))
+    list(1)%indices = item
+else
+    allocate(new_list(1:size(list)+1))
+    new_list(1:size(list)) = list
+    new_list(size(list)+1)%indices = item
+    deallocate(list)
+    allocate(list(1:size(new_list)))
+    list = new_list
+    deallocate(new_list)
+endif
+
+end subroutine append_matrix_index_list
+
+subroutine append_complex_list(item, list)
+!! Copyright (C) 2017 Paulo V. C. Medeiros
+!! Not fully tested, but works for BandUP
+implicit none
+complex(kind=kind_cplx_coeffs), intent(in) :: item
+complex(kind=kind_cplx_coeffs), dimension(:), allocatable, intent(inout) :: list
+complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: new_list
+
+if(.not.allocated(list))then
+    allocate(list(1:1))
+    list(1) = item
+else
+    allocate(new_list(1:size(list)+1))
+    new_list(1:size(list)) = list
+    new_list(size(list)+1) = item
+    deallocate(list)
+    allocate(list(1:size(new_list)))
+    list = new_list
+    deallocate(new_list)
+endif
+
+end subroutine append_complex_list
+
 subroutine append_character_list(item, list)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 !! Not fully tested, but works for BandUP
@@ -179,6 +233,54 @@ else
 endif
 
 end subroutine append_character_list
+
+
+
+function list_index_integer(item, list) result(rtn) 
+! Index of first occurence of item in list
+implicit none
+integer :: rtn
+integer, intent(in) :: item
+integer, dimension(:), intent(in) :: list
+integer :: i
+logical :: found
+    
+    rtn = 0
+    if(lbound(list,1)>0 .and. ubound(list,1)>=lbound(list,1))then
+        found = .FALSE.
+        do i=1,size(list)
+            if(list(i) == item)then
+                found = .TRUE.
+                exit
+            endif
+        enddo
+        if(found) rtn = i
+    endif
+
+end function list_index_integer
+
+function list_index_matrix_indices(item, list) result(rtn) 
+! Index of first occurence of item in list
+implicit none
+integer :: rtn
+integer, dimension(1:2), intent(in) :: item
+type(MatrixIndices), dimension(:), intent(in) :: list
+integer :: i
+logical :: found
+    
+    rtn = 0
+    if(lbound(list,1)>0 .and. ubound(list,1)>=lbound(list,1))then
+        found = .FALSE.
+        do i=1,size(list)
+            if(all(list(i)%indices==item))then
+                found = .TRUE.
+                exit
+            endif
+        enddo
+        if(found) rtn = i
+    endif
+
+end function list_index_matrix_indices
 
 
 
@@ -1317,6 +1419,29 @@ integer :: msize, i
     enddo
 
 end function trace_AB_cplx
+
+
+function trace_AB_A_is_rho_B_is_cplx(A,B) result(rtn)
+complex(kind=kind_cplx_coeffs) :: rtn
+type(UnfoldDensityOpContainer), intent(in) :: A
+complex(kind=kind_cplx_coeffs), dimension(:,:), intent(in) :: B
+integer :: msize, i, j, linear_index
+
+    rtn = 0.0_kind_cplx_coeffs
+    msize = size(B, dim=1)    
+    !$omp parallel do default(none) schedule(guided) &
+    !$omp private(i,j,linear_index) &
+    !$omp shared(msize, A, B) &
+    !$omp reduction(+:rtn)
+    do i=1, msize
+        do j=1, msize
+            linear_index = list_index([i,j], A%band_indices)
+            if(linear_index<1) cycle
+            rtn = rtn + A%rho(linear_index) * B(j,i)
+        enddo
+    enddo
+
+end function trace_AB_A_is_rho_B_is_cplx
 
 
 function trace_AB_hermit(A,B) result(rtn)

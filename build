@@ -1,0 +1,73 @@
+#! /usr/bin/env python
+# Copyright (C) 2017 Paulo V. C. Medeiros
+# This script builds BandUP
+# This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+#
+# BandUP is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+#  BandUP is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import print_function
+import argparse
+import sys
+import os
+import time
+working_dir = os.getcwd()
+bandupy_path = os.path.join(working_dir, 'src', 'python_interface', 'bandupy') 
+sys.path.insert(1, os.path.dirname(bandupy_path))
+from bandupy.files import mkdir
+from bandupy.build import (
+    assert_valid_compiler,
+    compatible_c,
+    compatible_omp,
+    castep_interface_available,
+)
+from bandupy.constants import BANDUP_DIR, BANDUP_CONFIG_DIR, BANDUP_CONFIG_FILE
+
+supported_fortran_compilers = ['ifort', 'gfortran']
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    '-compiler', nargs='?', default=None, choices=supported_fortran_compilers,
+    help=('If the fortran compiler is not explicitly chosen, the script will attempt '+
+          'to use one of the allowed choices, in the same order they appear here.'),
+)
+parser.add_argument(
+    '--doc', action='store_true', 
+    help='Attempts to generate source code documentation using doxygen.'
+)
+parser.add_argument('--clean', action='store_true', 
+                    help='Removes all files created when building BandUP.')
+args = parser.parse_args()
+args = assert_valid_compiler(args, supported_fortran_compilers)
+omp_flag = compatible_omp(args.compiler)
+c_comp = compatible_c(args.compiler)
+
+# Building (or cleaning, if "--clean" was passed)
+clean = ''
+if(args.clean): 
+    clean = 'veryclean'
+os.chdir(os.path.join(working_dir, 'src', 'external'))
+os.system('make FC=%s CC=%s OMP_FLAG=%s %s'%(args.compiler, c_comp, omp_flag, clean))
+os.chdir(os.path.join(working_dir, 'src'))
+if(args.doc and not args.clean):
+    os.system('make sourcedoc')
+else:
+    os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
+os.chdir(working_dir)
+
+# Creating config dir and file
+mkdir(BANDUP_CONFIG_DIR, ignore_existing=True)
+now = time.strftime('%-H:%M UTC%z on %b %d, %Y')
+with open(BANDUP_CONFIG_FILE, 'w') as f:
+    f.write('# Created by BandUP on %s\n'%(now))
+    f.write('BANDUPDIR=%s\n'%(BANDUP_DIR))
+    if(castep_interface_available(calling_from_build_script=True)):
+        f.write('CASTEP_SUPPORT=True\n')

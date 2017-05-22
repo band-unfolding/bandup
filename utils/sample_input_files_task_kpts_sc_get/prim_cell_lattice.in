@@ -1,0 +1,9 @@
+C ! Graphene primitive cell                                                                  
+   2.467000000
+   0.866025403  -0.500000000   0.000000000
+   0.866025403   0.500000000   0.000000000
+   0.000000000   0.000000000   6.080259424 # If this is the last line (or if the next line is blank), then BandUP ignores the positions of the atoms.
+  2
+Cartesian 
+   0.288675135   0.000000000   3.040129712  
+   1.443375672   0.000000000   3.040129712  

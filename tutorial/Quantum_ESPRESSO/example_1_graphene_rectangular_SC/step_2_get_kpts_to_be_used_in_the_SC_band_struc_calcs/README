@@ -1,4 +1,4 @@
-Check the .sh file for the parts you need to change to make it work in your environment.
+Read and understand the .sh file. Instructions and tips are provided as comments.
 Run the .sh file.
 
 What to do with the gerenated "KPOINTS_supercell.out" file:

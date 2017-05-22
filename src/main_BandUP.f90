@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2015 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -40,7 +40,7 @@ integer, dimension(:), allocatable :: selected_coeff_indices,n_pckpts_dirs
 integer :: ipc_kpt, i_SCKPT, n_selec_pcbz_dirs, alloc_stat, n_folding_pckpts_parsed, &
            i_selec_pcbz_dir, i_needed_dirs
 logical :: pckpt_folds, crystal_SC_read_from_file
-!!*************************************************************************************************
+!!*************************************************************************************
 call initialize(times)
 !$ call omp_set_dynamic(.FALSE.)
 call print_welcome_messages(package_version)
@@ -74,7 +74,8 @@ call define_pckpts_to_be_checked(pckpts_to_be_checked, all_dirs_used_for_EBS_alo
                                  n_pckpts_dirs(:))
 
 call get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
-call get_geom_unfolding_relations(GUR, list_of_SCKPTS, pckpts_to_be_checked, crystal_SC)
+call get_geom_unfolding_relations(GUR, list_of_SCKPTS, pckpts_to_be_checked, &
+                                  crystal_pc, crystal_SC)
 call print_message_success_determining_GUR(GUR, stop_if_GUR_fails, is_main_code=.TRUE.) 
 if((GUR%n_pckpts /= GUR%n_folding_pckpts) .and. stop_if_GUR_fails) stop
 call print_geom_unfolding_relations(GUR, list_of_SCKPTS, crystal_pc, crystal_SC)
@@ -124,11 +125,18 @@ enddo
 !! >> delta_N_symm_avrgd_for_EBS: Symmetry-averaged unfolded EBS. 
 !!                                This is the type of EBS you'll see in my paper 
 !!                                [Phys. Rev. B 89, 041407(R) (2014)].
-call get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, delta_N, &
-                             all_dirs_used_for_EBS_along_pcbz_dir, pckpts_to_be_checked)
-call say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
-                                  pckpts_to_be_checked,energy_grid, e_fermi, zero_of_kpts_scale, &
-                                  GUR%n_pckpts, GUR%n_folding_pckpts, n_folding_pckpts_parsed)
+write(*,'(A)')'Gathering results...'
+call get_delta_Ns_for_output(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
+                             delta_N, &
+                             all_dirs_used_for_EBS_along_pcbz_dir, pckpts_to_be_checked,&
+                             times=times)
+call say_goodbye_and_save_results(delta_N_only_selected_dirs, &
+                                  delta_N_symm_avrgd_for_EBS, &
+                                  GUR, & 
+                                  pckpts_to_be_checked,energy_grid, e_fermi, &
+                                  zero_of_kpts_scale, &
+                                  GUR%n_pckpts, GUR%n_folding_pckpts, &
+                                  n_folding_pckpts_parsed, times=times)
 call print_final_times(times)
-!!*************************************************************************************************
+!!*************************************************************************************
 end program BandUP_main

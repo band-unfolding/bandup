@@ -1,0 +1,75 @@
+#! /usr/bin/env python
+# Copyright (C) 2017 Paulo V. C. Medeiros
+# A python wrapper to BandUP and its plotting tool
+# This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+#
+# BandUP is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+#  BandUP is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import print_function
+import os
+import sys
+# Making sure the bandupy module can be found
+bandup_dir = None
+config_file = os.path.join(os.path.expanduser('~'), '.bandup', 'config')
+try:
+    # (i) Has the user set the BANDUPPATH environment variable?
+    #     If yes, then the config file will be ignored for this.
+    bandup_dir = os.environ['BANDUPDIR']
+except(KeyError):
+    # (ii) BANDUPDIR not set. Try the config file then.
+    try:
+        with open(config_file, 'r') as f:
+            flines = f.readlines()
+        for line in flines:
+            if('BANDUPDIR' in line):
+                bandup_dir = line.split('=')[1].strip()
+                break
+    except(IOError):
+        pass
+try:
+    bandupy_path = os.path.join(bandup_dir, 'src', 'python_interface', 'bandupy')
+    valid_bandupy_path = os.access(bandupy_path, os.R_OK)
+except(AttributeError):
+    bandupy_path = None
+    valid_bandupy_path = False
+
+if(not valid_bandupy_path):
+    msg  = "ERROR: Could not find BandUP's python interface module 'bandupy'.\n"
+    msg += '       This module comes with BandUP, and this error most likely\n'
+    msg += "       means that either (i) BandUP's directory has been moved\n"
+    msg += "       from where the install was originally made, or (ii) the\n"
+    msg += '       environment variable BANDUPDIR points to an invalid path. \n'
+    msg += '       Please either:\n'
+    msg += '           (i)  Edit the file "%s"\n'%(config_file)
+    msg += "                to include a line of the form\n"
+    msg += '                        BANDUPDIR=${BANDUPDIR}\n'
+    msg += "                where ${BANDUPDIR} is the full path to BandUP's\n"
+    msg += '                current main directory, (the one containing the\n'
+    msg += '                "build.sh" script), or\n'
+    msg += '           (ii) Set the environment variable "BANDUPDIR" also to \n'
+    msg += "                BandUP's current main directory.\n"
+    msg += "       Then try again.\n"
+    msg += "Stopping now."
+    print(msg)
+    sys.exit(0)
+sys.path.insert(1, os.path.dirname(bandupy_path))
+# Now proceed normally
+from bandupy.argparse_wrapper import BandUpPythonArgumentParser
+from bandupy.runners import run_requested_task
+
+if(__name__ == '__main__'):
+    parser = BandUpPythonArgumentParser()
+    args = parser.parse_args()
+    run_requested_task(args)
+
+

@@ -1,0 +1,940 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <author>Paulo V C Medeiros</author>
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>780</width>
+    <height>770</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>16777215</height>
+   </size>
+  </property>
+  <property name="focusPolicy">
+   <enum>Qt::StrongFocus</enum>
+  </property>
+  <property name="windowTitle">
+   <string>BandUP Plot</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <layout class="QGridLayout" name="gridLayout">
+    <item row="0" column="0">
+     <widget class="QScrollArea" name="scrollArea">
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="scrollAreaWidgetContents">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>772</width>
+         <height>704</height>
+        </rect>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="4" column="1">
+         <widget class="QPushButton" name="plot_pushButton">
+          <property name="text">
+           <string>Plot</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QGroupBox" name="color_stuff_groupBox">
+          <property name="title">
+           <string>Colorscale</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_6">
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_colormap_comboBox">
+             <property name="text">
+              <string>Colormap</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="label_n_levels_lineEdit">
+             <property name="text">
+              <string>Levels</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QComboBox" name="colormap_comboBox">
+             <item>
+              <property name="text">
+               <string>Default</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="n_levels_spinBox">
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>9999</number>
+             </property>
+             <property name="value">
+              <number>1001</number>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="label_vmin_lineEdit">
+             <property name="toolTip">
+              <string/>
+             </property>
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Assign min color to N(k, &lt;span style=&quot; font-family:'sans-serif'; font-size:14px; color:#222222;&quot;&gt;ε&lt;/span&gt;) &amp;lt;=&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="textFormat">
+              <enum>Qt::RichText</enum>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLineEdit" name="vmin_lineEdit">
+             <property name="toolTip">
+              <string>All values of δN that are smaller than this value will be associated with the same (min) color of the chosen colormap</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>0.0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="label_vmax_lineEdit">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Assign max color to N(k, &lt;span style=&quot; font-family:'sans-serif'; font-size:14px; color:#222222;&quot;&gt;ε&lt;/span&gt;) &amp;gt;=&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QLineEdit" name="vmax_lineEdit">
+             <property name="toolTip">
+              <string>All values of δN that are larger than this value will be associated with the same (max) color of the chosen colormap</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>Auto</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="3" column="1">
+         <widget class="QGroupBox" name="groupBox">
+          <property name="title">
+           <string>Other options</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_7">
+           <item row="0" column="0" colspan="2">
+            <widget class="QCheckBox" name="show_colorbar_checkBox">
+             <property name="text">
+              <string>Show colorbar</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_decimal_digits_cb_spinBox">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Show N(k, &lt;span style=&quot; font-family:'sans-serif'; font-size:14px; color:#222222;&quot;&gt;ε&lt;/span&gt;) with&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="decimal_digits_cb_spinBox">
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="maximum">
+              <number>4</number>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="2" colspan="2">
+            <widget class="QLabel" name="label_decimal_digits_cb_spinBox_2">
+             <property name="text">
+              <string>decimals</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QCheckBox" name="show_colorbar_label_checkBox">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>Show colorbar label</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="4">
+            <widget class="QCheckBox" name="show_colorbar_full_label_checkBox">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="text">
+              <string>Include δε in the label</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="3">
+            <widget class="QLabel" name="label_delta_E_spinBox">
+             <property name="text">
+              <string>Size δε of the energy intervals</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="3">
+            <widget class="QDoubleSpinBox" name="dE_spinBox">
+             <property name="toolTip">
+              <string>If set to &quot;File&quot;, then BandUP will get δE from the δN(k, E) file</string>
+             </property>
+             <property name="whatsThis">
+              <string/>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="singleStep">
+              <double>0.010000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.050000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0" colspan="2">
+            <widget class="QLabel" name="label_interpolation_comboBox">
+             <property name="text">
+              <string>Grid interpolation method</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="2" colspan="2">
+            <widget class="QComboBox" name="interpolation_comboBox">
+             <property name="currentIndex">
+              <number>1</number>
+             </property>
+             <item>
+              <property name="text">
+               <string>Nearest</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Linear</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Cubic</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QGroupBox" name="input_files_groupBox">
+          <property name="title">
+           <string>Input</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="6" column="0" colspan="2">
+            <widget class="QLabel" name="label_select_EBS_file_Button">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Energy grid configuration file&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QLineEdit" name="select_pckpts_file_lineEdit">
+             <property name="toolTip">
+              <string>The file will be automatically detected if it is present in the folder where the program has been called</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QToolButton" name="select_EBS_file_Button">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QToolButton" name="select_prim_cell_file_Button">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="0">
+            <widget class="QToolButton" name="select_energy_file_Button">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QLabel" name="label_select_pckpts_file_Button">
+             <property name="text">
+              <string>Primitive cell file</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" colspan="2">
+            <widget class="QLabel" name="label_select_prim_cell_file_Button">
+             <property name="text">
+              <string>Unfolded N(k, ε) file (BandUP's output)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="7" column="1">
+            <widget class="QLineEdit" name="select_energy_file_lineEdit">
+             <property name="toolTip">
+              <string>The file will be automatically detected if it is present in the folder where the program has been called</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QToolButton" name="select_pckpts_file_Button">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLineEdit" name="select_EBS_file_lineEdit">
+             <property name="toolTip">
+              <string>The file will be automatically detected if it is present in the folder where the program has been called</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="cursorPosition">
+              <number>0</number>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QLineEdit" name="select_prim_cell_file_lineEdit">
+             <property name="toolTip">
+              <string>The file will be automatically detected if it is present in the folder where the program has been called</string>
+             </property>
+             <property name="inputMethodHints">
+              <set>Qt::ImhNone</set>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="frame">
+              <bool>true</bool>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="2">
+            <widget class="QLabel" name="label_select_energy_file_Button">
+             <property name="text">
+              <string>Primitive cell K-points file</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="3">
+         <widget class="Line" name="line">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" rowspan="4">
+         <widget class="QGroupBox" name="figure_control_groupBox">
+          <property name="title">
+           <string>Figure control</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_3">
+           <item row="2" column="0" colspan="5">
+            <widget class="QLabel" name="label_fig_orientation_comboBox">
+             <property name="text">
+              <string>Orientation</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" colspan="5">
+            <widget class="QLabel" name="label_fig_resolution_comboBox">
+             <property name="text">
+              <string>Resolution</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="label_e_fermi_color_comboBox">
+             <property name="text">
+              <string>Color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="5">
+            <widget class="QDoubleSpinBox" name="high_symm_linewidth_SpinBox">
+             <property name="specialValueText">
+              <string>Auto</string>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="4">
+            <widget class="QComboBox" name="e_fermi_line_style_comboBox">
+             <property name="currentIndex">
+              <number>3</number>
+             </property>
+             <item>
+              <property name="text">
+               <string>Solid</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Dashed</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>DashDot</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Dotted</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="7" column="0" colspan="10">
+            <widget class="QCheckBox" name="draw_hygh_symm_kpts_lines_checkBox">
+             <property name="text">
+              <string>Draw lines for the high-symm. k-points</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="0">
+            <widget class="QLabel" name="label_high_symm_lines_color_comboBox">
+             <property name="text">
+              <string>Color</string>
+             </property>
+            </widget>
+           </item>
+           <item row="10" column="0" colspan="9">
+            <widget class="QCheckBox" name="draw_high_symm_kpts_labels_checkBox">
+             <property name="text">
+              <string>Show k-point labels (if present)</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0" colspan="6">
+            <widget class="QCheckBox" name="draw_e_fermi_checkBox">
+             <property name="text">
+              <string>Draw E-Fermi Line</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="4">
+            <widget class="QLabel" name="label_high_symm_lines_style_comboBox">
+             <property name="text">
+              <string>Style</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="5">
+            <widget class="QLabel" name="label_e_fermi_linewidth_SpinBox">
+             <property name="text">
+              <string>Thickness</string>
+             </property>
+            </widget>
+           </item>
+           <item row="8" column="5">
+            <widget class="QLabel" name="label_high_symm_linewidth_SpinBox">
+             <property name="text">
+              <string>Thickness</string>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="0">
+            <widget class="QLabel" name="label_min_k_lineEdit">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;k&lt;span style=&quot; vertical-align:sub;&quot;&gt;Min&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="0">
+            <widget class="QLabel" name="label_min_E_lineEdit">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-family:'sans-serif'; font-size:14px; color:#222222;&quot;&gt;ε&lt;/span&gt;&lt;span style=&quot; vertical-align:sub;&quot;&gt;Min&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="4">
+            <widget class="QLabel" name="label_e_fermi_line_style_comboBox">
+             <property name="text">
+              <string>Style</string>
+             </property>
+            </widget>
+           </item>
+           <item row="9" column="4">
+            <widget class="QComboBox" name="high_symm_lines_style_comboBox">
+             <item>
+              <property name="text">
+               <string>Solid</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Dashed</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>DashDot</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Dotted</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="9" column="0" colspan="3">
+            <widget class="QComboBox" name="high_symm_lines_color_comboBox">
+             <item>
+              <property name="text">
+               <string>Default</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="12" column="1">
+            <widget class="QLineEdit" name="min_k_lineEdit">
+             <property name="toolTip">
+              <string>Use this if you want to zoom in. Mind that this may change the values of δN (due to interpolation)</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>Optional</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="1">
+            <widget class="QLineEdit" name="min_E_lineEdit">
+             <property name="toolTip">
+              <string>Use this if you want to zoom in or out. Mind that this may change the values of δN (due to interpolation)</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>-20.0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="4">
+            <widget class="QLineEdit" name="max_E_lineEdit">
+             <property name="toolTip">
+              <string>Use this if you want to zoom in or out. Mind that this may change the values of δN (due to interpolation)</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>5.0</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="3">
+            <widget class="QComboBox" name="fig_orientation_comboBox">
+             <item>
+              <property name="text">
+               <string>Portrait</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Landscape</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="12" column="4">
+            <widget class="QLineEdit" name="max_k_lineEdit">
+             <property name="toolTip">
+              <string>Use this if you want to zoom in. Mind that this may change the values of δN (due to interpolation)</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>Optional</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="5">
+            <widget class="QDoubleSpinBox" name="e_fermi_linewidth_SpinBox">
+             <property name="specialValueText">
+              <string>Auto</string>
+             </property>
+             <property name="singleStep">
+              <double>0.050000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0" colspan="3">
+            <widget class="QComboBox" name="e_fermi_color_comboBox">
+             <item>
+              <property name="text">
+               <string>Default</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="3" column="4">
+            <widget class="QLabel" name="label_aspect_ratio_lineEdit">
+             <property name="text">
+              <string>Aspect ratio</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="5">
+            <widget class="QLineEdit" name="aspect_ratio_lineEdit">
+             <property name="text">
+              <string notr="true"/>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+             <property name="placeholderText">
+              <string>3/4</string>
+             </property>
+            </widget>
+           </item>
+           <item row="11" column="3">
+            <widget class="QLabel" name="label_max_E_lineEdit">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-family:'sans-serif'; font-size:14px; color:#222222;&quot;&gt;ε&lt;/span&gt;&lt;span style=&quot; vertical-align:sub;&quot;&gt;Max&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="12" column="3">
+            <widget class="QLabel" name="label_max_k_lineEdit">
+             <property name="text">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;k&lt;span style=&quot; vertical-align:sub;&quot;&gt;Max&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0" colspan="4">
+            <widget class="QComboBox" name="fig_resolution_comboBox">
+             <property name="currentIndex">
+              <number>1</number>
+             </property>
+             <item>
+              <property name="text">
+               <string>Low (100 dpi)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Medium (300 dpi)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>High (600 dpi)</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+          </layout>
+          <zorder>label_min_E_lineEdit</zorder>
+          <zorder>label_min_k_lineEdit</zorder>
+          <zorder>label_high_symm_lines_color_comboBox</zorder>
+          <zorder>draw_hygh_symm_kpts_lines_checkBox</zorder>
+          <zorder>label_e_fermi_color_comboBox</zorder>
+          <zorder>draw_e_fermi_checkBox</zorder>
+          <zorder>label_fig_orientation_comboBox</zorder>
+          <zorder>label_fig_resolution_comboBox</zorder>
+          <zorder>fig_resolution_comboBox</zorder>
+          <zorder>fig_orientation_comboBox</zorder>
+          <zorder>e_fermi_color_comboBox</zorder>
+          <zorder>high_symm_lines_color_comboBox</zorder>
+          <zorder>draw_high_symm_kpts_labels_checkBox</zorder>
+          <zorder>min_E_lineEdit</zorder>
+          <zorder>min_k_lineEdit</zorder>
+          <zorder>high_symm_lines_style_comboBox</zorder>
+          <zorder>high_symm_linewidth_SpinBox</zorder>
+          <zorder>label_high_symm_lines_style_comboBox</zorder>
+          <zorder>label_high_symm_linewidth_SpinBox</zorder>
+          <zorder>e_fermi_line_style_comboBox</zorder>
+          <zorder>label_e_fermi_line_style_comboBox</zorder>
+          <zorder>e_fermi_linewidth_SpinBox</zorder>
+          <zorder>label_e_fermi_linewidth_SpinBox</zorder>
+          <zorder>max_E_lineEdit</zorder>
+          <zorder>max_k_lineEdit</zorder>
+          <zorder>label_aspect_ratio_lineEdit</zorder>
+          <zorder>aspect_ratio_lineEdit</zorder>
+          <zorder>label_max_E_lineEdit</zorder>
+          <zorder>label_max_k_lineEdit</zorder>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QGroupBox" name="output_file_groupBox">
+          <property name="title">
+           <string>Output</string>
+          </property>
+          <widget class="QCheckBox" name="show_figure_checkBox">
+           <property name="geometry">
+            <rect>
+             <x>13</x>
+             <y>30</y>
+             <width>98</width>
+             <height>20</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Show figure</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="save_figure_checkBox">
+           <property name="geometry">
+            <rect>
+             <x>13</x>
+             <y>51</y>
+             <width>94</width>
+             <height>20</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Save figure</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QCheckBox" name="open_saved_file_checkBox">
+           <property name="geometry">
+            <rect>
+             <x>13</x>
+             <y>72</y>
+             <width>120</width>
+             <height>20</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Open saved file</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+          <widget class="QToolButton" name="select_out_figure_file_Button">
+           <property name="geometry">
+            <rect>
+             <x>15</x>
+             <y>122</y>
+             <width>26</width>
+             <height>22</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>...</string>
+           </property>
+          </widget>
+          <widget class="QLabel" name="label_select_out_figure_file_Button">
+           <property name="geometry">
+            <rect>
+             <x>15</x>
+             <y>98</y>
+             <width>64</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>Output file</string>
+           </property>
+          </widget>
+          <widget class="QLineEdit" name="select_out_figure_file_lineEdit">
+           <property name="geometry">
+            <rect>
+             <x>49</x>
+             <y>122</y>
+             <width>241</width>
+             <height>21</height>
+            </rect>
+           </property>
+           <property name="toolTip">
+            <string>Example: BandUP_EBS_plot.png</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="cursorPosition">
+            <number>0</number>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+           </property>
+          </widget>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>780</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <addaction name="menuFile"/>
+  </widget>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>About</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>actionExit</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>320</x>
+     <y>369</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

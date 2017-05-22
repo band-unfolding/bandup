@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -32,8 +32,11 @@ use strings
 use general_io
 use qexml_module
 use read_qe_wavefunctions
-use read_vasp_wavecar
 use read_abinit_wavefunctions
+# if defined (__CASTEP_SUPPORT__)
+use read_castep_wavefunctions
+# endif
+use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
 use math
@@ -55,18 +58,36 @@ CONTAINS
 subroutine print_welcome_messages(package_version)
 implicit none
 character(len=*), intent(in), optional :: package_version
+character(len=127) :: git_hash, git_branch, aux_source_info_str
+
+git_hash = get_git_info_compiled_files('hash_latest_commit')
+git_branch = get_git_info_compiled_files('branch_name')
+
 write(*,'(A,/,A)') &
-    '=====================================================================================', &
-    '             BandUP: Band Unfolding code for Plane-wave based calculations           '
+'=====================================================================================',&
+'             BandUP: Band Unfolding code for Plane-wave based calculations           '
 if(present(package_version))then
     write(*,'(A)') &
-    "                            V. "//trim(adjustl(package_version))
+"                            V. "//trim(adjustl(package_version))
 endif
     write(*,'(A)') &
-    "                     Compiled using "//trim(adjustl(compiler_version()))
+"        Compiled using "//trim(adjustl(compiler_version()))//&
+" on "//trim(adjustl(compilation_time()))
+if(len(trim(adjustl(git_branch)))>0 .or. len(trim(adjustl(git_hash)))>0)then
+    aux_source_info_str = &
+"        From source"
+    if(len(trim(adjustl(git_branch)))>0)then
+        aux_source_info_str = trim(aux_source_info_str)//' '//&
+                              '"'//trim(adjustl(git_branch))//'"'
+    endif
+    if(len(trim(adjustl(git_hash)))>0)then
+        aux_source_info_str = trim(aux_source_info_str)//' '//trim(adjustl(git_hash))
+    endif
+    write(*,'(A)') trim(aux_source_info_str)
+endif 
 write(*,'(17(A,/),A)') &
-    '=====================================================================================', &
-    'Copyright (C) 2013-2016 Paulo V. C. Medeiros                                         ', &
+'=====================================================================================',&
+    'Copyright (C) 2013-2017 Paulo V. C. Medeiros                                         ', &
     '                                                                                     ', & 
     '                        Computational Physics Division                               ', &
     '                        Department of Physics, Chemistry and Biology - IFM           ', &
@@ -270,14 +291,20 @@ character(len=*), intent(in) :: input_file
 real(kind=dp), intent(out) :: e_fermi,E_start,E_end,delta_e
 integer :: unt, ios
 real(kind=dp) :: E_start_minus_ef, E_end_minus_ef, aux_ener, dE_factor
-character(len=str_len) :: str_delta_e
+character(len=str_len) :: str_delta_e, aux_str
+character(len=1) :: first_char
 logical :: verbose
 
     verbose = .TRUE.
     dE_factor = 0.4E-2_dp
     unt = available_io_unit()
     open(unit=unt, file=input_file)
-        read(unt,*) e_fermi
+        first_char = '#'
+        do while (first_char=='#')
+            read(unt,*) aux_str
+            read(aux_str, *) first_char
+        enddo
+        read(aux_str,*) e_fermi
         read(unt,*) E_start_minus_ef
         read(unt,*) E_end_minus_ef
         read(unt,*) str_delta_e
@@ -333,13 +360,13 @@ integer :: ivec, icomp
 end subroutine read_unit_cell
 
 
-!================================================================================================
+!======================================================================================
 !> \ingroup changes_upon_new_interface
 !> Prints the last messages before the unfolding process starts.
 !> If you introduce an interface to a new ab initio code, and don't modify this
 !! routine, no specific information about the ab initio code will be shown, but
 !! BandUP will work just fine.
-!================================================================================================
+!======================================================================================
 subroutine print_last_messages_before_unfolding(args, list_of_SCKPTS, B_matrix_SC, vbz, &
                                                 E_start, E_end, delta_e, e_fermi, spinor_wf)
 implicit none
@@ -357,7 +384,7 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
     nkpts = size(list_of_SCKPTS)
     select case(lower_case(trim(args%pw_code)))
-        case('vasp', 'abinit') 
+        case('vasp', 'abinit', 'castep') 
             call get_file_size_in_bytes(file_size_in_bytes, file=args%WF_file)
             file_size_in_MB = real(file_size_in_bytes,kind=dp)/(2.0**20)
             file_size_in_GB = real(file_size_in_bytes,kind=dp)/(2.0**30)
@@ -386,6 +413,12 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
                 write(*,'(3(A,/), A)')&
         '=========================================================================', &
         '    The interface to ABINIT is still under test. Use it with caution.    ', &
+        '                    Feedback is appreciated!!                            ', &
+        '========================================================================='
+            else if(lower_case(trim(args%pw_code))=='castep')then
+                write(*,'(3(A,/), A)')&
+        '=========================================================================', &
+        '    The interface to CASTEP is still under test. Use it with caution.    ', &
         '                    Feedback is appreciated!!                            ', &
         '========================================================================='
             endif
@@ -417,7 +450,7 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     write(*,'(3(A,f0.5),A)')'Working within the energy interval ',E_start-e_fermi, &
                             ' < E-EF < ',E_end-e_fermi,' in increments of ',delta_e,' eV'
     write(*,'(A,f0.5,A)')'The Fermi energy EF = ',e_fermi, &
-                         ' will be set to the zero of the energy scale in the output file.'
+                         ' will be set to the zero of the energy scale.'
 
     select case (trim(adjustl(upper_case(args%pw_code))))
         case default
@@ -432,10 +465,12 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     write(*,*)
     !$ using_omp = .TRUE.
     if(print_using_omp_msg)then
-    !$  write(*,'(2A,I0,A)')'Some parts of BandUP have been parallelized with OpenMP and will ', &
-    !$                      'be running using a maximum of ',omp_get_max_threads(),' thread(s).'
+    !$  write(*,'(A)')'Some parts of BandUP have been parallelized with OpenMP &
+    !$  and will be running using a'
+    !$  write(*,'(A,I0,A)')'maximum of ',omp_get_max_threads(),' thread(s).'
     !$  write(*,'(A)')"You can choose the maximum number of threads by setting the &
-    !$                 environment variable 'OMP_NUM_THREADS'"
+    !$                 environment variable"
+    !$  write(*,'(A)')'"OMP_NUM_THREADS". Ex.: export OMP_NUM_THREADS=4'
         continue
     endif
     if(.not. using_omp .and. warn_lack_omp)then
@@ -461,11 +496,19 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
 "       │ http://dx.doi.org/10.1103/PhysRevB.89.041407          |                 ", & 
 "        -------------------------------------------------------                  ", &
 "        and the appropriate references therein.                                  "
-    if(spinor_wf)then
+    if(spinor_wf .or. args%write_unf_dens_op)then
         write(*,*)
-        write(*,'(7(A,/),A)') &
+        if(spinor_wf)then
+            write(*,'(3(A,/))') &
 "        Additionally, since you are working with spinor eigenstates (noncollinear ",&
-"        magnetism, spin-orbit coupling), you should as well read and cite         ", &
+"        magnetism, spin-orbit coupling), and unfolding in such cases require using", &
+"        the unfolding-density operator formalism, you should as well read and cite "
+        elseif(args%write_unf_dens_op)then
+            write(*,'(2(A,/))') &
+"        Additionally, since you have requested the unfolding-density operators to be",&
+"        calculated and written out, you should as well read and cite"
+        endif
+        write(*,'(5(A,/),A)') &
 "        --------------------------------------------------------------------------", &
 "  >>>  | Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström and Jonas Björk, |", &
 "       | Phys. Rev. B 91, 041116(R) (2015)                                        |", &
@@ -531,6 +574,11 @@ character(len=10) :: str_SCKPT_number
 end subroutine print_message_pckpt_folds
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_contained_in_wavecar(list_SC_kpts_in_wavecar, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_SC_kpts_in_wavecar
@@ -555,17 +603,23 @@ real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
         deallocate(list_SC_kpts_in_wavecar,stat=alloc_stat)
         allocate(list_SC_kpts_in_wavecar(1:nkpts))
         do i_SCKPT=1,nkpts
-            irec = 2 + (i_SCKPT-1)*(1+nband) + 1 ! Positioning the register at the correct k-point
+            ! Positioning the register at the correct k-point
+            irec = 2 + (i_SCKPT-1)*(1+nband) + 1 
             read(unit=input_file_unit,rec=irec) xnplane,(SCKPT_coords(i),i=1,3)
-            list_SC_kpts_in_wavecar(i_SCKPT)%coord(:) = SCKPT_coords(1)*B_matrix_SC(1,:) + &
-                                                        SCKPT_coords(2)*B_matrix_SC(2,:) + &
-                                                        SCKPT_coords(3)*B_matrix_SC(3,:)
+            list_SC_kpts_in_wavecar(i_SCKPT)%coord(:)=SCKPT_coords(1)*B_matrix_SC(1,:)+ &
+                                                      SCKPT_coords(2)*B_matrix_SC(2,:)+ &
+                                                      SCKPT_coords(3)*B_matrix_SC(3,:)
         enddo
     close(unit=input_file_unit)
 
 end subroutine get_SCKPTS_contained_in_wavecar
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_QE(list_of_SCKPTS, args)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -611,6 +665,11 @@ real(kind=dp) :: alat
 end subroutine get_SCKPTS_QE
 
 
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
 subroutine get_SCKPTS_ABINIT(list_of_SCKPTS, args)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -656,11 +715,40 @@ logical :: wf_file_exists
 end subroutine get_SCKPTS_ABINIT
 
 
-!================================================================================================
+!======================================================================================
+!> \ingroup changes_upon_new_interface
+!> Gets a list of the SC-KPTs present in the wavefunction file.
+!> Similar routines are needed to implement interfaces to other plane-wave codes.
+!======================================================================================
+subroutine get_SCKPTS_CASTEP(list_of_SCKPTS, args)
+implicit none
+type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
+type(comm_line_args), intent(in) :: args
+logical :: wf_file_exists
+
+#   if defined (__CASTEP_SUPPORT__)
+        inquire(file=args%wf_file, exist=wf_file_exists)
+        if(.not. wf_file_exists)then
+            write(*,'(3A)')"ERROR: Wavefunction file '",trim(adjustl(args%wf_file)), &
+                  "' not found."
+            write(*,'(A)')'       Cannot continue. Stopping now.'
+            stop
+        endif
+        call get_list_of_kpts_in_orbitals_file(list_of_SCKPTS, args%wf_file)
+#   else
+        write(*,'(A)')'ERROR (get_SCKPTS_CASTEP): &
+                      CASTEP interface not compiled!'
+        write(*,'(A)')'Cannot continue. Stopping now.'
+        stop
+#   endif
+
+end subroutine get_SCKPTS_CASTEP
+
+!=====================================================================================
 !> \ingroup changes_upon_new_interface
 !> Gets a list of all SC-kpoints contained in the wavefunction file(s).
 !> The k-points should be in cartesian coordinates.
-!================================================================================================
+!=====================================================================================
 subroutine get_list_of_SCKPTS(list_of_SCKPTS, args, crystal_SC)
 implicit none
 type(vec3d), dimension(:), allocatable, intent(out) :: list_of_SCKPTS
@@ -672,6 +760,8 @@ type(crystal_3D), intent(in) :: crystal_SC
             call get_SCKPTS_QE(list_of_SCKPTS, args)
         case('abinit')
             call get_SCKPTS_ABINIT(list_of_SCKPTS, args)
+        case('castep')
+            call get_SCKPTS_CASTEP(list_of_SCKPTS, args)
         case default
             call get_SCKPTS_contained_in_wavecar(list_of_SCKPTS, args, crystal_SC)
     end select
@@ -680,7 +770,7 @@ end subroutine get_list_of_SCKPTS
 
 
 subroutine write_band_struc(out_file,pckpts_to_be_checked,energy_grid, &
-                            delta_N,EF,zero_of_kpts_scale)
+                            delta_N,EF,zero_of_kpts_scale,add_elapsed_time_to)
 implicit none
 character(len=*), intent(in) :: out_file
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
@@ -688,10 +778,13 @@ real(kind=dp), dimension(:), intent(in) :: energy_grid
 type(UnfoldedQuantitiesForOutput), intent(in) :: delta_N
 real(kind=dp), dimension(1:3) :: pckpt, first_pckpt_dir
 real(kind=dp), intent(in), optional :: EF, zero_of_kpts_scale
+real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer :: nener, iener, idir, ndirs, nkpts, ikpt
-real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k
+real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k, &
+                 stime, ftime
 logical :: write_spin_info
 
+    stime = time()
 
     e_fermi = 0.0_dp
     if(present(EF))then
@@ -708,7 +801,7 @@ logical :: write_spin_info
     ndirs = size(pckpts_to_be_checked%selec_pcbz_dir(:))
     coord_first_k_in_dir = origin_of_kpts_line
     open(unit=12,file=out_file)
-        write(12,'(A)')trim(adjustl(file_header_BandUP))
+        write(12,'(A)')file_header_BandUP()
         if(write_spin_info)then
             write(12, '(A)')'# Please mind that the support to two-component spinor-like &
                                wavefunctions is still under test.' 
@@ -749,6 +842,11 @@ logical :: write_spin_info
             coord_first_k_in_dir = coord_k
         enddo
     close(12)
+
+    ftime = time()
+    if(present(add_elapsed_time_to))then
+        add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
+    endif
 
 end subroutine write_band_struc
 
@@ -1000,7 +1098,7 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
     select case(trim(adjustl(args%pw_code)))
         case('qe')
             continue ! Still to implement this test
-        case default ! If VASP or ABINIT
+        case default ! If VASP, ABINIT or CASTEP
             inquire(file=args%WF_file, exist=file_exists)
             if(.not. file_exists)then
                 write(*,'(3A)')"ERROR (read_wavefunction): File ", &
@@ -1043,6 +1141,15 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
         case('abinit')
             call read_abinit_wfk_file(wf, file=args%WF_file, ikpt=i_kpt, &
                                       read_coeffs=read_coefficients, iostat=ios)
+        case('castep')
+#           if defined (__CASTEP_SUPPORT__)
+                call read_castep_orbitals_file(wf, args%WF_file, i_kpt, &
+                                               read_coefficients, ios)
+#           else
+                write(*,'(A)')'ERROR (read_wavefunction): CASTEP interface not compiled!'
+                write(*,'(A)')'Cannot continue. Stopping now.'
+                stop
+#           endif
     end select
     if(read_coefficients .and. renormalize_wf)then
         !$omp parallel do default(none) schedule(guided) &
@@ -1097,7 +1204,8 @@ else
             n_irr_compl_dirs = all_dirs_used_for_EBS_along_pcbz_dir(idir)%n_irr_compl_dirs
             write(*,"(A,I0,A)")"        * ",ncompl_dirs, &
                                " complementary pcbz directions will be considered &
-                                 in order to get a symmetry-averaged EBS."
+                                 in order to get"
+            write(*,"(A)")"          a symmetry-averaged EBS."
             if(ncompl_dirs /= n_irr_compl_dirs)then
                 write(*,"(A,I0,A)")"        * The number of irreducible complementary &
                                     directions is ",n_irr_compl_dirs,"." 
@@ -1190,22 +1298,27 @@ logical, intent(in) :: stop_if_GUR_fails, is_main_code
 end subroutine print_message_success_determining_GUR
 
 
-subroutine say_goodbye_and_save_results(delta_N_only_selected_dirs, delta_N_symm_avrgd_for_EBS, &
+subroutine say_goodbye_and_save_results(delta_N_only_selected_dirs, &
+                                        delta_N_symm_avrgd_for_EBS, &
+                                        GUR, &
                                         pckpts_to_be_checked, energy_grid, &
                                         e_fermi, zero_of_kpts_scale, &
-                                        n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed)
+                                        n_input_pc_kpts,n_folding_pckpts,&
+                                        n_folding_pckpts_parsed, times)
 implicit none
 type(UnfoldedQuantitiesForOutput),  intent(in) :: delta_N_only_selected_dirs, &
                                                   delta_N_symm_avrgd_for_EBS
+type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 real(kind=dp), dimension(:), intent(in) :: energy_grid
 real(kind=dp), intent(in) :: e_fermi, zero_of_kpts_scale
 integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
+type(timekeeping), intent(inout) :: times
 
 
     write(*,*)
-    write(*,*)
-    write(*,'(A)')'Band unfolding process finished.'
+    write(*,'(A)')'Band unfolding process finished. &
+                   The output files will now be written.'
     write(*,'(2(A,I0),A)')'A total of ',n_folding_pckpts, &
                           ' pc-kpts (out of the ',n_input_pc_kpts, &
                           ' checked) satisfied the folding condition.'
@@ -1218,34 +1331,276 @@ integer, intent(in) :: n_input_pc_kpts,n_folding_pckpts,n_folding_pckpts_parsed
             write(*,"(A)")'>>> No symmetry-averaged EBS has been &
                                calculated ("-no_symm_avg" flag used).'
         else
-            !! Writing the delta_N_symm_avrgd_for_EBS
+            write(*,'(A)')'>>> Writing the symm-averaged unfolded N(k,E) for the EBS...'
             call write_band_struc(args%output_file_symm_averaged_EBS, &
                                   pckpts_to_be_checked, energy_grid, &
                                   delta_N_symm_avrgd_for_EBS, &
-                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-            write(*,'(A)')'>>> The symmetry-averaged unfolded delta_Ns for the EBS &
-                               have been saved to the file listed below:'
-            write(*,'(2A)')'    * ', trim(adjustl(args%output_file_symm_averaged_EBS))
+                                  EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale, &
+                                  add_elapsed_time_to=times%write_dN_files)
+            write(*,'(A)')'    Done. The symmetry-averaged unfolded N(k,E) were stored &
+                               in the file listed below:'
+            write(*,'(2A)')'          * ', &
+                           trim(adjustl(args%output_file_symm_averaged_EBS))
         endif
 
         !! Writing delta_N_only_selected_dirs
+        write(*,'(A)')'>>> Writing the not-symm-averaged unfolded N(k,E) for the EBS...'
         call write_band_struc(args%output_file_only_user_selec_direcs, &
                               pckpts_to_be_checked, energy_grid, &
                               delta_N_only_selected_dirs, &
-                              EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale)
-        write(*,'(A)')'>>> The delta_Ns for the unfolding strictly along the direction(s) &
-                           you requested have been saved to the file listed below:'
-        write(*,'(2A)')'    * ', trim(adjustl(args%output_file_only_user_selec_direcs))
+                              EF=e_fermi, zero_of_kpts_scale=zero_of_kpts_scale, &
+                              add_elapsed_time_to=times%write_dN_files)
+        write(*,'(A)')'    Done. The unfolded N(k,E) calculated strictly along the &
+                           direction(s) you'
+        write(*,'(A)')'          requested were stored in the file listed below:'
+        write(*,'(2A)')'          * ', &
+                       trim(adjustl(args%output_file_only_user_selec_direcs))
          
         if(zero_of_kpts_scale > 1E-4_dp)then
             write(*,'(A,f8.4,A)')'The zero of the k-points line has been set to ', &
                                  zero_of_kpts_scale,'.'
         endif
+        
+        if(args%write_unf_dens_op)then
+            if(.not. args%no_symm_avg)then
+                write(*,'(A)')'>>> Writing the symm-averaged unfolding-density &
+                                   operators...'
+                call write_unf_dens_op(args%output_file_symm_averaged_unf_dens_op, &
+                                       pckpts_to_be_checked, energy_grid, &
+                                       GUR, delta_N_symm_avrgd_for_EBS, &
+                                       EF=e_fermi, &
+                                       add_elapsed_time_to=times%write_unf_dens_op_files)
+                write(*,'(A)')'    Done. The symmetry-averaged unfolding-density &
+                                   operators were stored in the file'
+                write(*,'(A)')'          listed below:'
+                write(*,'(2A)')'          * ', &
+                               trim(adjustl(args%output_file_symm_averaged_unf_dens_op))
+            endif
+            write(*,'(A)')'>>> Writing the not-symm-averaged unfolding-density &
+                               operators...'
+            call write_unf_dens_op(args%output_file_only_user_selec_direcs_unf_dens_op, &
+                                   pckpts_to_be_checked, energy_grid, &
+                                   GUR, delta_N_only_selected_dirs, &
+                                   EF=e_fermi, &
+                                   add_elapsed_time_to=times%write_unf_dens_op_files)
+            write(*,'(A)')'    Done. The unfolding-density operators calculated &
+                               strictly along the directions'
+            write(*,'(A)')'          you requested have been saved to the file &
+                                     listed below:'
+            write(*,'(2A)')'          * ', &
+                trim(adjustl(args%output_file_only_user_selec_direcs_unf_dens_op))
+        endif
+        write(*,'(A)')'Done writing output files.'
     else
-        write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to the output file.'
+        write(*,'(A)')'No pc-kpts could be parsed. Nothing to be written to output files.'
     endif
+    write(*,*)
+    write(*,'(A)')'BandUP has now finished running. Good bye.'
 
 end subroutine say_goodbye_and_save_results
+
+
+subroutine write_unf_dens_op(out_file, pckpts, energy_grid, GUR, delta_N, &
+                             EF, add_elapsed_time_to)
+implicit none
+character(len=*), intent(in) :: out_file
+type(selected_pcbz_directions), intent(in) :: pckpts
+real(kind=dp), dimension(:), intent(in) :: energy_grid
+type(geom_unfolding_relations_for_each_SCKPT), intent(in) :: GUR
+type(UnfoldedQuantitiesForOutput),  intent(in), target :: delta_N
+real(kind=dp), intent(inout), optional :: add_elapsed_time_to
+real(kind=dp), intent(in), optional :: EF
+! Internal variables
+integer :: n_SCKPTS, n_pc_direcs, unf_dens_file_unit, idir, ipc_kpt, &
+           n_pc_kpts, m1, m2, i_SCKPT, i_rho, iener,  &
+           ipc_kpt_general, linearized_band_index
+logical :: folds
+character(len=127) :: fmt_str, str_trace
+real(kind=dp) :: stime, ftime, coord_first_k_in_dir, coord_k, trace, e_fermi
+real(kind=dp), dimension(1:3) :: pckpt, actual_folding_pckpt, sckpt, aux_coords, &
+                                 first_pckpt_dir
+type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
+real(kind=dp), dimension(:), pointer :: dN
+real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
+
+    stime = time()
+
+    e_fermi = 0.0_dp
+    if(present(EF))then
+         e_fermi = EF
+    endif
+
+    n_SCKPTS = size(GUR%SCKPT)
+    n_pc_direcs = size(GUR%SCKPT(1)%selec_pcbz_dir)
+    unf_dens_file_unit = available_io_unit()
+    open(unit=unf_dens_file_unit, file=out_file, action='write')
+        write(unf_dens_file_unit, '(A)')'############################################&
+                                         ############################################'
+        write(unf_dens_file_unit, '(A)')file_header_BandUP()
+        write(unf_dens_file_unit, '(A)')'############################################&
+                                         ############################################'
+        write(unf_dens_file_unit, '(A)')'# This file contains all information needed to &
+                                           unfold the expectation values of any'
+        write(unf_dens_file_unit, '(A)')'# operator defined in the (k,E) space. &
+                                           In particular, it reports, for each point in'
+        write(unf_dens_file_unit, '(A,ES10.3,A)')'# the (k,E) grid satisfying &
+                                                    N(k,E) >= ',min_allowed_dN,&
+                                                 ', the following information:'
+        write(unf_dens_file_unit, '(A)')'#     * Unfolding-density operators (UnfDensOp)'
+        write(unf_dens_file_unit, '(A)')'#     * Generalized spectral weight matrices &
+                                                 (GenSpecWeight)'
+        write(unf_dens_file_unit, '(A)')'#     * k, E and N(k,E) -- used for "regular" &
+                                           band unfolding (unfolding eigenvalues of H)'
+        write(unf_dens_file_unit, '(A)')'# Both UnfDensOp and GenSpecWeight are &
+                                           hermitian; only the upper-triangular matrix'
+        write(unf_dens_file_unit, '(A)')'# elements are present. They are represented &
+                                           as (RealPart, ImagPart), and were'
+        write(unf_dens_file_unit, '(A)')'# evaluated between SC states with band &
+                                           indices indicated by m1 and m2.'
+        write(unf_dens_file_unit,'(A)')'#'
+        write(unf_dens_file_unit, '(A)')'# All quantities reported in this file are &
+                                           introduced and discussed in detail in'
+        write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 91, 041116(R) (2015)'
+        write(unf_dens_file_unit, '(A,25X,A)')'#','Phys. Rev. B 89, 041407(R) (2014)'
+        write(unf_dens_file_unit,'(A)')'# You should read and cite these papers, as &
+                                          well as the appropriate references therein.'
+        write(unf_dens_file_unit,'(A)')'#'
+        write(unf_dens_file_unit, '(A)')'# N.B.: If symmetry has been used for the &
+                                           unfolding, then the folding/unfolding'
+        write(unf_dens_file_unit, '(A)')'# relations between the ScKpts and PcKpts &
+                                           shown here might not seem obvious.'
+        write(unf_dens_file_unit, '(A)')'# For full details about the geometric &
+                                           unfolding relations, please see the log'
+        write(unf_dens_file_unit, '(A)')'# produced by BandUP when you run &
+                                           the code (normally printed to stdout).'
+        write(unf_dens_file_unit, '(A)')'#'
+        write(unf_dens_file_unit, '(A,X,I0)')'# SpinChannel =', args%spin_channel
+        write(unf_dens_file_unit, '(A,X,I0)')'# nScBands =', delta_N%n_SC_bands
+        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emin =', &
+                                                   minval(energy_grid)-e_fermi,'eV'
+        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emax =', &
+                                                   maxval(energy_grid)-e_fermi,'eV'
+        write(unf_dens_file_unit, '(A,X,I0)')'# nEner =', size(energy_grid)
+        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# OriginalEfermi =',e_fermi,'eV'
+        write(unf_dens_file_unit, '(A)')'# The energies were shifted so that the Fermi &
+                                        level is at 0 eV.'
+        write(unf_dens_file_unit, '(A)')'############################################&
+                                         ############################################'
+
+        ipc_kpt_general = 0
+        coord_first_k_in_dir = 0.0_dp
+        do idir=1, n_pc_direcs
+            first_pckpt_dir(:) = pckpts%selec_pcbz_dir(idir)%needed_dir(1)%&
+                                        pckpt(1)%coords(:)
+            n_pc_kpts = size(pckpts%selec_pcbz_dir(idir)%needed_dir(1)%pckpt(:))
+            do ipc_kpt=1,n_pc_kpts
+                ipc_kpt_general = ipc_kpt_general + 1
+                ! Finding the SC-KPT this PC-KPT folds into
+                folds = .FALSE.
+                do i_SCKPT=1, n_SCKPTS
+                    if(.not. GUR%SCKPT_used_for_unfolding(i_SCKPT)) cycle
+                    folds = GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(idir)% &
+                                needed_dir(1)%pckpt(ipc_kpt)%folds
+                    if(folds) exit
+                enddo
+                if(.not. folds) cycle
+                sckpt(:) = GUR%list_of_SCKPTS(i_SCKPT)%coord(:)
+                pckpt(:) = pckpts%selec_pcbz_dir(idir)% &
+                                  needed_dir(1)%pckpt(ipc_kpt)%coords(:)
+                actual_folding_pckpt = GUR%SCKPT(i_SCKPT)%&
+                                           selec_pcbz_dir(idir)%&
+                                           needed_dir(1)% &
+                                           pckpt(ipc_kpt)% &
+                                           Scoords(:)
+                coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
+                write(unf_dens_file_unit,'(A)')
+                write(unf_dens_file_unit, '(A,X,I0)')'# PcKptNumber =',ipc_kpt_general
+                fmt_str = '(A,3(2X,f0.8),2X,A)'
+                write(unf_dens_file_unit, fmt_str)'#     PcKptCartesianCoords =',&
+                                                  pckpt,'(A^{-1})'
+                fmt_str = '(A,3(2X,f0.8),2X,A)'
+                aux_coords=coords_cart_vec_in_new_basis(cart_vec=pckpt, &
+                                                        new_basis=GUR%B_matrix_SC)
+                write(unf_dens_file_unit, fmt_str)'#     PcKptFractionalCoords =',&
+                                                   aux_coords,'(w.r.t. SCRL basis)'
+                fmt_str = '(A,3(2X,f0.8),2X,A)'
+                aux_coords=coords_cart_vec_in_new_basis(cart_vec=pckpt, &
+                                                        new_basis=GUR%b_matrix_pc)
+                write(unf_dens_file_unit, fmt_str)'#     PcKptFractionalCoords =',&
+                                                   aux_coords,'(w.r.t. PCRL basis)'
+                fmt_str = '(A,X,f0.4,2X,A)'
+                write(unf_dens_file_unit, fmt_str)'#     PcKptLinearCoordsInBandPlot =',&
+                                                   coord_k,'(A^{-1})'
+                write(unf_dens_file_unit, '(A,X,I0)')'#     Folds into ScKptNumber =',&
+                                                     i_SCKPT
+                fmt_str = '(A,3(2X,f0.8),2X,A)'
+                write(unf_dens_file_unit, fmt_str)'#         ScKptCartesianCoords =',&
+                                                  sckpt,'(A^{-1})'
+                fmt_str = '(A,3(2X,f0.8),2X,A)'
+                aux_coords=coords_cart_vec_in_new_basis(cart_vec=sckpt, &
+                                                        new_basis=GUR%B_matrix_SC)
+                write(unf_dens_file_unit, fmt_str)'#         ScKptFractionalCoords =',&
+                                                   aux_coords,'(w.r.t. SCRL basis)'
+                write(unf_dens_file_unit, '(A)')'#'
+
+                rhos => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%rhos
+                dN => delta_N%pcbz_dir(idir)%pckpt(ipc_kpt)%dN
+                do i_rho=1, size(rhos)
+                    if(.not. allocated(rhos(i_rho)%band_indices)) cycle
+                    iener = rhos(i_rho)%iener_in_full_pc_egrid
+                    if(dN(iener) < min_allowed_dN) cycle
+                    trace = 0.0_dp
+                    do m1=1,rhos(i_rho)%nbands
+                        linearized_band_index = list_index(item=[m1,m1], &
+                                                           list=rhos(i_rho)%band_indices)
+                        if(linearized_band_index<1) cycle
+                        trace = trace + real(rhos(i_rho)%rho(linearized_band_index), &
+                                             kind=dp)
+                    enddo
+                    if(abs(trace-1.0_dp)<1E-1)then
+                        ! The trace of the unfolding-density operator should equal 1,
+                        ! as discussed in Phys. Rev. B 91, 041116(R) (2015)
+                        write(str_trace, '(ES8.1)') trace
+                    else
+                        write(str_trace, '(ES8.1,X,A)') trace, '(!=1)'
+                    endif
+                    fmt_str = '(A,5X,A,X,I0,2X,A,X,f0.4,X,A,2X,A,X,ES10.3,2X,A,X,A)'
+                    write(unf_dens_file_unit, fmt_str)'#','iEnerPC =', &
+                                                       iener,'E =', &
+                                                       energy_grid(iener),'eV', &
+                                                       'N(k,E) =',dN(iener),&
+                                                       'Tr{UnfDensOp} =',trim(str_trace)
+                    fmt_str='(A,8X,A,6X,A,8X,A,9X,A)'
+                    write(unf_dens_file_unit, fmt_str)'#','m1','m2',&
+                                                      'GenSpecWeight[m1,m2]',&
+                                                      'UnfDensOp[m1,m2]'
+                    fmt_str = '(3X,2(3X,I5),3X,2(3X,"(",ES10.3,",",X,ES10.3,")"))'
+                    do m1=1,rhos(i_rho)%nbands
+                        do m2=m1,rhos(i_rho)%nbands
+                            linearized_band_index = &
+                                list_index(item=[m1,m2], &
+                                           list=rhos(i_rho)%band_indices)
+                            if(linearized_band_index<1) cycle
+                            if(abs(rhos(i_rho)%rho(linearized_band_index))<1E-4) cycle
+                            write(unf_dens_file_unit, fmt_str) m1, m2, &
+                                rhos(i_rho)%rho(linearized_band_index)*dN(iener), &
+                                rhos(i_rho)%rho(linearized_band_index)
+                        enddo
+                    enddo
+                enddo
+                nullify(rhos, dN)
+            enddo
+            coord_first_k_in_dir = coord_k
+        enddo
+
+    close(unf_dens_file_unit)
+
+    ftime = time()
+    if(present(add_elapsed_time_to))then
+        add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
+    endif
+
+end subroutine write_unf_dens_op
 
 
 subroutine print_time(t_in_sec, message, ref_time)
@@ -1288,7 +1643,6 @@ real(kind=dp) :: elapsed_time
 
     times%end = time()
     elapsed_time = times%end - times%start
-    write(*,*)
     call print_time(elapsed_time, &
         'Total elapsed time:                                               ', elapsed_time)
     call print_time(times%read_wf, &
@@ -1298,11 +1652,21 @@ real(kind=dp) :: elapsed_time
     call print_time(times%calc_SF, &
         'Time spent calculating spectral functions:                        ', elapsed_time)
     call print_time(times%calc_dN, &
-        'Time spent calculating the delta_Ns:                              ', elapsed_time)
+             'Time spent calculating the unfolded N(k,E):                       ', &
+             elapsed_time)
     call print_time(times%calc_rho, &
-        'Time spent calculating unfolding-density matrices:                ', elapsed_time)
+        'Time spent calculating unfolding-density operators:               ', elapsed_time)
     call print_time(times%calc_pauli_vec, &
         'Time spent calculating SC matrix elements of Pauli spin matrices: ', elapsed_time)
+    call print_time(times%calc_pauli_vec_projs, &
+             'Time spent calculating projections of Pauli spin matrices:        ', &
+             elapsed_time)
+    call print_time(times%write_dN_files, &
+             'Time spent writing N(k,E) to output file(s):                      ', &
+             elapsed_time)
+    call print_time(times%write_unf_dens_op_files, &
+             'Time spent writing unfolding-density operators to output file(s): ', &
+             elapsed_time)
 
 
 end subroutine print_final_times

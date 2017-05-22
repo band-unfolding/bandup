@@ -7,7 +7,7 @@ How this works:
       input files in each step to see what is going on.
     * The unfolded EBSs will "pop-up" if your computer meets the system requirements.
     * The workflow is basically the same in all of the examples and for whatever 
-      okane-wave code you use. Moreover: the workflow will most likely also be the 
+      plane-wave code you use. Moreover: the workflow will most likely also be the 
       same for your own systems too.
     * The input files for the DFT calculations should work fine in most computers,
       but please double-check them just to be on the safe side.
