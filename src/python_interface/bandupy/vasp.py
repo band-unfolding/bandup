@@ -1,5 +1,5 @@
 # Copyright (C) 2017 Paulo V. C. Medeiros
-# A python wrapper to BandUP and its plotting tool
+# Parsing VASP output
 # This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 # BandUP is free software: you can redistribute it and/or modify

@@ -1,4 +1,4 @@
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
 !! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 !!
@@ -73,7 +73,7 @@ end subroutine verify_commens
 subroutine get_GUR_not_public(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
                               input_crystal_pc, input_crystal_SC, &
                               vec_in_latt_tol_for_vec_eq, verbose)
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
@@ -289,7 +289,7 @@ end subroutine get_GUR_not_public
 
 subroutine get_geom_unfolding_relations(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
                                         input_crystal_pc, input_crystal_SC, verbose)
-!! Copyright (C) 2013-2016 Paulo V. C. Medeiros
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !! This routine is a wrapper for the internal routine get_GUR_not_public, which
 !! determines the GUR between PC and SC. If get_GUR_not_public fails in the
 !! first attempt, than the present routine calls it again using a sligtly

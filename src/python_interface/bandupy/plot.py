@@ -1,5 +1,5 @@
-#! /usr/bin/env python
 # Copyright (C) 2013-2017 Paulo V. C. Medeiros, Jonas Bjork
+# Plot-related stuff. Based on the now deprecated standalone plotting toll
 # This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
 #
 # BandUP is free software: you can redistribute it and/or modify
