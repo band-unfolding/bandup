@@ -32,7 +32,7 @@ def get_tag_from_source():
 
 def get_latest_git_tag():
     tag = None
-    get_tag_run = Popen(['git', 'described', '--tags', '--dirty'],
+    get_tag_run = Popen(['git', 'describe', '--tags', '--dirty'],
                            stdout=PIPE, stderr=PIPE)
     stdout, stderr = get_tag_run.communicate()
     if(not stderr.strip()):
@@ -44,3 +44,5 @@ def get_package_version():
     if(pv is None):
         pv = get_tag_from_source()
     return pv
+
+__version__ = get_package_version
