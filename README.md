@@ -240,8 +240,9 @@ following workflow must be adopted:
        obvious bugs, then go to (ii).
 (ii)   Make sure again the code to be merged has been tested and has no obvious bugs.
 (ii)   Before making the commit to be merged into master, the value attributed to the 
-       constant "tag_for_push" (below) must be updated. This must be done in accordance
-       with the semantic versioning 2.0 set of conventions -- see <http://semver.org>.
+       constant "tag_for_push" (in the file "constants_and_types_mod.f90" under "src") 
+       must be updated. This must be done in accordance with the semantic versioning 
+       set of conventions (2.0) -- see <http://semver.org>.
 (iii)  After making sure to comply with the items above, merge the branch into master 
 (iv)   Before pushing the merge commit, it must be tagged. Moreover: The created tag
        must be (a) identical to the value attributed to "tag_for_push" in item (ii),
