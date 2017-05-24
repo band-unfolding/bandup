@@ -79,9 +79,9 @@ function compilation_time() result(timestamp)
 implicit none
 character(len=30) :: timestamp
 
-#if defined (__INTEL_COMPILER)
+#if defined (__INTEL_COMPILER) && defined (__TIMESTAMP__)
     write(timestamp, '(A)') __TIMESTAMP__
-#elif defined (__GFORTRAN__)
+#elif defined (__GFORTRAN__) && defined (__DATE__) && defined (__TIME__)
     write(timestamp, '(A,X,A)') __DATE__, __TIME__
 #else
     timestamp = 'unknown date and time'
@@ -105,7 +105,7 @@ character(len=127) :: req_info_val
 #           if defined (__USED_BRANCH__)
                 write(req_info_val, '(A)') __USED_BRANCH__
 #           else
-                req_info_val = 'unknown git branch name'
+                req_info_val = 'unknown branch'
 #           endif
         case default
             req_info_val = ''
