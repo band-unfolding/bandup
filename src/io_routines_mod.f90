@@ -67,24 +67,16 @@ write(*,'(A,/,A)') &
 '=====================================================================================',&
 '             BandUP: Band Unfolding code for Plane-wave based calculations           '
 if(present(package_version))then
-    write(*,'(A)') &
-"                            V. "//trim(adjustl(package_version))
+    aux_source_info_str="              "//trim(adjustl(package_version))
+    if(len(trim(adjustl(git_branch)))>0)then
+        aux_source_info_str = trim(aux_source_info_str) // &
+                              ', from branch "' // trim(adjustl(git_branch)) // '"'
+    endif 
+    write(*,'(A)') trim(aux_source_info_str)
 endif
     write(*,'(A)') &
 "        Compiled using "//trim(adjustl(compiler_version()))//&
 " on "//trim(adjustl(compilation_time()))
-if(len(trim(adjustl(git_branch)))>0 .or. len(trim(adjustl(git_hash)))>0)then
-    aux_source_info_str = &
-"        From source"
-    if(len(trim(adjustl(git_branch)))>0)then
-        aux_source_info_str = trim(aux_source_info_str)//' '//&
-                              '"'//trim(adjustl(git_branch))//'"'
-    endif
-    if(len(trim(adjustl(git_hash)))>0)then
-        aux_source_info_str = trim(aux_source_info_str)//' '//trim(adjustl(git_hash))
-    endif
-    write(*,'(A)') trim(aux_source_info_str)
-endif 
 write(*,'(17(A,/),A)') &
 '=====================================================================================',&
     'Copyright (C) 2013-2017 Paulo V. C. Medeiros                                         ', &

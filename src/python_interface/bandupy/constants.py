@@ -34,13 +34,6 @@ BANDUP_CONFIG_FILE = os.path.join(BANDUP_CONFIG_DIR, 'config')
 BANDUP_BIN = os.path.join(BANDUP_SRC_DIR, 'BandUP.x')
 BANDUP_PRE_UNFOLDING_BIN = os.path.join(BANDUP_SRC_DIR, 'get_SCKPTS_pre_BandUP.x')
 
-PACKAGE_VERSION = 'UNKNOWN'
-with open(os.path.join(BANDUP_SRC_DIR, 'general_io_mod.f90'), 'r') as f:
-    for line in f:
-        if('package_version' in line and '::' in line):
-            PACKAGE_VERSION = line.split('=')[-1].replace('"','').strip()
-            break
-
 ORIGINAL_MATPLOTLIB_BACKEND = mpl.get_backend()
 
 USER_HOME = os.path.expanduser('~')

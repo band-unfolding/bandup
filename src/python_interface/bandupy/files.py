@@ -26,12 +26,13 @@ import time
 # Imports from within the package
 from .defaults import defaults
 from .warnings_wrapper import warnings, WarningError
-from .constants import WORKING_DIR, PACKAGE_VERSION
+from .constants import WORKING_DIR
 from .sysargv import arg_passed
+from .version import __version__
 
 
 def file_header(msgs=None, next_line=None):
-    basic_header = '# File created by BandUP (V%s) at '%(PACKAGE_VERSION)
+    basic_header = '# File created by BandUP (%s) at '%(__version__())
     basic_header += '%s\n'%(time.strftime('%-H:%M UTC%z on %b %d, %Y'))
     basic_header += '# Copyright (C) 2013-2017 Paulo V. C. Medeiros\n'
     header = 85 * '#' + '\n'

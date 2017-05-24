@@ -80,4 +80,3 @@ def castep_interface_available(calling_from_build_script=False):
                         ret = True
     return ret
 
-

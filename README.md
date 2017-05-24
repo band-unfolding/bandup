@@ -225,6 +225,37 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
       eye, specially if they don't look the way you think they are
       supposed to. Please notify me if weird stuff happens and you
       think it's the code's fault (but do double-check first)!
- 
+
+<!-- =========================================================== -->
+#### For developers/collaborators: Semantic versioning and other conventions
+-----------------------------------------------
+The idea here (as of v3.0.0-beta.1) is to automate semantic versioningi -- fully
+for any development branche, and at least partially for master. To this end, the
+following workflow must be adopted:
+(i)    Every time something new is to be introduced in the code, use the "devel" branch
+       or create another branch if appropriate. If working on an existing branch, then,
+       before doing anything, make sure to pull in any eventual new changes from master
+       (which should be up-to-date with the remote master).
+       Once you are happy with the code in the branch, and are convinced that it has no
+       obvious bugs, then go to (ii).
+(ii)   Make sure again the code to be merged has been tested and has no obvious bugs.
+(ii)   Before making the commit to be merged into master, the value attributed to the 
+       constant "tag_for_push" (in the file "constants_and_types_mod.f90" under "src") 
+       must be updated. This must be done in accordance with the semantic versioning 
+       set of conventions (2.0) -- see <http://semver.org>.
+(iii)  After making sure to comply with the items above, merge the branch into master 
+(iv)   Before pushing the merge commit, it must be tagged. Moreover: The created tag
+       must be (a) identical to the value attributed to "tag_for_push" in item (ii),
+       and (b) annotated -- see <https://git-scm.com/book/en/v2/Git-Basics-Tagging>.
+       I use script for (iii) and (iv). I retrieves the value of "tag_for_push" from 
+       this file, merges the changes made in the branch into master, and then 
+       automatically creates the appropriate annotated tag with a message I choose.
+(v)    Now, double-check everything. This is the last chance to correct mistakes in a 
+       straightforward manner.
+(vi)   Finally, push to the remote repo.
+By doing so, you will help me greatly and things are very likely to go smooth.
+Now, if you don't know git, but have implemented something you think would help
+improve BandUP and wants to share it with me, please send the file(s) to me via
+email. But I recommend you learn git if you are modifying BandUP source files.
 
 ##### Have fun!
