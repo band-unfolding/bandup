@@ -22,11 +22,11 @@ def get_tag_from_source():
     source_tag = None
     with open(source_file, 'r') as f:
         for line in f:
-            if('default_version_tag' in line and '::' in line):
+            if('tag_for_push' in line and '::' in line):
                 source_tag = (
                     line.split('::')[1].split('=')[1].replace('"','').replace("'","")
                 )
-                source_tag = source_tag.strip()
+                source_tag = 'v'+source_tag.strip()
                 break
     return source_tag
 

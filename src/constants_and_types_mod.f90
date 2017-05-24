@@ -75,12 +75,14 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       get_all_kpts_needed_for_EBS_averaging = .TRUE., &
                       print_GUR_pre_unfolding_utility = .FALSE., &
                       renormalize_wf = .TRUE.
-! Code version. If you modify, it will be difficult for me to offer you support
-character(len=str_len), parameter :: default_version_tag="3.0.0.beta0"
+! Code version. If you modify this with no good reason and without following the steps
+! described in the "For developers/collaborators" section of the main README.md file, 
+! then it will be very difficult for me to offer you any support.
+character(len=str_len), parameter :: tag_for_push="3.0.0-beta.1"
 #if defined (__COMMIT_TAG__)
     character(len=str_len), parameter :: version_tag=trim(adjustl(__COMMIT_TAG__))
 #else
-    character(len=len(default_version_tag)), parameter :: version_tag=default_version_tag
+    character(len=str_len), parameter :: version_tag='v'//tag_for_push
 #endif
 #if defined (__COMMIT_DATE__)
     character(len=10), parameter :: commit_date=trim(adjustl(__COMMIT_DATE__))
