@@ -44,5 +44,3 @@ def get_package_version():
     if(pv is None):
         pv = get_tag_from_source()
     return pv
-
-print get_package_version()
