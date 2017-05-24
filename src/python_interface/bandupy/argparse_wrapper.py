@@ -21,6 +21,7 @@ from collections import OrderedDict
 import sys
 from six import iteritems
 # Imports from within the package
+from .version import __version__
 from .constants import (
     BANDUP_DIR,
     WORKING_DIR,
@@ -628,6 +629,9 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
             BandUpAtOrbProjUnfoldingArgumentParser(add_help=False)
         )
 
+        # Print code version
+        self.add_argument('-v', '--version', action='version',
+                          version='%(prog)s {version}'.format(version=__version__()))
         # Defining available tasks and setting the default one to 'unfolding'
         self.allowed_tasks = OrderedDict()
         self.allowed_tasks['kpts-sc-get'] = {'subparser_name':'bandup_pre_unf',
@@ -754,6 +758,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
 
         task_defined = first_positional_arg is not None
         help_requested = len(set(['-h', '--help']).intersection(sys.argv[1:])) > 0
+        version_requested = len(set(['-v', '--version']).intersection(sys.argv[1:])) > 0
         if(task_defined):
             # To allow abbreviations in the task names:
             n_compat_choices = 0
@@ -767,7 +772,7 @@ class BandUpPythonArgumentParser(argparse.ArgumentParser):
                 i_first_pos_arg = sys.argv.index(first_positional_arg)
                 first_positional_arg = compatible_task
                 sys.argv[i_first_pos_arg] = first_positional_arg
-        elif(not help_requested):
+        elif(not help_requested and not version_requested):
             # Defining 'unfold' as default task
             sys.argv.insert(1, self.default_main_task) 
 
