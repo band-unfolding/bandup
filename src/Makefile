@@ -10,6 +10,8 @@
 # ======================================================================
 GIT_HASH_LATEST_COMMIT := $(shell git log --format='%H' -n 1 2> /dev/null)
 GIT_USED_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null)
+GIT_AUTHOR_DATE := $(shell git log --format='%aI' -n 1 2> /dev/null)
+GIT_TAG := $(shell git describe --tags --dirty 2> /dev/null) 
 # The compiler
 FC = ifort
 # Required flags: 
@@ -26,6 +28,21 @@ FCFLAGS_for_gfortran += -O2
 # Enable/disable warnings and remarks
 FCFLAGS_for_ifort += -diag-disable remark
 FCFLAGS_for_gfortran += -w
+# Setting correct compiler options and enabling preprocessor
+ifeq ($(FC),ifort)
+  FCFLAGS=$(FCFLAGS_for_ifort)
+  FPP = fpp 
+else ifeq ($(FC),gfortran)
+  FCFLAGS=$(FCFLAGS_for_gfortran)
+  FPP = cpp 
+endif
+# Preprocessor stuff
+ifneq ($(GIT_TAG), )
+    FPPFLAGS += -D__COMMIT_TAG__=\"$(strip $(GIT_TAG))\"
+    FPPFLAGS += -D__COMMIT_HASH__=\"$(strip $(GIT_HASH_LATEST_COMMIT))\"
+    FPPFLAGS += -D__COMMIT_DATE__=\"$(strip $(GIT_AUTHOR_DATE))\"
+    FPPFLAGS += -D__USED_BRANCH__=\"$(strip $(GIT_USED_BRANCH))\"
+endif
 
 # Aliases
 current_dir = $(shell pwd)
@@ -51,25 +68,10 @@ QE_clib=$(espresso_folder)/clib
 ifneq ($(wildcard $(castep_related_modules_folder)), )
     ifneq ($(wildcard $(check2xsf_modules_dir)), )
         CASTEP_SUPPORT = true
-        # Enable preprocessor
-        FPPFLAGS_for_ifort += -fpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
-        FPPFLAGS_for_gfortran += -cpp -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
+        # More preprocessor stuff
+        FPPFLAGS += -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
+        FPPFLAGS += -D__CASTEP_SUPPORT__=\"$(CASTEP_SUPPORT)\"
     endif
-endif
-
-# More preprocessor stuff
-FPPFLAGS_for_ifort += -fpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
-FPPFLAGS_for_ifort += -fpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
-FPPFLAGS_for_gfortran += -cpp -D__COMMIT_HASH__=\"$(GIT_HASH_LATEST_COMMIT)\"
-FPPFLAGS_for_gfortran += -cpp -D__USED_BRANCH__=\"$(GIT_USED_BRANCH)\"
-
-# Setting correct compiler options
-ifeq ($(FC),ifort)
-  FCFLAGS=$(FCFLAGS_for_ifort)
-  FPPFLAGS=$(FPPFLAGS_for_ifort)
-else ifeq ($(FC),gfortran)
-  FCFLAGS=$(FCFLAGS_for_gfortran)
-  FPPFLAGS=$(FPPFLAGS_for_gfortran)
 endif
 
 # libraries needed for linking
@@ -160,10 +162,10 @@ $(PYTHON_INTERFACE_SYMLINK): | prebandup main
 	ln -s $(BandUP_python_dir)/bandup $@
 
 %.o: %.f90
-	$(FC) $(FCFLAGS) $(FPPFLAGS) -c $<
+	$(FC) $(FCFLAGS) -$(FPP) $(FPPFLAGS) -c $<
 
 %.o: %.F90
-	$(FC) $(FCFLAGS) $(FPPFLAGS) -c $<
+	$(FC) $(FCFLAGS) -$(FPP) $(FPPFLAGS) -c $<
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -c $<

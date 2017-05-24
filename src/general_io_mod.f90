@@ -32,12 +32,10 @@ implicit none
 SAVE
 PRIVATE
 PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
-          get_file_size_in_bytes, str_len, package_version, file_header_BandUP, &
+          get_file_size_in_bytes, str_len, file_header_BandUP, &
           file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell, &
           compiler_version, compilation_time, get_git_info_compiled_files, timestamp
 
-integer, parameter :: str_len=256
-character(len=30), parameter :: package_version="3.0.0 (BETA), 2017-05-22"
 character(len=str_len), parameter :: &
     file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
                                       for_your_reference_unit_cell.POSCAR", &
@@ -51,7 +49,7 @@ function file_header_BandUP() result(header)
 implicit none
 character(len=:), allocatable :: header
 
-    header = "# File created by BandUP (V"//trim(adjustl(package_version))//') at '// &
+    header = "# File created by BandUP ("//trim(adjustl(package_version))//') at '// &
              timestamp()//new_line('')//&
              '# Copyright (C) 2013-2017 Paulo V. C. Medeiros'
 
@@ -101,7 +99,7 @@ character(len=127) :: req_info_val
 #           if defined (__COMMIT_HASH__)
                 write(req_info_val, '(A)') __COMMIT_HASH__
 #           else
-                req_info_val = 'unknown hash from latest git commit'
+                req_info_val = '(unknown hash from latest git commit)'
 #           endif
         case ('branch_name')
 #           if defined (__USED_BRANCH__)

@@ -29,8 +29,10 @@ module constants_and_types
 implicit none
 PRIVATE
 ! Public parameters
+! Character
+PUBLIC :: package_version
 ! Integer
-PUBLIC :: sp, dp, kind_cplx_coeffs, qe_dp
+PUBLIC :: sp, dp, kind_cplx_coeffs, qe_dp, str_len
 ! Real
 PUBLIC :: pi, twopi, min_dk, default_tol_for_vec_equality, max_tol_for_vec_equality, &
           default_tol_for_int_commens_test, default_symprec, two_m_over_hbar_sqrd, &
@@ -47,20 +49,23 @@ PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_po
           UnfoldedQuantitiesForOutput, comm_line_args, pw_wavefunction, &
           UnfoldDensityOpContainer, MatrixIndices
 
-
-!! Hard-coded options I only change for debugging/testing. You probably shouldn't modify this.
+! I only change the following options for debugging/testing. 
+! You probably shouldn't modify these either.
 integer, parameter :: sp = selected_real_kind(6, 37), &    ! Single precision
                       dp = selected_real_kind(15, 307), &  ! Double precision
                       qe_dp = kind(1.0_dp), & ! QE's double precision
-                      kind_cplx_coeffs = sp   ! Change to dp if you want to use double-precision
+                      kind_cplx_coeffs = sp, & 
+                      str_len=256
 real(kind=dp), parameter :: pi = 4.0_dp*atan(1.0_dp), twopi = 2.0_dp*pi, &
                             default_tol_for_vec_equality=1E-5_dp, &
                             max_tol_for_vec_equality=1E-3_dp, &
                             min_dk=2.0_dp*default_tol_for_vec_equality, &
                             default_tol_for_int_commens_test=1E-5_dp, & 
                             default_symprec=1E-5_dp, &
-                            two_m_over_hbar_sqrd = 0.262465831, & ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
-                            Ry =  13.60569172, Hartree = 27.2113834, & ! Energy convertion to eV
+                            ! c = 2m/hbar**2 in units of 1/eV Ang^2 (from WaveTrans)
+                            two_m_over_hbar_sqrd = 0.262465831, & 
+                            ! Energy convertion to eV
+                            Ry =  13.60569172, Hartree = 27.2113834, & 
                             bohr = 0.52917721092 ! Length conv. to Angstrom
 real(kind=dp), dimension(1:3,1:3), parameter :: identity_3D = &
     reshape(real((/ 1, 0, 0, 0, 1, 0, 0, 0, 1 /), kind=dp), shape(identity_3D))
@@ -70,9 +75,22 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
                       get_all_kpts_needed_for_EBS_averaging = .TRUE., &
                       print_GUR_pre_unfolding_utility = .FALSE., &
                       renormalize_wf = .TRUE.
-
+! Code version. If you modify, it will be difficult for me to offer you support
+character(len=str_len), parameter :: default_version_tag="3.0.0.beta0"
+#if defined (__COMMIT_TAG__)
+    character(len=str_len), parameter :: version_tag=trim(adjustl(__COMMIT_TAG__))
+#else
+    character(len=len(default_version_tag)), parameter :: version_tag=default_version_tag
+#endif
+#if defined (__COMMIT_DATE__)
+    character(len=10), parameter :: commit_date=trim(adjustl(__COMMIT_DATE__))
+#else
+    character(len=30), parameter :: commit_date=" (unknown commit date)"
+#endif
+character(len=str_len), parameter :: package_version = trim(adjustl(version_tag)) // &
+                                                       ", " // &
+                                                       trim(adjustl(commit_date))
 !! Derived type definitions
-
 type :: comm_line_args
     character(len=256) :: WF_file, input_file_prim_cell, input_file_supercell, &
                           input_file_pc_kpts, input_file_energies, out_file_SC_kpts, &
