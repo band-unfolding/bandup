@@ -13,6 +13,9 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+from subprocess import Popen, PIPE
+import os
+from .constants import BANDUP_SRC_DIR
 
 def get_tag_from_source():
     source_file = os.path.join(BANDUP_SRC_DIR, 'constants_and_types_mod.f90')
@@ -29,7 +32,7 @@ def get_tag_from_source():
 
 def get_latest_git_tag():
     tag = None
-    get_tag_run = Popen(['git', 'describe', '--tags', '--dirty'],
+    get_tag_run = Popen(['git', 'described', '--tags', '--dirty'],
                            stdout=PIPE, stderr=PIPE)
     stdout, stderr = get_tag_run.communicate()
     if(not stderr.strip()):
@@ -41,3 +44,5 @@ def get_package_version():
     if(pv is None):
         pv = get_tag_from_source()
     return pv
+
+print get_package_version()
