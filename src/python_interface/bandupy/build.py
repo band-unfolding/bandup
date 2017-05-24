@@ -80,32 +80,3 @@ def castep_interface_available(calling_from_build_script=False):
                         ret = True
     return ret
 
-def get_tag_from_source():
-    source_file = os.path.join(BANDUP_SRC_DIR, 'constants_and_types_mod.f90')
-    source_tag = None
-    with open(source_file, 'r') as f:
-        for line in f:
-            if('default_version_tag' in line and '::' in line):
-                source_tag = (
-                    line.split('::')[1].split('=')[1].replace('"','').replace("'","")
-                )
-                source_tag = source_tag.strip()
-                break
-    return source_tag
-
-def get_latest_git_tag():
-    tag = None
-    get_tag_run = Popen(['git', 'describe', '--tags', '--dirty'],
-                           stdout=PIPE, stderr=PIPE)
-    stdout, stderr = get_tag_run.communicate()
-    if(not stderr.strip()):
-        tag = stdout.strip()
-    return tag
-
-def get_package_version():
-    pv = get_latest_git_tag()
-    if(pv is None):
-        pv = get_tag_from_source()
-    return pv
-
-

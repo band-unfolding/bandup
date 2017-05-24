@@ -28,7 +28,7 @@ from .defaults import defaults
 from .warnings_wrapper import warnings, WarningError
 from .constants import WORKING_DIR
 from .sysargv import arg_passed
-from .build import get_package_version
+from .version import get_package_version
 
 
 def file_header(msgs=None, next_line=None):
