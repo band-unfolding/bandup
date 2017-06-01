@@ -50,8 +50,7 @@ implicit none
 character(len=:), allocatable :: header
 
     header = "# File created by BandUP ("//trim(adjustl(package_version))//') at '// &
-             timestamp()//new_line('')//&
-             '# Copyright (C) 2013-2017 Paulo V. C. Medeiros'
+             timestamp()
 
 end function file_header_BandUP
 
