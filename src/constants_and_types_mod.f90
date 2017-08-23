@@ -32,7 +32,7 @@ PRIVATE
 ! Character
 PUBLIC :: package_version
 ! Integer
-PUBLIC :: sp, dp, kind_cplx_coeffs, qe_dp, str_len
+PUBLIC :: sp, dp, long_int_kind, kind_cplx_coeffs, qe_dp, str_len
 ! Real
 PUBLIC :: pi, twopi, min_dk, default_tol_for_vec_equality, max_tol_for_vec_equality, &
           default_tol_for_int_commens_test, default_symprec, two_m_over_hbar_sqrd, &
@@ -53,6 +53,7 @@ PUBLIC :: timekeeping, vec3d, vec3d_int, symmetry_operation, crystal_3D, star_po
 ! You probably shouldn't modify these either.
 integer, parameter :: sp = selected_real_kind(6, 37), &    ! Single precision
                       dp = selected_real_kind(15, 307), &  ! Double precision
+                      long_int_kind = selected_int_kind(10), &
                       qe_dp = kind(1.0_dp), & ! QE's double precision
                       kind_cplx_coeffs = sp, & 
                       str_len=256

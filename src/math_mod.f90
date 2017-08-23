@@ -705,10 +705,10 @@ end subroutine get_rec_latt
 
 function coords_cart_vec_in_new_basis(cart_vec, new_basis) result(coords)
 ! Returns the coordinates of the vector cart_vec = (x,y,z) in the basis "new_basis"
-real(kind=8), dimension(1:3) :: coords
-real(kind=8), dimension(1:3), intent(in) :: cart_vec
-real(kind=8), dimension(1:3,1:3), intent(in) :: new_basis
-real(kind=8), dimension(1:3,1:3) :: aux_matrix
+real(kind=dp), dimension(1:3) :: coords
+real(kind=dp), dimension(1:3), intent(in) :: cart_vec
+real(kind=dp), dimension(1:3,1:3), intent(in) :: new_basis
+real(kind=dp), dimension(1:3,1:3) :: aux_matrix
 integer :: i
 
     aux_matrix = inverse_of_3x3_matrix(transpose(new_basis))
@@ -760,11 +760,11 @@ function vec_in_latt(vec, latt, tolerance) result(rtn)
 !! vectors latt(i,:), i=1,2,3.
 implicit none
 logical :: rtn
-real(kind=8), dimension(1:3), intent(in) :: vec
-real(kind=8), dimension(1:3,1:3), intent(in) :: latt
-real(kind=8), intent(in), optional :: tolerance
-real(kind=8), dimension(1:3) :: reduced_vec,frac_coords,reduced_frac_coords,g
-real(kind=8) :: tol
+real(kind=dp), dimension(1:3), intent(in) :: vec
+real(kind=dp), dimension(1:3,1:3), intent(in) :: latt
+real(kind=dp), intent(in), optional :: tolerance
+real(kind=dp), dimension(1:3) :: reduced_vec,frac_coords,reduced_frac_coords,g
+real(kind=dp) :: tol
 integer :: i,ig1,ig2,ig3,ig1p,ig2p,ig3p,nb1max,nb2max,nb3max
 
 tol = default_tol_for_vec_equality
