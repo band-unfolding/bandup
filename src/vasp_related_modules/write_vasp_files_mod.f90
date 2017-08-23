@@ -88,14 +88,16 @@ n_species = count(n_atoms_species>0)
 
 unit_num = available_io_unit()
 open(unit=unit_num,file=output_file)
-    write(unit_num,"(A,X,A)")trim(adjustl(crystal%description)), file_header_BandUP()
+    write(unit_num,"(A,1X,A)")trim(adjustl(crystal%description)), &
+                              file_header_BandUP()
     write(unit_num,'(1X,F13.9)')a0
     do ivec=1,3
         write(unit_num,'(3(1X,F13.9))') (crystal%latt_vecs(ivec,icoord)/a0, icoord=1,3)
     enddo
     if(any(len_trim(crystal%atomic_symbols_basis_atoms)>0))then
-        write(aux_string,"(120A3,X)",iostat=status_io)(unique_atomic_symbols(i_species), &
-                                                       ' ',i_species=1, n_species)
+        write(aux_string,"(120A3,1X)",iostat=status_io) &
+              (unique_atomic_symbols(i_species), ' ', &
+               i_species=1, n_species)
         call compact(aux_string)
         write(unit_num,"(2X,A)")trim(adjustl(aux_string))
     endif

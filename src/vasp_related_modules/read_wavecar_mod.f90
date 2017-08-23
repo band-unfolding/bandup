@@ -325,9 +325,9 @@ real(kind=dp) :: ecut, xnwk, xnband, xnrecl, xnspin, xnprec, xnplane, &
                  largest_correc_to_c_const, perc_adj_c
 integer :: i_kpt, nplane, i, j, iost, iplane, ispin, irec_start_first_spin, &
            irec_start_chosen_spin, nwk, nprec, nband, iband, n_Gvecs,  &
-           input_file_unit, irec_before_loop,temp_unit, alloc_stat, i_wf_comp, &
-           n_threads_2b_used_when_reading, ithread, max_n_threads, i_correc_c_const, &
-           size_of_a_coeff_in_bytes
+           input_file_unit, irec_before_loop,temp_unit, alloc_stat, &
+           i_wf_comp, n_threads_2b_used_when_reading, ithread, max_n_threads, &
+           i_correc_c_const
 integer(kind=selected_int_kind(18)) :: stream_pos, irec, nrecl
 integer, dimension(:), allocatable :: io_unit_for_thread
 complex(kind=kind_cplx_coeffs) :: inner_prod
@@ -335,7 +335,6 @@ logical :: read_coefficients, reset_spin, continue_if_nplane_less_than_n_Gvecs, 
            consider_as_error
 
 ! Start
-size_of_a_coeff_in_bytes = sizeof(cmplx(1, kind=kind_cplx_coeffs))
 read_coefficients = .TRUE. ! Reading the coeffs by default
 if(present(read_coeffs)) read_coefficients = read_coeffs
 continue_if_nplane_less_than_n_Gvecs = .FALSE.
@@ -562,7 +561,7 @@ if(read_coefficients)then
 
     irec_before_loop = irec
     !$omp parallel default(none) &
-    !$omp private(temp_unit, iost, irec, stream_pos, inner_prod) &
+    !$omp private(temp_unit, iost, irec, stream_pos, inner_prod, i_wf_comp) &
     !$omp shared(io_unit_for_thread, file, irec_before_loop, nrecl, wf)
     temp_unit = io_unit_for_thread(1)
     !$ temp_unit = io_unit_for_thread(omp_get_thread_num() + 1)
@@ -571,8 +570,10 @@ if(read_coefficients)then
     do iband=1, wf%n_bands
         irec=irec_before_loop+iband
         stream_pos = 1 + (irec - 1) * nrecl
-        read(unit=temp_unit, pos=stream_pos) (wf%pw_coeffs(i_wf_comp,:,iband), &
-                                              i_wf_comp=1, wf%n_spinor)
+        read(unit=temp_unit, pos=stream_pos) ( &
+            wf%pw_coeffs(i_wf_comp,:,iband), &
+            i_wf_comp=1, wf%n_spinor &
+        )
     enddo
     !$omp end do
     close(temp_unit)

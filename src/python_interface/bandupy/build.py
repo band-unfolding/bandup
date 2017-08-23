@@ -38,12 +38,26 @@ def get_gcc():
     return comp
 def compatible_c(fortcomp):
     if('ifort' in fortcomp): return 'icc'
-    elif('gfortran' in fortcomp): return get_gcc()
+    elif('gfortran' in fortcomp or 
+         'nagfor' in fortcomp): 
+        return get_gcc()
     else: return None
-def compatible_omp(fortcomp):
-    if('ifort' in fortcomp): return '-openmp'
-    elif('gfortran' in fortcomp): return '-fopenmp'
+def compatible_cpp(fortcomp):
+    if('ifort' in fortcomp or
+       'nagfor' in fortcomp): 
+        return 'fpp'
+    elif('gfortran' in fortcomp):
+        return 'cpp'
     else: return None
+def compatible_omp_flags(fortcomp):
+    fcflag, cflag = None, None
+    if('ifort' in fortcomp):
+        fcflag, cflag = '-openmp', '-openmp'
+    elif('gfortran' in fortcomp):
+        fcflag, cflag = '-fopenmp', '-fopenmp'
+    elif('nagfor' in fortcomp):
+        fcflag, cflag = '-openmp', '-fopenmp'
+    return fcflag, cflag
 def assert_valid_compiler(args, supported_fortran_compilers):
     user_chose_compiler = args.compiler is not None
     if(user_chose_compiler):
@@ -80,3 +94,18 @@ def castep_interface_available(calling_from_build_script=False):
                         ret = True
     return ret
 
+def qe_interface_available(calling_from_build_script=False):
+    ret = False
+    if(calling_from_build_script):
+        qe_needed_lib_file = os.path.join(BANDUP_SRC_DIR, 'external', 
+                                          'espresso-5.1_modules_for_BandUP',
+                                          'flib', 'flib.a')
+        ret = os.path.isfile(qe_needed_lib_file)
+    else:
+        with open(BANDUP_CONFIG_FILE, 'r') as f:
+            for line in f:
+                if('QE_SUPPORT' in line):
+                    support = line.split('=')[1].strip()
+                    if(support.lower() == 'true'):
+                        ret = True
+    return ret

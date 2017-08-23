@@ -234,7 +234,7 @@ end function filename_without_extension
 
 subroutine get_file_size_in_bytes(file_size, file)
 implicit none
-integer(8), intent(out) :: file_size
+integer(kind=long_int_kind), intent(out) :: file_size
 character(len=*), intent(in) :: file
 logical :: file_exists
 

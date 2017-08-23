@@ -30,16 +30,18 @@ use constants_and_types
 use cla_wrappers
 use strings
 use general_io
-use qexml_module
-use read_qe_wavefunctions
 use read_abinit_wavefunctions
-# if defined (__CASTEP_SUPPORT__)
-use read_castep_wavefunctions
-# endif
 use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
 use math
+# if defined (__QE_SUPPORT__)
+use qexml_module
+use read_qe_wavefunctions
+# endif
+# if defined (__CASTEP_SUPPORT__)
+use read_castep_wavefunctions
+# endif
 !$ use omp_lib
 implicit none
 PRIVATE
@@ -370,7 +372,7 @@ logical, intent(in) :: spinor_wf
 real(kind=dp) :: file_size_in_MB, file_size_in_GB, file_size, VSBZ, &
                  approx_mem_per_kpt_in_bytes, mem_per_kpt_in_MB, mem_per_kpt_in_GB, mem_per_kpt
 integer :: nkpts
-integer(8) :: file_size_in_bytes
+integer(long_int_kind) :: file_size_in_bytes
 character(len=2) :: file_size_units, mem_per_kpt_units
 logical :: using_omp, warn_lack_omp, print_using_omp_msg
 
@@ -398,8 +400,9 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
                 mem_per_kpt_units = 'MB'
             endif
             write(*,*)
-            write(*,'(A,X,A,X,A)')'Parsing', upper_case(trim(args%pw_code)), &
-                                  'wavefunctions.'
+            write(*,'(A,1X,A,1X,A)')'Parsing', &
+                                    upper_case(trim(args%pw_code)), &
+                                    'wavefunctions.'
             write(*,'(3A)')'    * File = "', trim(adjustl(args%WF_file)),'"'
             if(lower_case(trim(args%pw_code))=='abinit')then
                 write(*,'(3(A,/), A)')&
@@ -414,10 +417,10 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
         '                    Feedback is appreciated!!                            ', &
         '========================================================================='
             endif
-            write(*,'(A,f0.2,X,2A)')'The wavefunction file is ', &
+            write(*,'(A,f0.2,1X,2A)')'The wavefunction file is ', &
                                     file_size,file_size_units, &
                                     ' big. Only the necessary data will be read.'
-            write(*,'(A,f0.2,X,2A)')'    * Max. of approx. ', &
+            write(*,'(A,f0.2,1X,2A)')'    * Max. of approx. ', &
                                     mem_per_kpt,mem_per_kpt_units, &
                                     ' at a time.'
 
@@ -456,13 +459,13 @@ logical :: using_omp, warn_lack_omp, print_using_omp_msg
     using_omp = .FALSE.
     write(*,*)
     !$ using_omp = .TRUE.
-    if(print_using_omp_msg)then
-    !$  write(*,'(A)')'Some parts of BandUP have been parallelized with OpenMP &
-    !$  and will be running using a'
-    !$  write(*,'(A,I0,A)')'maximum of ',omp_get_max_threads(),' thread(s).'
-    !$  write(*,'(A)')"You can choose the maximum number of threads by setting the &
-    !$                 environment variable"
-    !$  write(*,'(A)')'"OMP_NUM_THREADS". Ex.: export OMP_NUM_THREADS=4'
+    if(using_omp .and. print_using_omp_msg)then
+        write(*,'(A)')'Some parts of BandUP have been parallelized with &
+                       OpenMP and will be running using a'
+        write(*,'(A,I0,A)')'maximum of ',omp_get_max_threads(),' thread(s).'
+        write(*,'(A)')"You can choose the maximum number of threads by &
+                       setting the environment variable"
+        write(*,'(A)')'"OMP_NUM_THREADS". Ex.: export OMP_NUM_THREADS=4'
         continue
     endif
     if(.not. using_omp .and. warn_lack_omp)then
@@ -622,6 +625,7 @@ character(len=256) :: prefix, outdir, xml_data_file_folder, xml_data_file, &
 real(kind=dp), dimension(:,:), allocatable :: cart_coords_all_kpts
 real(kind=dp) :: alat
 
+#   if defined (__QE_SUPPORT__)
     input_file_unit = available_io_unit()
     outdir = trim(adjustl(args%qe_outdir))
     prefix = trim(adjustl(args%qe_prefix)) 
@@ -653,6 +657,12 @@ real(kind=dp) :: alat
     ! Done. Closing file now.
     call qexml_closefile("read", ierr=ios)
     if(ios/=0) write(*,'(A)')"WARNING (get_SCKPTS_QE): Error closing xml data-file."
+#   else
+        write(*,'(A)')'ERROR (get_SCKPTS_QE): &
+                      QE interface not compiled!'
+        write(*,'(A)')'Cannot continue. Stopping now.'
+        stop
+#   endif
 
 end subroutine get_SCKPTS_QE
 
@@ -803,11 +813,11 @@ logical :: write_spin_info
             write(12, '(A, 2(ES10.3,", "), ES10.3, A)')'# The projection axis used for &
                                                           "#Spin _|_ k" is also _|_ to &
                                                           [',args%normal_to_proj_plane,'].'
-            write(12,'(3(A,X), 2X, 5(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N", &
-                                            "#sigma_x   ", "#sigma_y   ", "#sigma_z   ", &
-                                            "#Spin _|_ k", "#Spin // k "
+            write(12,'(3(A,1X), 2X, 5(A,1X))')"#KptCoord", "#E-E_Fermi","#delta_N", &
+                                              "#sigma_x   ", "#sigma_y   ", "#sigma_z   ", &
+                                              "#Spin _|_ k", "#Spin // k "
         else
-            write(12,'(3(A,X))')"#KptCoord", "#E-E_Fermi","#delta_N"
+            write(12,'(3(A,1X))')"#KptCoord", "#E-E_Fermi","#delta_N"
         endif
         do idir=1,ndirs
             first_pckpt_dir(:) = pckpts_to_be_checked%selec_pcbz_dir(idir)% &
@@ -1128,11 +1138,17 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
                               args%continue_if_npw_smaller_than_expected, &
                               ikpt=i_kpt, &
                               read_coeffs=read_coefficients, iostat=ios)
-        case('qe')
-            call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
         case('abinit')
             call read_abinit_wfk_file(wf, file=args%WF_file, ikpt=i_kpt, &
                                       read_coeffs=read_coefficients, iostat=ios)
+        case('qe')
+#           if defined (__QE_SUPPORT__)
+                call read_qe_evc_file(wf, args, i_kpt, read_coefficients, ios)
+#           else
+                write(*,'(A)')'ERROR (read_wavefunction): QE interface not compiled!'
+                write(*,'(A)')'Cannot continue. Stopping now.'
+                stop
+#           endif
         case('castep')
 #           if defined (__CASTEP_SUPPORT__)
                 call read_castep_orbitals_file(wf, args%WF_file, i_kpt, &
@@ -1145,13 +1161,15 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
     end select
     if(read_coefficients .and. renormalize_wf)then
         !$omp parallel do default(none) schedule(guided) &
-        !$omp private(iband, inner_prod, i) &
+        !$omp private(iband, inner_prod) &
         !$omp shared(wf)
         do iband=1, wf%n_bands
             inner_prod = sum((/(dot_product(wf%pw_coeffs(i,:,iband), &
-                                            wf%pw_coeffs(i,:,iband)), i=1, wf%n_spinor)/))
+                                            wf%pw_coeffs(i,:,iband)), &
+                                            i=1, wf%n_spinor)/))
             if(inner_prod > epsilon(1.0_dp))then
-                wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * wf%pw_coeffs(:,:,iband)
+                wf%pw_coeffs(:,:,iband) = (1.0_dp/sqrt(abs(inner_prod))) * &
+                                           wf%pw_coeffs(:,:,iband)
             endif
         enddo
     endif
@@ -1466,14 +1484,14 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
         write(unf_dens_file_unit, '(A)')'# produced by BandUP when you run &
                                            the code (normally printed to stdout).'
         write(unf_dens_file_unit, '(A)')'#'
-        write(unf_dens_file_unit, '(A,X,I0)')'# SpinChannel =', args%spin_channel
-        write(unf_dens_file_unit, '(A,X,I0)')'# nScBands =', delta_N%n_SC_bands
-        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emin =', &
+        write(unf_dens_file_unit, '(A,1X,I0)')'# SpinChannel =', args%spin_channel
+        write(unf_dens_file_unit, '(A,1X,I0)')'# nScBands =', delta_N%n_SC_bands
+        write(unf_dens_file_unit, '(A,1X,f0.5,1X,A)')'# emin =', &
                                                    minval(energy_grid)-e_fermi,'eV'
-        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# emax =', &
+        write(unf_dens_file_unit, '(A,1X,f0.5,1X,A)')'# emax =', &
                                                    maxval(energy_grid)-e_fermi,'eV'
-        write(unf_dens_file_unit, '(A,X,I0)')'# nEner =', size(energy_grid)
-        write(unf_dens_file_unit, '(A,X,f0.5,X,A)')'# OriginalEfermi =',e_fermi,'eV'
+        write(unf_dens_file_unit, '(A,1X,I0)')'# nEner =', size(energy_grid)
+        write(unf_dens_file_unit, '(A,1X,f0.5,1X,A)')'# OriginalEfermi =',e_fermi,'eV'
         write(unf_dens_file_unit, '(A)')'# The energies were shifted so that the Fermi &
                                         level is at 0 eV.'
         write(unf_dens_file_unit, '(A)')'############################################&
@@ -1506,7 +1524,7 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
                                            Scoords(:)
                 coord_k = coord_first_k_in_dir + norm(pckpt(:) - first_pckpt_dir(:))
                 write(unf_dens_file_unit,'(A)')
-                write(unf_dens_file_unit, '(A,X,I0)')'# PcKptNumber =',ipc_kpt_general
+                write(unf_dens_file_unit, '(A,1X,I0)')'# PcKptNumber =',ipc_kpt_general
                 fmt_str = '(A,3(2X,f0.8),2X,A)'
                 write(unf_dens_file_unit, fmt_str)'#     PcKptCartesianCoords =',&
                                                   pckpt,'(A^{-1})'
@@ -1520,10 +1538,10 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
                                                         new_basis=GUR%b_matrix_pc)
                 write(unf_dens_file_unit, fmt_str)'#     PcKptFractionalCoords =',&
                                                    aux_coords,'(w.r.t. PCRL basis)'
-                fmt_str = '(A,X,f0.4,2X,A)'
+                fmt_str = '(A,1X,f0.4,2X,A)'
                 write(unf_dens_file_unit, fmt_str)'#     PcKptLinearCoordsInBandPlot =',&
                                                    coord_k,'(A^{-1})'
-                write(unf_dens_file_unit, '(A,X,I0)')'#     Folds into ScKptNumber =',&
+                write(unf_dens_file_unit, '(A,1X,I0)')'#     Folds into ScKptNumber =',&
                                                      i_SCKPT
                 fmt_str = '(A,3(2X,f0.8),2X,A)'
                 write(unf_dens_file_unit, fmt_str)'#         ScKptCartesianCoords =',&
@@ -1554,9 +1572,9 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
                         ! as discussed in Phys. Rev. B 91, 041116(R) (2015)
                         write(str_trace, '(ES8.1)') trace
                     else
-                        write(str_trace, '(ES8.1,X,A)') trace, '(!=1)'
+                        write(str_trace, '(ES8.1,1X,A)') trace, '(!=1)'
                     endif
-                    fmt_str = '(A,5X,A,X,I0,2X,A,X,f0.4,X,A,2X,A,X,ES10.3,2X,A,X,A)'
+                    fmt_str = '(A,5X,A,1X,I0,2X,A,1X,f0.4,1X,A,2X,A,1X,ES10.3,2X,A,1X,A)'
                     write(unf_dens_file_unit, fmt_str)'#','iEnerPC =', &
                                                        iener,'E =', &
                                                        energy_grid(iener),'eV', &
@@ -1566,7 +1584,7 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
                     write(unf_dens_file_unit, fmt_str)'#','m1','m2',&
                                                       'GenSpecWeight[m1,m2]',&
                                                       'UnfDensOp[m1,m2]'
-                    fmt_str = '(3X,2(3X,I5),3X,2(3X,"(",ES10.3,",",X,ES10.3,")"))'
+                    fmt_str = '(3X,2(3X,I5),3X,2(3X,"(",ES10.3,",",1X,ES10.3,")"))'
                     do m1=1,rhos(i_rho)%nbands
                         do m2=m1,rhos(i_rho)%nbands
                             linearized_band_index = &
