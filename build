@@ -27,12 +27,14 @@ from bandupy.files import mkdir
 from bandupy.build import (
     assert_valid_compiler,
     compatible_c,
-    compatible_omp,
+    compatible_cpp,
+    compatible_omp_flags,
+    qe_interface_available,
     castep_interface_available,
 )
 from bandupy.constants import BANDUP_DIR, BANDUP_CONFIG_DIR, BANDUP_CONFIG_FILE
 
-supported_fortran_compilers = ['ifort', 'gfortran']
+supported_fortran_compilers = ['ifort', 'gfortran', 'nagfor']
 parser = argparse.ArgumentParser()
 parser.add_argument(
     '-compiler', nargs='?', default=None, choices=supported_fortran_compilers,
@@ -47,15 +49,20 @@ parser.add_argument('--clean', action='store_true',
                     help='Removes all files created when building BandUP.')
 args = parser.parse_args()
 args = assert_valid_compiler(args, supported_fortran_compilers)
-omp_flag = compatible_omp(args.compiler)
+omp_fcflag, omp_cflag = compatible_omp_flags(args.compiler)
 c_comp = compatible_c(args.compiler)
+cpp = compatible_cpp(args.compiler)
 
 # Building (or cleaning, if "--clean" was passed)
 clean = ''
 if(args.clean): 
     clean = 'veryclean'
 os.chdir(os.path.join(working_dir, 'src', 'external'))
-os.system('make FC=%s CC=%s OMP_FLAG=%s %s'%(args.compiler, c_comp, omp_flag, clean))
+os.system(
+    'make FC=%s CC=%s OMP_FCFLAG=%s OMP_CFLAG=%s %s'%(
+        args.compiler, c_comp, omp_fcflag, omp_cflag, clean
+    )
+)
 os.chdir(os.path.join(working_dir, 'src'))
 if(args.doc and not args.clean):
     os.system('make sourcedoc')
@@ -69,5 +76,7 @@ now = time.strftime('%-H:%M UTC%z on %b %d, %Y')
 with open(BANDUP_CONFIG_FILE, 'w') as f:
     f.write('# Created by BandUP on %s\n'%(now))
     f.write('BANDUPDIR=%s\n'%(BANDUP_DIR))
+    if(qe_interface_available(calling_from_build_script=True)):
+        f.write('QE_SUPPORT=True\n')
     if(castep_interface_available(calling_from_build_script=True)):
         f.write('CASTEP_SUPPORT=True\n')

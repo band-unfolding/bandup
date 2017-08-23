@@ -279,15 +279,22 @@ logical :: main_code
     ! The default is VASP.
     if(cla_key_present('-qe') .or. cla_key_present('-outdir') .or. &
        cla_key_present('-prefix'))then
-        args%pw_code = 'qe'
-        call cla_get('-prefix', args%qe_prefix)
-        if(cla_key_present('-outdir'))then
-            call cla_get('-outdir', args%qe_outdir)
-        else
-            call get_environment_variable('ESPRESSO_TMPDIR', args%qe_outdir, &
-                                          status=env_var_stat)
-            if(env_var_stat/=0) args%qe_outdir = '.'
-        endif
+#       if defined (__QE_SUPPORT__)
+            args%pw_code = 'qe'
+            call cla_get('-prefix', args%qe_prefix)
+            if(cla_key_present('-outdir'))then
+                call cla_get('-outdir', args%qe_outdir)
+            else
+                call get_environment_variable('ESPRESSO_TMPDIR', &
+                                              args%qe_outdir, &
+                                              status=env_var_stat)
+                if(env_var_stat/=0) args%qe_outdir = '.'
+            endif
+#       else
+            write(*,'(A)')'ERROR: You have compiled BandUP without support for QE!'
+            write(*,'(A)')'Cannot continue. Stopping now.'
+            stop
+#       endif
     else if(cla_key_present('-abinit') .or. cla_key_present('-files_file'))then
         args%pw_code = 'abinit'
         if(main_code)then

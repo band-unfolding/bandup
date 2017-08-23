@@ -16,7 +16,7 @@ $(cla):
 $(spglib_makefile):
 	tar -xvzf $(spglib).tgz
 	cd $(spglib);\
-	./configure FC=$(FC) CC=$(CC) CFLAGS=$(OMP_FLAG);\
+	./configure FC=$(FC) CC=$(CC) CFLAGS=$(OMP_CFLAG) FCFLAGS=$(OMP_FCFLAG);\
 	cd $(rootdir)
 $(spglib): $(spglib_makefile)
 	cd $@;\
@@ -29,7 +29,7 @@ endif
 $(espresso_makefile):
 	tar -xvzf $(espresso).tgz
 	cd $(espresso);\
-	./configure FC=$(FC) CC=$(CC) --enable-openmp --disable-parallel;\
+	./configure --disable-parallel F77=$(FC) F90=$(FC) FC=$(FC) CC=$(CC);\
 	cd $(rootdir)
 $(espresso): $(espresso_makefile)
 	cd $@;\
