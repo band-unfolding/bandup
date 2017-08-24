@@ -8,9 +8,10 @@
 # ======================================================================
 # Declarations
 # ======================================================================
+BUILD_START_TIME := $(shell date "+%FT%T%z" 2> /dev/null)
 GIT_HASH_LATEST_COMMIT := $(shell git log --format='%H' -n 1 2> /dev/null)
 GIT_USED_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null)
-GIT_AUTHOR_DATE := $(shell git log --format='%aI' -n 1 2> /dev/null)
+GIT_AUTHOR_DATE := "$(shell git log --format='%ai' -n 1 2> /dev/null)"
 GIT_TAG := $(shell git describe --tags --dirty 2> /dev/null) 
 # The compiler
 FC = ifort
@@ -43,6 +44,7 @@ else ifeq ($(FC),nagfor)
   FPP = fpp 
 endif
 # Preprocessor stuff
+FPPFLAGS += -D__BUILD_START_TIME__=\"$(strip $(BUILD_START_TIME))\"
 ifneq ($(GIT_TAG), )
     FPPFLAGS += -D__COMMIT_TAG__=\"$(strip $(GIT_TAG))\"
     FPPFLAGS += -D__COMMIT_HASH__=\"$(strip $(GIT_HASH_LATEST_COMMIT))\"
