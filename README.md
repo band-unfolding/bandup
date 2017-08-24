@@ -2,7 +2,7 @@
 # BandUP: Band Unfolding code for Plane-wave based calculations             
 #####################################################################
 ##### Copyright (C) 2013-2017 Paulo V. C. Medeiros - pvm20@cam.ac.uk
-##### Please visit http://www.ifm.liu.se/theomod/compphys/band-unfolding
+##### Please visit <http://www.ifm.liu.se/theomod/compphys/band-unfolding>
 
 BandUP is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
        * Quantum ESPRESSO
        * ABINIT
        * CASTEP (tested with the academic version; currently only 
-                 available on request)
+                 available on request)         
    * If you would like support to another plane-wave (PW) code to be
      added to BandUP:
        * Please **send me a subroutine that reads the wavefunctions
@@ -43,8 +43,8 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 ## How to compile BandUP
 
    * Run the "build" script:
-                
-        ./build
+   
+                   ./build 
              
    * A symlink named "bandup" will be created, in the same directory, 
      if compilation is successful. 
@@ -55,7 +55,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
            * Plotting (task "plot")
            * Atom/orbital-decomposed unfolded band structure 
              (task "projected-unfold", currently only available in 
-              the VASP interface)
+              the VASP interface) 
    * If installation doesn't go well, please double-check the system
      requirements (below) and make sure they have all been fulfilled. 
      If you still cannot install BandUP after having done this, then
@@ -65,7 +65,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
    * For more information (usage, choosing compilers, etc.), please
      run:
      
-        ./build -h
+                   ./build -h
    
 <!-- =========================================================== -->
 ## How to use BandUP
@@ -77,20 +77,19 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
      directories (step_1*, step_2*, etc.). Otherwise, you'll need to
      copy/link them manually to wherever you intend to run BandUP,
      or, alternatively, you'll need to use the task-specific options
-     to inform BandUP about the location of these files (see below) .
+     to inform BandUP about the location of these files (see below).
    * The **general syntax for bandup** is (since v3.0.0):
                     
-                    bandup <task> <task_options>
+                   bandup <task> <task_options>
 
    * For **help about available tasks and general usage**, please
      run: 
    
-                    bandup -h 
-  
+                   bandup -h 
 
    * For **help about a particular task**, please run:
    
-                    bandup <task> -h 
+                   bandup <task> -h 
       
    If what you wish BandUP to do is **not covered in the tutorials,
    and** information about it is **not available through the use of
@@ -100,7 +99,7 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 ## System requirements:
 
    * Unix environment
-       * *Preferably* Linux
+       * *Preferably* Linux 
    * Fortran 95 and C compilers
        * Preferably Intel compilers (ifort and icc), v>=15.0.3
        * Should work with GNU compilers (gfortran and gcc) v>=5.2
@@ -123,11 +122,11 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
        * **If you don't have any of the packages listed above**,
          you can easily install them using, e.g., pip. For instance,
                     
-                    "pip install --upgrade --user matplotlib"
+                       pip install --upgrade --user matplotlib
          
          should make matplotlib available in your Python install.
-       * Standard python library modules used (just for reference; 
-         this list might even be incomplete):
+       * Standard python library modules used (just for reference; this list might even be incomplete):
+       
            * argparse
            * os
            * sys
@@ -165,6 +164,8 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
      publications would be, for instance, adding a sentence like: 
      "The unfolding has been performed using the BandUP code",
      followed by the citation to our papers.
+   * A (possibly incomplete) list of **publications using BandUP** is available at 
+     <http://www.ifm.liu.se/theomod/compphys/band-unfolding/publications>
 
 <!-- =========================================================== -->
 ## IMPORTANT: Major changes in V3.0.0:
@@ -197,11 +198,11 @@ along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
      To find out more about them, **please use the '-h' options!**
        * For help about the available tasks and general usage, run:
        
-            "bandup -h" 
+                       "bandup -h" 
             
        * For help about a specific task, run:
            
-            bandup <task> -h
+                       bandup <task> -h
             
    * Since BandUP's plotting task has a lot of different options,
      I've given it a GUI. You can launch it by using the option
