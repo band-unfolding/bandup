@@ -69,15 +69,16 @@ write(*,'(A,/,A)') &
 '=====================================================================================',&
 '             BandUP: Band Unfolding code for Plane-wave based calculations           '
 if(present(package_version))then
-    aux_source_info_str="              "//trim(adjustl(package_version))
+    aux_source_info_str="    "//trim(adjustl(package_version))
     if(len(trim(adjustl(git_branch)))>0)then
         aux_source_info_str = trim(aux_source_info_str) // &
-                              ', from branch "' // trim(adjustl(git_branch)) // '"'
+                              ', from branch "' // &
+                              trim(adjustl(git_branch)) // '"'
     endif 
     write(*,'(A)') trim(aux_source_info_str)
 endif
     write(*,'(A)') &
-"        Compiled using "//trim(adjustl(compiler_version()))//&
+"    Compiled using "//trim(adjustl(compiler_version()))//&
 " on "//trim(adjustl(compilation_time()))
 write(*,'(17(A,/),A)') &
 '=====================================================================================',&
