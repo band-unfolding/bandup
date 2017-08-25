@@ -57,17 +57,32 @@ end function file_header_BandUP
 
 function compiler_version() result(compiler_info_string)
 implicit none
-character(len=30) :: compiler_info_string
-integer :: compiler_major, compiler_minor, compiler_patch
+character(len=127) :: compiler_info_string
+integer :: compiler_major, compiler_minor, compiler_patch, &
+           compiler_release, compiler_build
 
 #ifdef __INTEL_COMPILER
-    write(compiler_info_string, '(A,I0)') 'Intel Fortran (ifort) V', __INTEL_COMPILER
+    write(compiler_info_string, '(A,I0)') 'Intel Fortran (ifort) V', &
+                                          __INTEL_COMPILER
 #elif defined __GFORTRAN__
     compiler_major = __GNUC__
     compiler_minor = __GNUC_MINOR__
     compiler_patch = __GNUC_PATCHLEVEL__
     write(compiler_info_string, '(A,2(I0,A),I0)') 'GNU Fortran (gfortran) V', &
         compiler_major,'.',compiler_minor,'.',compiler_patch
+#elif defined NAGFOR
+    compiler_release = 0
+    compiler_build = 0
+#   if defined __NAG_COMPILER_RELEASE
+        compiler_release = __NAG_COMPILER_RELEASE
+#   endif
+#   if defined __NAG_COMPILER_BUILD
+        compiler_build = __NAG_COMPILER_BUILD
+#   endif
+    write(compiler_info_string, '(2(A,I0))') 'NAG Fortran Release ', &
+                                             compiler_release, &
+                                             " Build ", &
+                                             compiler_build
 #else
     compiler_info_string='Unknown Compiler'
 #endif
@@ -82,6 +97,8 @@ character(len=30) :: timestamp
     write(timestamp, '(A)') __TIMESTAMP__
 #elif defined (__GFORTRAN__) && defined (__DATE__) && defined (__TIME__)
     write(timestamp, '(A,X,A)') __DATE__, __TIME__
+#elif defined __BUILD_START_TIME__
+    write(timestamp, '(A)') __BUILD_START_TIME__
 #else
     timestamp = 'unknown date and time'
 #endif

@@ -58,15 +58,22 @@ clean = ''
 if(args.clean): 
     clean = 'veryclean'
 os.chdir(os.path.join(working_dir, 'src', 'external'))
-os.system(
-    'make FC=%s CC=%s OMP_FCFLAG=%s OMP_CFLAG=%s %s'%(
-        args.compiler, c_comp, omp_fcflag, omp_cflag, clean
+# Compiling code from external sources
+if(args.compiler=="nagfor"):
+    # Not using openmp to compile spglib if NAG Fortran is used
+    os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
+else:
+    os.system(
+        'make FC=%s CC=%s OMP_FCFLAG=%s OMP_CFLAG=%s %s'%(
+            args.compiler, c_comp, omp_fcflag, omp_cflag, clean
+        )
     )
-)
 os.chdir(os.path.join(working_dir, 'src'))
 if(args.doc and not args.clean):
+    # Making source code documentation
     os.system('make sourcedoc')
 else:
+    # Making BandUP
     os.system('make FC=%s CC=%s %s'%(args.compiler, c_comp, clean))
 os.chdir(working_dir)
 

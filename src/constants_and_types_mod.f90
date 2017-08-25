@@ -79,14 +79,15 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
 ! Code version. If you modify this with no good reason and without following the steps
 ! described in the "For developers/collaborators" section of the main README.md file, 
 ! then it will be very difficult for me to offer you any support.
-character(len=str_len), parameter :: tag_for_push="3.0.0-beta.4"
+character(len=str_len), parameter :: tag_for_push="3.0.0-beta.5"
 #if defined (__COMMIT_TAG__)
     character(len=str_len), parameter :: version_tag=trim(adjustl(__COMMIT_TAG__))
 #else
     character(len=str_len), parameter :: version_tag='v'//tag_for_push
 #endif
 #if defined (__COMMIT_DATE__)
-    character(len=10), parameter :: commit_date=trim(adjustl(__COMMIT_DATE__))
+    character(len=str_len), parameter :: &
+        commit_date = trim(adjustl(__COMMIT_DATE__))
 #else
     character(len=30), parameter :: commit_date=" (unknown commit date)"
 #endif

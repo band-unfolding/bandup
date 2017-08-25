@@ -50,7 +50,7 @@ def compatible_cpp(fortcomp):
         return 'cpp'
     else: return None
 def compatible_omp_flags(fortcomp):
-    fcflag, cflag = None, None
+    fcflag, cflag = "", ""
     if('ifort' in fortcomp):
         fcflag, cflag = '-openmp', '-openmp'
     elif('gfortran' in fortcomp):

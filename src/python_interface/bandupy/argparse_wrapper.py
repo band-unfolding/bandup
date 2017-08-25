@@ -421,20 +421,21 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
             default='KPOINTS_prim_cell.in', metavar='FILE',
             action=store_abs_path_action_gen(assert_existence=True), 
             help=('Name of the file containing information' + 
-                  'about the primitive cell k-points. '+
-                  'Default: KPOINTS_prim_cell.in'))
+                  'about the primitive cell k-points. '
+                 )
+        )
         input_files_args.add_argument('-pc_file', '--prim_cell_file', metavar='FILE', 
             default='prim_cell_lattice.in', 
             action=store_abs_path_action_gen(assert_existence=True), 
             help=('Name of the file containing information'
-                  'about the primitive cell lattice vectors. '+
-                  'Default: prim_cell_lattice.in'))
+                  'about the primitive cell lattice vectors. '
+                 )
+        )
         input_files_args.add_argument('-efile', '--energy_info_file', '-energy_file',
             default='energy_info.in', metavar='FILE', 
             action=store_abs_path_action_gen(assert_existence=True), 
             help=('Name of the file containing information about '+
                   'the energy grid and Fermi energy to be used. '+
-                  'Default: energy_info.in. '
                   'This file is optional for the plotting tool.'))
 
         # Deciding how to output results
@@ -442,22 +443,26 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
             action=store_abs_path_action_gen(assert_existence=False), 
             help='%s %s'%('Optional: Name of the output file.', 
                  'If not given, it will be based on the name of the input file.'))
-        output_files_args.add_argument('--save', action='store_true', default=False, 
-                                       help='Saves the figue to a file. Default: False')
+        output_files_args.add_argument('--save', action='store_true', 
+                                       default=False, 
+                                       help='Saves the figue to a file')
         output_files_args.add_argument('--show', action='store_true', default=False, 
            help='Shows the figue. Default: False if --save is selected, True otherwise.')
-        output_files_args.add_argument('--saveshow', action='store_true', default=False, 
-                          help='Saves the figue to a file and opens the saved file'
-                               'instead of creating a pyplot window. Default: False')
-        output_files_args.add_argument('-res', '--fig_resolution', default='m', 
+        output_files_args.add_argument(
+            '--saveshow', action='store_true', default=False, 
+            help=('Saves the figue to a file and opens the saved file'
+                  'instead of creating a pyplot window')
+        )
+        output_files_args.add_argument('-res', '--fig_resolution', default='m',
                                        choices=['l','m','h'],
                                        help='Resolution of the figure:' 
                                        'l = 100 dpi, m = 300 dpi, h = 600 dpi.'
-                                       'Default: m = 300 dpi')
-        output_files_args.add_argument('-fmt', '--file_format', 
-                                       default=self.aux_settings['default_fig_format'],
-                                       help='File format of the figure. Default: ' +
-                                       self.aux_settings['default_fig_format'])
+                                      )
+        output_files_args.add_argument(
+            '-fmt', '--file_format', 
+            default=self.aux_settings['default_fig_format'],
+            help='File format of the figure.'
+        )
 
         # Colormap stuff
         self.possible_cmap_choices = self.add_mutually_exclusive_group()
@@ -506,13 +511,15 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         graph_args.add_argument('-ar', '--aspect_ratio', 
                                 type=type(Fraction('3/4')), 
                                 default=Fraction('3/4'), 
-                                help='Aspect ratio of the generated plot. Default: 3/4')
-        graph_args.add_argument('-interp', '--interpolation', default=None, 
-                               choices=['nearest', 'linear', 'cubic'], 
-                               help='Interpolation scheme used. Default: nearest')
-        graph_args.add_argument('-nlev', '--n_levels', type=int, default=101, 
-                              help='Number of different levels used in the contour plot.'
-                               'Default: 101')
+                                help='Aspect ratio of the generated plot.')
+        graph_args.add_argument('-interp', '--interpolation', 
+                                default="nearest", 
+                                choices=['nearest', 'linear', 'cubic'], 
+                                help='Interpolation scheme used.')
+        graph_args.add_argument(
+            '-nlev', '--n_levels', type=int, default=101, 
+            help='Number of different levels used in the contour plot.'
+        )
         self.possible_fig_orientations = self.add_mutually_exclusive_group()
         self.possible_fig_orientations.add_argument('--landscape', action='store_true', 
                                                     default=False)
@@ -540,14 +547,16 @@ class BandUpPlotArgumentParser(argparse.ArgumentParser):
         kptgrid_args.add_argument('-kmax', type=float, default=None)
         kptgrid_args.add_argument('-shift_k', '--shift_kpts_coords', 
                                   type=float, default=0.0, metavar='SHIFT', 
-                                  help='Shift in the k-points. Default: 0.0')
+                                  help='Shift in the k-points.')
         # Energy grid
         egrid_args.add_argument('-emin', type=float, default=None)
         egrid_args.add_argument('-emax', type=float, default=None)
         egrid_args.add_argument('-dE', type=float, default=None, metavar='dE_VAL')
-        egrid_args.add_argument('-shift_e', '--shift_energy', type=float, default=0.0,
-                                metavar='SHIFT',
-                                help='Shift in the energy grid. Default: 0.0')
+        egrid_args.add_argument(
+            '-shift_e', '--shift_energy', type=float, default=0.0,
+            metavar='SHIFT',
+            help='Shift in the energy grid.'
+        )
 
         # Colorbar
         cbar_args.add_argument('--no_cb', action='store_true',help='Hides the colorbar.')
