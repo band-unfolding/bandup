@@ -557,23 +557,17 @@ def produce_figure(plot):
 
     # Building the countour plot from the read data
     # Defining the (ki,Ej) grid.
-    if(args.interpolation is not None):
-        ki = np.linspace(plot.kmin, plot.kmax, 
-                         2 * len(set(plot.KptsCoords)) + 1, endpoint=True)
-        Ei = np.arange(plot.emin, plot.emax + plot.dE_for_hist2d, plot.dE_for_hist2d)
-        # Interpolating
-        grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, 
-                             (ki[None,:], Ei[:,None]), 
-                             method=args.interpolation, fill_value=0.0)
-    else:
-        ki = np.unique(np.clip(plot.KptsCoords, plot.kmin, plot.kmax))
-        Ei = np.unique(np.clip(plot.energies, plot.emin,  plot.emax))
-        grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, 
-                             (ki[None,:], Ei[:,None]), 
-                             method='nearest', fill_value=0.0)
-
+    ki = np.linspace(plot.kmin, plot.kmax, 
+                     2 * len(set(plot.KptsCoords)) + 1, endpoint=True)
+    Ei = np.arange(plot.emin, plot.emax + plot.dE_for_hist2d, 
+                   plot.dE_for_hist2d)
+    # Interpolating
+    grid_freq = griddata((plot.KptsCoords, plot.energies), plot.delta_Ns, 
+                         (ki[None,:], Ei[:,None]), 
+                         method=args.interpolation, fill_value=0.0)
+    # Clipping values smaller than zero. They are just noise.
     if(not args.skip_grid_freq_clip):
-        grid_freq = grid_freq.clip(0.0) # Values smaller than zero are just noise.
+        grid_freq = grid_freq.clip(0.0) 
     # Normalizing and building the countour plot
     manually_normalize_colorbar_min_and_maxval = False
     if((args.maxval_for_colorbar is not None) or (args.minval_for_colorbar is not None)):
@@ -733,9 +727,10 @@ def produce_figure(plot):
         if plot.cb_orientation=='vertical':
             cb_pad=0.005
         else:
-            cb_pad=0.06
+            cb_pad=0.075
         if(not x_tiks_labels):
-            cb_pad += 0.08 # To prevent the cb from overlapping with the numbers.
+            # To prevent the cb from overlapping with the numbers.
+            cb_pad += 0.08 
 
         cb_yticks = np.arange(int(image.norm.vmin), int(image.norm.vmax) + 1, 1)
 
