@@ -1,6 +1,7 @@
 !! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
-!! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+!! This file is part of BandUP:
+!! Band Unfolding code for Plane-wave based calculations.
 !!
 !! BandUP is free software: you can redistribute it and/or modify
 !! it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
-!===============================================================================
+!==============================================================================
 ! MODULE: band_unfolding 
 !
 !> @author
@@ -23,7 +24,7 @@
 !
 ! DESCRIPTION:
 !> Contains all routines employed to perform unfolding in BandUP.
-!===============================================================================
+!==============================================================================
 
 module band_unfolding
 !$ use omp_lib
@@ -36,12 +37,50 @@ implicit none
 PRIVATE
 PUBLIC :: get_geom_unfolding_relations, define_pckpts_to_be_checked, &
           select_coeffs_to_calc_spectral_weights, get_delta_Ns_for_output, &
-          update_GUR_indices, perform_unfolding, verify_commens
+          update_GUR_indices, perform_unfolding, verify_commens,
+          allocate_UnfoldedQuantities, allocate_UnfoldedQuantitiesForOutput
 
 CONTAINS
 
 
-subroutine update_GUR_indices(GUR, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt)
+subroutine allocate_UnfoldedQuantities(delta_N,pckpts_to_be_checked)
+implicit none
+type(UnfoldedQuantities), intent(out) :: delta_N
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked !! Geometric Unfolding Relations
+integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,n_needed_dirs,i_needed_dirs,nkpts
+
+    n_selec_pcbz_dir = size(pckpts_to_be_checked%selec_pcbz_dir(:))
+    allocate(delta_N%selec_pcbz_dir(1:n_selec_pcbz_dir))
+    do i_selc_pcbz_dir=1,n_selec_pcbz_dir
+        n_needed_dirs = size(pckpts_to_be_checked%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(:))
+        allocate(delta_N%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(1:n_needed_dirs))
+        do i_needed_dirs=1,n_needed_dirs
+            nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(:))
+            allocate(delta_N%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(i_needed_dirs)%pckpt(1:nkpts))
+        enddo
+    enddo
+
+end subroutine allocate_UnfoldedQuantities
+
+subroutine allocate_UnfoldedQuantitiesForOutput(delta_N,pckpts_to_be_checked)
+implicit none
+type(UnfoldedQuantitiesForOutput), intent(out) :: delta_N
+type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked !! Geometric Unfolding Relations
+integer :: n_selec_pcbz_dir,i_selc_pcbz_dir,nkpts
+
+    n_selec_pcbz_dir = size(pckpts_to_be_checked%selec_pcbz_dir(:))
+    allocate(delta_N%pcbz_dir(1:n_selec_pcbz_dir))
+    do i_selc_pcbz_dir=1,n_selec_pcbz_dir
+        nkpts = size(pckpts_to_be_checked%selec_pcbz_dir(i_selc_pcbz_dir)%needed_dir(1)%pckpt(:))
+        allocate(delta_N%pcbz_dir(i_selc_pcbz_dir)%pckpt(1:nkpts))
+    enddo
+
+end subroutine allocate_UnfoldedQuantitiesForOutput
+
+
+subroutine update_GUR_indices(&
+               GUR, i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt&
+           )
 implicit none
 type(geom_unfolding_relations_for_each_SCKPT), intent(inout) :: GUR
 integer, intent(in) :: i_SCKPT, i_selec_pcbz_dir, i_needed_dirs, ipc_kpt
@@ -61,10 +100,14 @@ type(comm_line_args), intent(in) :: args
 real(kind=dp), dimension(1:3, 1:3) :: matrix_M
 logical :: are_commens
 
-    call check_if_pc_and_SC_are_commensurate(are_commens, matrix_M, crystal_pc, crystal_SC, &
-                                             tol=default_tol_for_int_commens_test)
-    call print_message_commens_test(commensurate=are_commens,M=matrix_M,&
-                                    stop_if_not_commens=args%stop_if_not_commensurate) 
+    call check_if_pc_and_SC_are_commensurate(&
+             are_commens, matrix_M, crystal_pc, crystal_SC, &
+             tol=default_tol_for_int_commens_test &
+         )
+    call print_message_commens_test(&
+             commensurate=are_commens, M=matrix_M,&
+             stop_if_not_commens=args%stop_if_not_commensurate &
+         ) 
     if(args%stop_if_not_commensurate .and. .not. are_commens) stop
 
 end subroutine verify_commens
@@ -75,7 +118,8 @@ subroutine get_GUR_not_public(GUR,list_of_SCKPTS, pckpts_to_be_checked, &
                               vec_in_latt_tol_for_vec_eq, verbose)
 !! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 implicit none
-type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR !! Geometric Unfolding Relations
+!! GUR = Geometric Unfolding Relations
+type(geom_unfolding_relations_for_each_SCKPT), intent(out) :: GUR 
 type(selected_pcbz_directions), intent(in) :: pckpts_to_be_checked
 type(vec3d), dimension(:), intent(in) :: list_of_SCKPTS
 type(crystal_3D), intent(in) :: input_crystal_pc, input_crystal_SC
@@ -83,10 +127,12 @@ real(kind=dp), intent(in), optional :: vec_in_latt_tol_for_vec_eq
 logical, intent(in), optional :: verbose
 integer :: nkpts, n_selec_pcbz_dirs, i_SCKPT,ipc_kpt,ieqv_SCKPT,isym, &
            i_selec_pcbz_dir,i_needed_dirs,alloc_stat, i
-integer, dimension(:), allocatable :: n_dirs_for_EBS_along_pcbz_dir,n_pckpts_dirs
+integer, dimension(:), allocatable :: n_dirs_for_EBS_along_pcbz_dir, &
+                                      n_pckpts_dirs
 logical, dimension(:,:,:), allocatable :: pc_kpt_already_folded
 real(kind=dp) :: vec_in_latt_tolerance_for_vec_eq
-real(kind=dp), dimension(1:3) :: pc_kpt, current_SCKPT, SCKPT_eqv_to_current_SCKPT, &
+real(kind=dp), dimension(1:3) :: pc_kpt, current_SCKPT, &
+                                 SCKPT_eqv_to_current_SCKPT, &
                                  trial_folding_G, origin_for_spin_proj
 real(kind=dp), dimension(1:3,1:3) :: B_matrix_SC
 type(star), dimension(:), allocatable :: SKPTS_eqv_to_SKPT
@@ -116,15 +162,17 @@ type(crystal_3D) :: crystal_pc, crystal_SC
     if(args%origin_for_spin_proj_passed_in_rec)then
         args%origin_for_spin_proj_cartesian(:) = 0.0_dp
         do i=1,3
-            args%origin_for_spin_proj_cartesian = args%origin_for_spin_proj_cartesian + &
+            args%origin_for_spin_proj_cartesian = &
+                args%origin_for_spin_proj_cartesian + &
                 args%origin_for_spin_proj_rec(i) * B_matrix_SC(i,:)
         enddo
     endif
 
     if(args%no_symm_sckpts)then
         if(print_stuff)then
-            write(*,"(A)")'    * Running with the flag "-no_symm_sckpts". The symmetry of the SC'
-            write(*,"(A)")'      will NOT be used to reduce the number of SC K-points needed.'
+            write(*,"(A)")'    * Running with "-no_symm_sckpts".'
+            write(*,"(A)")'    * The SC symmetry will NOT be used'
+            write(*,"(A)")'      to reduce the number of SC K-points needed.'
         endif
         crystal_SC%nsym = 1
         deallocate(crystal_SC%symops, stat=alloc_stat)
@@ -135,7 +183,10 @@ type(crystal_3D) :: crystal_pc, crystal_SC
         crystal_SC%symops(1)%rotation_cartesian_coords = identity_3D
     else
         ! This fails if use_pc_to_get_symm=.TRUE.
-        call get_symm(crystal=crystal_SC, use_pc_to_get_symm=.FALSE., symprec=default_symprec) 
+        call get_symm(&
+                 crystal=crystal_SC, use_pc_to_get_symm=.FALSE., &
+                 symprec=default_symprec &
+             ) 
     endif
     call get_star(star_of_pt=SKPTS_eqv_to_SKPT, points=list_of_SCKPTS, &
                   crystal=crystal_SC, &
@@ -149,12 +200,14 @@ type(crystal_3D) :: crystal_pc, crystal_SC
     allocate(n_dirs_for_EBS_along_pcbz_dir(1:n_selec_pcbz_dirs))
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
         n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir) = &
-            size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(:))
+            size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%&
+                                          needed_dir(:))
     enddo
     allocate(n_pckpts_dirs(1:n_selec_pcbz_dirs))
     do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
         n_pckpts_dirs(i_selec_pcbz_dir) = &
-            size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%pckpt(:)) 
+            size(pckpts_to_be_checked%selec_pcbz_dir(i_selec_pcbz_dir)%&
+                                      needed_dir(1)%pckpt(:)) 
     enddo
     GUR%n_folding_pckpts = 0
     GUR%n_pckpts = 0
@@ -167,8 +220,11 @@ type(crystal_3D) :: crystal_pc, crystal_SC
         allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(1:n_selec_pcbz_dirs))
         GUR%SCKPT_used_for_unfolding(i_SCKPT) = .FALSE.
         do i_selec_pcbz_dir=1,n_selec_pcbz_dirs
-            deallocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir, &
-                       stat=alloc_stat)
+            deallocate(&
+                GUR%SCKPT(i_SCKPT)%&
+                        selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir, &
+                stat=alloc_stat &
+            )
             allocate(GUR%SCKPT(i_SCKPT)%selec_pcbz_dir(i_selec_pcbz_dir)% &
                          needed_dir(1:n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)))
             do i_needed_dirs=1,n_dirs_for_EBS_along_pcbz_dir(i_selec_pcbz_dir)
@@ -324,7 +380,7 @@ logical :: GUR_successfully_determined
         if((.not. GUR_successfully_determined) .and. &
            vec_in_latt_tol_for_vec_eq <= abs(max_tol_for_vec_equality))then
             write(*,'(A,I0,4(A,/))') &
-'WARNING (get_geom_unfolding_relations): Failed to determine GURs (attempt #', &
+'WARNING (get_geom_unfolding_relations): Failed to determine GURs (attempt #',&
                                          n_attempts, ').', &
 '                                        Increasing, by &
                                          0.05*default_tol_for_vec_equality,', &
