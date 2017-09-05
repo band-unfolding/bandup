@@ -32,7 +32,6 @@ use math, only: inverse_of_3x3_matrix, same_vector, norm, &
                 coords_cart_vec_in_new_basis
 use spglib_f08
 use crystals, only: create_crystal, reduce_point_to_bz
-!$ use omp_lib
 implicit none
 PRIVATE
 PUBLIC :: get_prim_cell, star, get_symm, get_irr_SC_kpts, get_star, &
