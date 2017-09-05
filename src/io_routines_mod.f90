@@ -34,7 +34,11 @@ use read_abinit_wavefunctions
 use read_vasp_wavecar
 use read_vasp_files
 use write_vasp_files
-use math
+use time, only: time_now, formatted_time
+use math, only: norm, coords_cart_vec_in_new_basis, cross, same_vector, &
+                n_digits_integer
+use lists_and_seqs, only: list_index
+use units, only: to_angstrom
 # if defined (__QE_SUPPORT__)
 use qexml_module
 use read_qe_wavefunctions
@@ -787,7 +791,7 @@ real(kind=dp) :: e_fermi, origin_of_kpts_line, coord_first_k_in_dir, coord_k, &
                  stime, ftime
 logical :: write_spin_info
 
-    stime = time()
+    stime = time_now()
 
     e_fermi = 0.0_dp
     if(present(EF))then
@@ -846,7 +850,7 @@ logical :: write_spin_info
         enddo
     close(12)
 
-    ftime = time()
+    ftime = time_now()
     if(present(add_elapsed_time_to))then
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
@@ -1086,7 +1090,7 @@ real(kind=dp) :: stime, ftime, inner_prod
 logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
            stop_if_wf_not_found
 
-    stime = time()
+    stime = time_now()
 
     print_stuff = .FALSE.
     if(present(verbose)) print_stuff = verbose
@@ -1175,7 +1179,7 @@ logical :: file_exists, spin_reset, read_coefficients, print_stuff, &
         enddo
     endif
 
-    ftime = time()
+    ftime = time_now()
     if(present(elapsed_time)) elapsed_time = ftime - stime
     if(present(add_elapsed_time_to)) add_elapsed_time_to = add_elapsed_time_to  + (ftime - stime)
     if(present(iostat)) iostat = ios
@@ -1434,7 +1438,7 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: rhos
 real(kind=dp), dimension(:), pointer :: dN
 real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
 
-    stime = time()
+    stime = time_now()
 
     e_fermi = 0.0_dp
     if(present(EF))then
@@ -1606,7 +1610,7 @@ real(kind=dp), parameter :: min_allowed_dN = 1E-03_dp
 
     close(unf_dens_file_unit)
 
-    ftime = time()
+    ftime = time_now()
     if(present(add_elapsed_time_to))then
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
@@ -1652,7 +1656,7 @@ implicit none
 type(timekeeping), intent(inout) :: times
 real(kind=dp) :: elapsed_time
 
-    times%end = time()
+    times%end = time_now()
     elapsed_time = times%end - times%start
     call print_time(elapsed_time, &
         'Total elapsed time:                                               ', elapsed_time)

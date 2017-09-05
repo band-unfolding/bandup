@@ -30,14 +30,18 @@ module band_unfolding
 !$ use omp_lib
 use constants_and_types
 use cla_wrappers
-use math
+use lists_and_seqs, only: append, list_index, kpts_line
+use math, only: integral_delta_x_minus_x0, delta, trace_ab, versor, cross 
+use symmetry, only: get_symm, get_star, pt_eqv_by_point_group_symop
+use crystals, only: vec_in_latt, check_if_pc_and_SC_are_commensurate
+use time, only: time_now
 use general_io
 use io_routines
 implicit none
 PRIVATE
 PUBLIC :: get_geom_unfolding_relations, define_pckpts_to_be_checked, &
           select_coeffs_to_calc_spectral_weights, get_delta_Ns_for_output, &
-          update_GUR_indices, perform_unfolding, verify_commens,
+          update_GUR_indices, perform_unfolding, verify_commens, &
           allocate_UnfoldedQuantities, allocate_UnfoldedQuantitiesForOutput
 
 CONTAINS
@@ -507,7 +511,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer :: n_bands_SC_calculation, iband, i, icoeff
 real(kind=dp) :: stime, ftime
 
-    stime = time()
+    stime = time_now()
 
     n_bands_SC_calculation = size(coeff,dim=2)
     spectral_weight(:) = 0.0_dp
@@ -523,7 +527,7 @@ real(kind=dp) :: stime, ftime
     enddo
 
     if(present(add_elapsed_time_to))then
-        ftime = time()
+        ftime = time_now()
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
 
@@ -542,7 +546,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 integer :: alloc_stat,n_SC_bands,iener,i_SC_band
 real(kind=dp) :: E, E_SC_band, stime, ftime, sigma
 
-    stime = time()
+    stime = time_now()
 
     sigma = 0.025_dp
     if(present(std_dev)) sigma = std_dev
@@ -565,7 +569,7 @@ real(kind=dp) :: E, E_SC_band, stime, ftime, sigma
     enddo
 
     if(present(add_elapsed_time_to))then
-        ftime = time()
+        ftime = time_now()
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
 
@@ -637,14 +641,14 @@ real(kind=dp), intent(in), optional :: smearing_for_delta_function
 real(kind=dp) :: sigma, stime, ftime
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
-    stime = time()
+    stime = time_now()
     sigma = epsilon(1.0_dp)
     if(present(smearing_for_delta_function))then
         sigma = max(sigma,abs(smearing_for_delta_function))
     endif
     call calc_delta_N_pckpt(delta_N_pckpt,energy_grid,SC_calc_ener,spectral_weight,sigma)
     if(present(add_elapsed_time_to))then
-        ftime = time()
+        ftime = time_now()
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
 
@@ -673,7 +677,7 @@ type(UnfoldDensityOpContainer), pointer :: avgd_rho, not_avgd_rho
 type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
 
 
-    stime = time()
+    stime = time_now()
     nener = size(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%dN(:))
     allocate(avrgd_dNs(1:nener))
     call allocate_UnfoldedQuantitiesForOutput(delta_N_only_selected_dirs, pckpts_to_be_checked)
@@ -698,13 +702,13 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
             delta_N_symm_avrgd_for_EBS%pcbz_dir(i_selec_pcbz_dir)%pckpt(ipc_kpt)%dN(:) = avrgd_dNs
        enddo     
     enddo
-    ftime = time()
+    ftime = time_now()
     if(present(times))then
         times%calc_dN = times%calc_dN + (ftime - stime)
     endif
 
     if(args%write_unf_dens_op)then
-        stime = time()
+        stime = time_now()
         ! Symmetry-averaging the unfolding density operator
         do i_selec_pcbz_dir=1,size(delta_N%selec_pcbz_dir(:))
             do ipc_kpt=1, size(delta_N%selec_pcbz_dir(i_selec_pcbz_dir)%needed_dir(1)%&
@@ -783,7 +787,7 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
                 enddo ! i_needed_dirs index
             enddo ! i_pc_kpt
         enddo ! i_selec_pcbz_dir index
-        ftime = time()
+        ftime = time_now()
         if(present(times))then
             times%calc_rho = times%calc_rho + (ftime - stime)
         endif
@@ -791,7 +795,7 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
 
     output_spin_info = allocated(delta_N%selec_pcbz_dir(1)%needed_dir(1)%pckpt(1)%spin_proj_perp)
     if(.not. output_spin_info) return
-    stime = time()
+    stime = time_now()
     allocate(avrgd_spin_proj(1:nener))
     allocate(avrgd_parallel_proj(1:nener))
     allocate(avrgd_sigma(1:nener,1:3))
@@ -831,7 +835,7 @@ type(UnfoldDensityOpContainer), dimension(:), pointer :: symm_avg_rhos
                                        pckpt(ipc_kpt)%sigma(:,:) = avrgd_sigma(:,:)
        enddo     
     enddo
-    ftime = time()
+    ftime = time_now()
     if(present(times))then
         times%calc_pauli_vec_projs = times%calc_pauli_vec_projs + (ftime - stime)
     endif
@@ -858,7 +862,7 @@ complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: pf_coeffs_m1, pf_co
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
 
-    stime = time()
+    stime = time_now()
     if(delta_N < epsilon(1.0_dp))then
         write(*,'(A)')'ERROR (calc_rho): delta_N = 0.'
         write(*,'(A)')'Stopping now.'
@@ -931,7 +935,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     endif
 
     if(present(add_elapsed_time_to))then
-        ftime = time()
+        ftime = time_now()
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
 
@@ -959,7 +963,7 @@ real(kind=dp) :: lambd, stime, ftime
 real(kind=dp), intent(inout), optional :: add_elapsed_time_to
 
 
-    stime = time()
+    stime = time_now()
     n_SC_bands = size(wf%pw_coeffs, dim=3)
     if(.not. allocated(pauli_mtx_elmts_already_calc))then
         allocate(pauli_mtx_elmts_already_calc(1:n_SC_bands, 1:n_SC_bands))
@@ -1015,7 +1019,7 @@ real(kind=dp), intent(inout), optional :: add_elapsed_time_to
     endif
 
     if(present(add_elapsed_time_to))then
-        ftime = time()
+        ftime = time_now()
         add_elapsed_time_to = add_elapsed_time_to + (ftime - stime)
     endif
 

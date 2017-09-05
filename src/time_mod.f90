@@ -26,17 +26,16 @@
 !> Defines some mathematical functions and subroutines used by BandUP.
 !==============================================================================
 
-module time_stuff
+module time
 use constants_and_types
-use math
 !$ use omp_lib
 implicit none
 PRIVATE
-PUBLIC :: time, initialize, formatted_time
+PUBLIC :: time_now, initialize, formatted_time
 
 CONTAINS
 
-function time() result(rtn)
+function time_now() result(rtn)
 implicit none
 real(kind=dp) :: rtn
 integer :: count, count_rate
@@ -46,14 +45,14 @@ integer :: count, count_rate
    CALL system_clock(count, count_rate)
    rtn = count/count_rate
 
-end function time
+end function time_now
 
 
 subroutine initialize(times)
 implicit none
 type(timekeeping), intent(out) :: times
 
-    times%start=time()
+    times%start=time_now()
     times%read_wf=0.0_dp
     times%calc_spec_weights=0.0_dp
     times%calc_SF=0.0_dp
@@ -63,7 +62,7 @@ type(timekeeping), intent(out) :: times
     times%calc_pauli_vec_projs=0.0_dp
     times%write_dN_files=0.0_dp
     times%write_unf_dens_op_files=0.0_dp
-    times%end = time()
+    times%end = time_now()
 
 end subroutine initialize
 
@@ -111,4 +110,4 @@ character(len=127) :: aux_char
 
 end function formatted_time
 
-end module time_stuff
+end module time
