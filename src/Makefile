@@ -143,7 +143,8 @@ ifneq ($(QE_SUPPORT), )
     QE_READ_WF_OBJ = read_qe_wavefunctions_mod.o
 endif
 OBJ := cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o \
-       spglib_f08.o math_mod.o band_unfolding_routines_mod.o \
+       spglib_f08.o lists_and_seqs_mod.o time_mod.o units_mod.o \
+       crystals_mod.o math_mod.o symmetry_mod.o band_unfolding_routines_mod.o \
        general_io_mod.o read_wavecar_mod.o \
        read_vasp_files_mod.o read_abinit_wavefunctions_mod.o \
        $(QE_READ_WF_OBJ) $(CASTEP_READ_WF_OBJ) \
@@ -155,26 +156,34 @@ prebandup: $(BANDUP_GET_SCKPTS_EXE)
 python: $(PYTHON_INTERF_SYMLNK)
 # Rules for dependencies
 cla.o: kinds.o
-math_mod.o: constants_and_types_mod.o spglib_f08.o
-general_io_mod.o: constants_and_types_mod.o math_mod.o
+lists_and_seqs_mod.o: constants_and_types_mod.o
+time_mod.o: constants_and_types_mod.o
+units_mod.o: constants_and_types_mod.o
+strings_mod.o: constants_and_types_mod.o
+general_io_mod.o: constants_and_types_mod.o
+math_mod.o: constants_and_types_mod.o lists_and_seqs_mod.o spglib_f08.o
+crystals_mod.o: constants_and_types_mod.o lists_and_seqs_mod.o math_mod.o 
+symmetry_mod.o: constants_and_types_mod.o spglib_f08.o crystals_mod.o
 cla_wrappers_mod.o: general_io_mod.o kinds.o cla.o constants_and_types_mod.o
-read_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o \
-                       strings_mod.o
+read_vasp_files_mod.o: constants_and_types_mod.o crystals_mod.o math_mod.o \
+                       general_io_mod.o strings_mod.o
 write_vasp_files_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o \
                         strings_mod.o
 read_wavecar_mod.o: constants_and_types_mod.o math_mod.o general_io_mod.o
-read_abinit_wavefunctions_mod.o: constants_and_types_mod.o math_mod.o \
-                                 general_io_mod.o
+read_abinit_wavefunctions_mod.o: constants_and_types_mod.o units_mod.o \
+                                 math_mod.o general_io_mod.o
 read_qe_wavefunctions_mod.o: constants_and_types_mod.o cla_wrappers_mod.o \
-                             math_mod.o general_io_mod.o
+                             units_mod.o math_mod.o general_io_mod.o
 read_castep_wavefunctions_mod.o: constants_and_types_mod.o
-io_routines_mod.o: constants_and_types_mod.o math_mod.o cla_wrappers_mod.o \
-                   strings_mod.o general_io_mod.o read_vasp_files_mod.o \
-                   write_vasp_files_mod.o read_wavecar_mod.o \
-                   read_abinit_wavefunctions_mod.o \
+io_routines_mod.o: constants_and_types_mod.o time_mod.o math_mod.o \
+                   cla_wrappers_mod.o strings_mod.o general_io_mod.o \
+                   read_vasp_files_mod.o write_vasp_files_mod.o \
+                   read_wavecar_mod.o read_abinit_wavefunctions_mod.o \
                    $(QE_READ_WF_OBJ) $(CASTEP_READ_WF_OBJ)
-band_unfolding_routines_mod.o: constants_and_types_mod.o cla_wrappers_mod.o \
-                               math_mod.o general_io_mod.o io_routines_mod.o
+band_unfolding_routines_mod.o: constants_and_types_mod.o time_mod.o \
+                               cla_wrappers_mod.o lists_and_seqs_mod.o \
+                               math_mod.o symmetry_mod.o crystals_mod.o \
+                               general_io_mod.o io_routines_mod.o
 $(BANDUP_SRC_OBJ) $(BANDUP_GET_SCKPTS_SRC_OBJ): $(OBJ) 
 # ======================================================================
 # General rules
