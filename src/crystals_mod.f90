@@ -28,111 +28,15 @@
 
 module crystals
 use constants_and_types
-use math
-!$ use omp_lib
+use math, only: coords_cart_vec_in_new_basis, norm, same_vector, cross, &
+                triple_product, inverse_of_3x3_matrix
+use lists_and_seqs, only: append
 implicit none
 PRIVATE
 PUBLIC :: get_rec_latt, vec_in_latt, reduce_point_to_bz, create_crystal, &
-          get_prim_cell, check_if_pc_and_SC_are_commensurate
+          check_if_pc_and_SC_are_commensurate
 
 CONTAINS
-
-
-subroutine get_prim_cell(crystal, symmetryze_and_refine_cell, symprec)
-!! Copyright (C) 2014 Paulo V. C. Medeiros
-!! If the crystal is already a primitive cell, then a copy of it is
-!! returned in the crystal_pc variable
-!! Not fully tested, but works for BandUP
-implicit none
-type(crystal_3D), intent(inout) :: crystal
-logical, intent(in), optional :: symmetryze_and_refine_cell
-real(kind=dp), intent(in), optional :: symprec
-type(crystal_3D) :: aux_crystal
-real(kind=dp), dimension(:,:), allocatable :: transpose_frac_coords_SC, transpose_coords_pc, &
-                                              aux_transpose_frac_coords
-integer :: num_atoms_pc, num_atoms_SC,iatom, iatom2, alloc_stat
-integer, dimension(:), allocatable :: aux_integer_types_basis_atoms
-real(kind=dp) :: symm_prec
-character(len=3), dimension(:), allocatable :: atom_symbols
-logical :: symmetryze_and_ref_cell
-
-    symm_prec=default_symprec
-    symmetryze_and_ref_cell = .FALSE.
-    if(present(symmetryze_and_refine_cell)) symmetryze_and_ref_cell = symmetryze_and_refine_cell
-    if(present(symprec)) symm_prec=dabs(symprec)
-
-    allocate(crystal%corresp_pc, stat=alloc_stat)
-    aux_crystal = crystal
-
-    if(symmetryze_and_ref_cell)then
-        deallocate(aux_integer_types_basis_atoms, stat=alloc_stat)
-        aux_integer_types_basis_atoms = 0 
-        deallocate(aux_transpose_frac_coords, stat=alloc_stat)
-        ! spglib requires space for 4*n_atoms to be allocated here, because
-        ! 4 times more atoms are generated for face-centered crystals.
-        allocate(aux_integer_types_basis_atoms(1:4*size(crystal%integer_types_basis_atoms)))
-        allocate(aux_transpose_frac_coords(1:size(crystal%fractional_coords_basis_atoms,dim=2), &
-                                          1:4*size(crystal%fractional_coords_basis_atoms,dim=1)))
-        aux_transpose_frac_coords(:,1:size(crystal%fractional_coords_basis_atoms,dim=1)) = &
-            transpose(crystal%fractional_coords_basis_atoms(:,:))
-        aux_integer_types_basis_atoms(1:size(crystal%integer_types_basis_atoms)) = &
-            crystal%integer_types_basis_atoms(:)
-        num_atoms_SC = size(crystal%fractional_coords_basis_atoms,dim=1)
-        num_atoms_SC = spg_refine_cell(aux_crystal%latt_vecs, &
-                                       aux_transpose_frac_coords, &
-                                       aux_integer_types_basis_atoms, &
-                                       num_atoms_SC, symm_prec)
-        deallocate(aux_crystal%fractional_coords_basis_atoms, stat=alloc_stat)
-        deallocate(aux_crystal%integer_types_basis_atoms, stat=alloc_stat)
-        allocate(aux_crystal%fractional_coords_basis_atoms(1:num_atoms_SC,1:3))
-        allocate(aux_crystal%integer_types_basis_atoms(1:num_atoms_SC))
-        aux_crystal%fractional_coords_basis_atoms(:,:) = &
-            transpose(aux_transpose_frac_coords(:,1:num_atoms_SC))
-        aux_crystal%integer_types_basis_atoms = aux_integer_types_basis_atoms(1:num_atoms_SC) 
-        deallocate(aux_transpose_frac_coords, stat=alloc_stat)
-        deallocate(aux_integer_types_basis_atoms, stat=alloc_stat)
-    endif
-
-    allocate(transpose_frac_coords_SC(1:size(aux_crystal%fractional_coords_basis_atoms,dim=2), &
-                                      1:size(aux_crystal%fractional_coords_basis_atoms,dim=1)))
-    transpose_frac_coords_SC = transpose(aux_crystal%fractional_coords_basis_atoms)
-    num_atoms_pc = spg_find_primitive(aux_crystal%latt_vecs, &
-                                      transpose_frac_coords_SC, &
-                                      aux_crystal%integer_types_basis_atoms, &
-                                      size(aux_crystal%fractional_coords_basis_atoms, dim=1), &
-                                      symm_prec)
-
-    crystal%is_prim_cell = .TRUE.
-    if(num_atoms_pc>0)then 
-       ! This means that the crystal celll is a perfect SC
-       ! corresponding to a PC with num_atoms_pc atoms
-        crystal%is_prim_cell = .FALSE.
-        allocate(atom_symbols(1:num_atoms_pc))
-        allocate(transpose_coords_pc(1:3,1:num_atoms_pc))
-        do iatom=1,num_atoms_pc
-            do iatom2=1,size(crystal%atomic_symbols_basis_atoms)
-                if(aux_crystal%integer_types_basis_atoms(iatom) == &
-                   crystal%integer_types_basis_atoms(iatom2))then
-                    atom_symbols(iatom) = crystal%atomic_symbols_basis_atoms(iatom2)
-                    exit
-                endif
-            enddo
-            ! Making sure the atoms are inside the simulation box
-            ! modulo(a,p) returns a - floor(a / p) * p
-            transpose_frac_coords_SC(:,iatom) = modulo(transpose_frac_coords_SC(:,iatom), &
-                                                       real(1,kind=dp))
-            ! Changing to cartesian coords
-            transpose_coords_pc(:,iatom) = matmul(transpose_frac_coords_SC(:,iatom), & 
-                                                  aux_crystal%latt_vecs)
-        enddo
-        call create_crystal(crystal=crystal%corresp_pc, description=crystal%description, &
-                            latt_vecs=aux_crystal%latt_vecs, & 
-                            coords_basis_atoms=transpose(transpose_coords_pc), &
-                            atomic_symbols_basis_atoms=atom_symbols)
-    endif
-
-end subroutine get_prim_cell
-
 
 subroutine check_if_pc_and_SC_are_commensurate(commensurate, M, crystal_pc, crystal_SC,tol)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
