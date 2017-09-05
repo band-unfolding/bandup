@@ -125,7 +125,7 @@ Now you can safely modify the code.
       no obvious bugs.
    5. Push your changes *to your remote fork*:
 
-                git push origin your_branch
+                git push -u origin your_branch
                 
    6. Create a pull request from your branch into the official repo's
       `devel`. You do this via GitHub's online interface (the process
@@ -188,7 +188,7 @@ with the remote one:
       
    6. Finally, push your branch:
 
-                git push origin your_branch
+                git push -u origin your_branch
 
 <!-- =========================================================== -->
 ## B: After you submit your changes 
