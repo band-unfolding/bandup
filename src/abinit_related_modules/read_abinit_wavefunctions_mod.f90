@@ -28,7 +28,8 @@
 module read_abinit_wavefunctions
 use general_io
 use constants_and_types
-use math
+use units, only: to_angstrom, to_ev
+use math, only: cross, norm
 implicit none
 PRIVATE
 PUBLIC :: read_abinit_wfk_file, read_abinit_wfk_header

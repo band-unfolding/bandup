@@ -18,7 +18,11 @@ program BandUP_main
 !$ use omp_lib
 use constants_and_types
 use cla_wrappers
-use math
+use crystals, only: create_crystal, get_rec_latt
+use symmetry, only: get_prim_cell, analise_symm_pc_SC, &
+                    get_pcbz_dirs_2b_used_for_EBS
+use lists_and_seqs, only: real_seq
+use time, only: initialize
 use general_io
 use io_routines
 use read_vasp_files

@@ -21,7 +21,8 @@ use general_io
 use io_routines
 use read_vasp_files
 use write_vasp_files
-use math
+use symmetry, only: get_prim_cell, get_irr_sc_kpts, analise_symm_pc_sc, &
+                    get_pcbz_dirs_2b_used_for_ebs
 use band_unfolding
 implicit none
 type(vec3d), dimension(:), allocatable :: irr_unfolding_SCKPTS, irr_unfolding_SCKPTS_frac_coords, &
