@@ -27,7 +27,6 @@
 
 module general_io
 use constants_and_types
-use math
 implicit none
 SAVE
 PRIVATE

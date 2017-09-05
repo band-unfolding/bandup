@@ -27,10 +27,7 @@
 !==============================================================================
 
 module lists_and_seqs
-use math
 use constants_and_types
-use spglib_f08
-!$ use omp_lib
 implicit none
 PRIVATE
 PUBLIC :: real_seq, integer_seq, append, list_index, kpts_line

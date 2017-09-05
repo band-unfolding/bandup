@@ -27,7 +27,6 @@
 
 module strings
 use constants_and_types
-use math
 implicit none
 PRIVATE
 PUBLIC :: lower_case, upper_case, split, compact

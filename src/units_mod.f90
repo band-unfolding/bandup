@@ -28,8 +28,6 @@
 
 module units
 use constants_and_types
-use math
-!$ use omp_lib
 implicit none
 PRIVATE
 PUBLIC :: to_ev, to_angstrom
@@ -77,6 +75,5 @@ character(len=1) :: first_letter_units
     rtn = conv_factor * value
 
 end function to_ev
-
 
 end module units
