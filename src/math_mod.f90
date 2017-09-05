@@ -27,14 +27,17 @@
 !==============================================================================
 
 module math
-use constants_and_types
+use constants_and_types, only : sp, dp, kind_cplx_coeffs, &
+                                default_tol_for_vec_equality, twopi, &
+                                UnfoldDensityOpContainer
+use lists_and_seqs, only : list_index
 !$ use omp_lib
 implicit none
 PRIVATE
 PUBLIC :: n_digits_integer, cross, norm, angle, delta, &
           integral_delta_x_minus_x0, triple_product, &
           coords_cart_vec_in_new_basis, same_vector, &
-          versor, trace_AB, trace
+          versor, trace_AB, trace, inverse_of_3x3_matrix
 
 interface trace_AB
     module procedure trace_AB_real, trace_AB_cplx, trace_AB_A_is_rho_B_is_cplx
