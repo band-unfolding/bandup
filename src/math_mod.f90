@@ -232,7 +232,8 @@ end function inverse_of_3x3_matrix
 
 
 function coords_cart_vec_in_new_basis(cart_vec, new_basis) result(coords)
-! Returns the coordinates of the vector cart_vec = (x,y,z) in the basis "new_basis"
+! Returns the coordinates of the vector cart_vec = (x,y,z)
+! in the basis "new_basis"
 real(kind=dp), dimension(1:3) :: coords
 real(kind=dp), dimension(1:3), intent(in) :: cart_vec
 real(kind=dp), dimension(1:3,1:3), intent(in) :: new_basis

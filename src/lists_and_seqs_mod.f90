@@ -33,8 +33,8 @@ PRIVATE
 PUBLIC :: real_seq, integer_seq, append, list_index, kpts_line
 
 interface append
-  module procedure append_integer_list, append_character_list, append_complex_list, &
-                   append_matrix_index_list
+  module procedure append_integer_list, append_character_list, &
+                   append_complex_list, append_matrix_index_list
 end interface append
 
 interface list_index
@@ -94,7 +94,7 @@ subroutine append_complex_list(item, list)
 !! Not fully tested, but works for BandUP
 implicit none
 complex(kind=kind_cplx_coeffs), intent(in) :: item
-complex(kind=kind_cplx_coeffs), dimension(:), allocatable, intent(inout) :: list
+complex(kind=kind_cplx_coeffs), dimension(:), allocatable, intent(inout):: list
 complex(kind=kind_cplx_coeffs), dimension(:), allocatable :: new_list
 
 if(.not.allocated(list))then

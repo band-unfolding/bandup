@@ -38,11 +38,13 @@ PUBLIC :: get_rec_latt, vec_in_latt, reduce_point_to_bz, create_crystal, &
 
 CONTAINS
 
-subroutine check_if_pc_and_SC_are_commensurate(commensurate, M, crystal_pc, crystal_SC,tol)
+subroutine check_if_pc_and_SC_are_commensurate(&
+               commensurate, M, crystal_pc, crystal_SC,tol &
+           )
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 ! Calculates the matrix M so that  
-! A[i] = sum(M_{ij}*a[j]; j=1,2,3),
-! where 'A' and 'a' are the real space lattice vectors of the SC and pc, respectively. 
+! A[i] = sum(M_{ij}*a[j]; j=1,2,3), where
+! 'A' and 'a' are the real space latt vecs of the SC and pc, respectively. 
 ! The subroutine then uses M to check if the PC and SC are commensurate.
 implicit none
 logical, intent(out) :: commensurate
@@ -70,16 +72,20 @@ real(kind=dp) :: max_residue
 
 end subroutine check_if_pc_and_SC_are_commensurate
 
-subroutine create_crystal(crystal, description, latt_vecs, coords_basis_atoms, &
-                          atomic_symbols_basis_atoms, unconstrained_dof_basis_atoms)
+subroutine create_crystal(&
+               crystal, description, latt_vecs, coords_basis_atoms, &
+               atomic_symbols_basis_atoms, unconstrained_dof_basis_atoms &
+           )
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
 type(crystal_3D), intent(out) :: crystal
 character(len=*), intent(in), optional :: description
 real(kind=dp), dimension(1:3,1:3), intent(in) :: latt_vecs
-real(kind=dp), dimension(:,:), intent(in), optional :: coords_basis_atoms ! dimension(:,1:3)
+! coords_basis_atoms = coords_basis_atoms(:,1:3)
+real(kind=dp), dimension(:,:), intent(in), optional :: coords_basis_atoms 
 character(len=3), dimension(:), optional :: atomic_symbols_basis_atoms
-logical, dimension(:,:), optional :: unconstrained_dof_basis_atoms ! dimension(:,1:3)
+! dimension{unconstrained_dof_basis_atoms} = (:,1:3)
+logical, dimension(:,:), optional :: unconstrained_dof_basis_atoms 
 integer :: iatom, isymb
 real(kind=dp), dimension(1:3) :: default_positions
 logical, dimension(1:1,1:3) :: default_unconstrained_dof
@@ -88,7 +94,9 @@ character(len=3), dimension(:), allocatable :: symbols, unique_symbols
 logical, dimension(:,:), allocatable :: dof_basis_atoms ! dimension(:,1:3)
 type(crystal_3D), allocatable :: aux_crystal  
     ! Defaults of optional arguments 
-    default_positions(:) = 0.0_dp * (latt_vecs(1,:) + latt_vecs(2,:) + latt_vecs(3,:))
+    default_positions(:) = 0.0_dp * (latt_vecs(1,:) + &
+                                     latt_vecs(2,:) + &
+                                     latt_vecs(3,:))
     default_unconstrained_dof(1,:) = (/.TRUE.,.TRUE.,.TRUE./) 
 
     ! 'Cleaning' crystal
@@ -128,7 +136,10 @@ type(crystal_3D), allocatable :: aux_crystal
     
     ! Lattice
     crystal%latt_vecs = latt_vecs
-    crystal%vol = abs(triple_product(latt_vecs(1,:), latt_vecs(2,:), latt_vecs(3,:)))
+    crystal%vol = abs(triple_product(&
+                          latt_vecs(1,:), latt_vecs(2,:), latt_vecs(3,:)&
+                      )&
+                  )
     call get_rec_latt(latt_vecs, crystal%rec_latt_vecs, crystal%rec_latt_vol)
     ! Basis
     allocate(crystal%coords_basis_atoms(1:size(atom_pos,dim=1), &
@@ -162,8 +173,10 @@ type(crystal_3D), allocatable :: aux_crystal
     enddo
 
     ! Degrees of freedom
-    allocate(crystal%unconstrained_dof_basis_atoms(1:size(dof_basis_atoms,dim=1), &
-                                                   1:size(dof_basis_atoms,dim=2)))
+    allocate(&
+        crystal%unconstrained_dof_basis_atoms(1:size(dof_basis_atoms,dim=1), &
+                                              1:size(dof_basis_atoms,dim=2)) &
+    )
     crystal%unconstrained_dof_basis_atoms = dof_basis_atoms
 
 
@@ -220,7 +233,8 @@ nb2max = 1
 nb3max = 1
 do ig3=0,2*nb3max
     ig3p=ig3
-    ! Trick to make the indices ig3p vary from 0 to nb3max and then from -nb3max to -1
+    ! Trick to make the indices ig3p vary from 0 to nb3max and then 
+    ! from -nb3max to -1
     if (ig3.gt.nb3max) ig3p=ig3-2*nb3max-1  
     do ig2=0,2*nb2max
         ig2p=ig2
@@ -241,11 +255,12 @@ return
 end function vec_in_latt
 
 
-function point_is_in_bz(point,rec_latt,origin_point,tolerance,verbose) result(rtn)
+function point_is_in_bz(point,rec_latt,origin_point,tolerance,verbose) &
+result(rtn)
 !! Copyright (C) 2013, 2014 Paulo V. C. Medeiros
 !! Checks if the point "point" belongs to the 1st Brillouin zone of a Bravais
-!! lattice for which the reciprocal lettice vectors are "rec_latt(i,:)", i=1,2,3
-!! The optional variable "origin_point" is to be used if you want the mesh to be
+!! latt for which the reciprocal lettice vectors are "rec_latt(i,:)", i=1,2,3
+!! The opt variable "origin_point" is to be used if you want the mesh to be
 !! centered in other point than (0,0,0).
 !! Not fully tested, but works for BandUP
 implicit none
@@ -291,9 +306,10 @@ do ig3=-1,1
                     return
                 else
                     if(print_stuff)then
-                        write(*,'(A)')'WARNING (point_is_in_bz): Tolerance applied &
-                            when checking whether point lies inside 1BZ. Should be OK,&
-                            but do check your results.'
+                        write(*,'(A)')&
+                            'WARNING (point_is_in_bz): Tolerance applied &
+                            when checking whether point lies inside 1BZ. ,&
+                            This should be OK, but do check your results.'
                     endif
                 endif
             endif
@@ -315,10 +331,12 @@ recursive subroutine reduce_point_to_bz(point, rec_latt,point_reduced_to_bz, &
 implicit none
 real(kind=dp), dimension(1:3), intent(in) :: point
 real(kind=dp), dimension(1:3,1:3), intent(in) :: rec_latt
-real(kind=dp), dimension(1:3), intent(out) :: point_reduced_to_bz ! Returned in cartesian coords!
+! point_reduced_to_bz is returned in cartesian coords!
+real(kind=dp), dimension(1:3), intent(out) :: point_reduced_to_bz 
 integer, intent(in), optional :: max_index_lin_comb_RL_vecs
 logical :: point_has_been_reduced
-real(kind=dp), dimension(1:3) :: frac_coords_point, nearest_G, ref_G, trial_nearest_G
+real(kind=dp), dimension(1:3) :: frac_coords_point, nearest_G, ref_G, &
+                                 trial_nearest_G
 integer :: ig1, ig2, ig3, igmax
 
     igmax = 0
@@ -326,14 +344,21 @@ integer :: ig1, ig2, ig3, igmax
         igmax = max_index_lin_comb_RL_vecs
     endif
 
-    frac_coords_point = coords_cart_vec_in_new_basis(cart_vec=point, new_basis=rec_latt)
-    ! Finding the rec. latt. point "nearest_G" that is closest to the input point "point"
-    ref_G = matmul(real(nint(frac_coords_point), kind=dp),rec_latt) ! In cartesian coords
+    frac_coords_point = coords_cart_vec_in_new_basis(&
+                            cart_vec=point, new_basis=rec_latt &
+                        )
+    ! Finding the rec. latt. point "nearest_G" that is 
+    ! closest to the input point "point"
+    ! NB.: ref_G will be in cartesian coords
+    ref_G = matmul(real(nint(frac_coords_point), kind=dp),rec_latt) 
     nearest_G = ref_G
     do ig3=-igmax,igmax
         do ig2=-igmax,igmax
             do ig1=-igmax,igmax
-                trial_nearest_G = ref_G + ig1*rec_latt(1,:) + ig2*rec_latt(2,:) + ig3*rec_latt(3,:)
+                trial_nearest_G = ref_G + &
+                                  ig1*rec_latt(1,:) + &
+                                  ig2*rec_latt(2,:) + &
+                                  ig3*rec_latt(3,:)
                 if(norm(point - nearest_G) > norm(point - trial_nearest_G))then
                     nearest_G = trial_nearest_G
                 endif
@@ -345,31 +370,38 @@ integer :: ig1, ig2, ig3, igmax
 
     ! Double-checking if the point has really been reduced 
     ! The routine will raise an error and stop otherwise
-    point_has_been_reduced = point_is_in_bz(point_reduced_to_bz,rec_latt,verbose=.TRUE.)
+    point_has_been_reduced = &
+        point_is_in_bz(point_reduced_to_bz,rec_latt,verbose=.TRUE.)
     if(.not. point_has_been_reduced)then
         if(igmax>=10)then !  Recursion limit
-            write(*,'(A)')'ERROR (reduce_point_to_bz): Failed to reduce &
-                                                       k-point to the 1st Brillouin zone.'
-            write(*,'(A,I0,A)')'                            A total of ',igmax+1,' layer(s) &
-                                                            of neighboring rec. latt. points &
-                                                            were checked for nearest neighbors.'
-            write(*,'(A)')'                            The nearest rec. latt. point was not found.'
-            write(*,'(3(A,f0.5),A)')'                            * Cartesian coordinates of the &
-                                     k-point:  (', point(1),', ',point(2),', ',point(3),').'
-            write(*,'(3(A,f0.5),A)')'                            * Fractional coordinates of the &
-                                     k-point: (', frac_coords_point(1),', ',frac_coords_point(2), &
-                                            ', ', frac_coords_point(3),').'
+            write(*,'(A)')&
+                'ERROR (reduce_point_to_bz): Failed to reduce &
+                k-point to the 1st Brillouin zone.'
+            write(*,'(A,I0,A)')&
+                '                            A total of ',igmax+1,' layer(s) &
+                of neighboring rec. latt. points &
+                were checked for nearest neighbors.'
+            write(*,'(A)')&
+                '                            The nearest rec. latt. point was &
+                not found.'
+            write(*,'(3(A,f0.5),A)')&
+                '                            * Cartesian coordinates of the &
+                k-point:  (', point(1),', ',point(2),', ',point(3),').'
+            write(*,'(3(A,f0.5),A)')&
+                '                            * Fractional coordinates of the &
+                k-point: (', frac_coords_point(1),', ',frac_coords_point(2), &
+                ', ', frac_coords_point(3),').'
             write(*,'(A)')'Stopping now.'
             stop
         else
             ! If the previous scan fails, go for an extra layer
             if(igmax>=10)then !  Warn about use of too many layers of kpoints
-                write(*,'(A)')'WARNING (reduce_point_to_bz): Quite large number of layers &
-                                                      of neighboring rec. latt. points. &
-                                                      This should be OK, but do check &
-                                                      your results.'
+                write(*,'(A)')&
+                    'WARNING (reduce_point_to_bz): Quite large number of &
+                    layers of neighboring rec. latt. points. &
+                    This should be OK, but do check your results.'
             endif
-            call reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,igmax+1) 
+            call reduce_point_to_bz(point,rec_latt,point_reduced_to_bz,igmax+1)
         endif
     endif
 
