@@ -118,7 +118,7 @@ ifneq ($(CASTEP_SUPPORT), )
     vpath %.c $(check2xsf_mods_dir)
 endif
 
-# List of executables to be built within the package
+# List of targets to be built within the package
 BANDUP_SRC = main_BandUP.f90 
 BANDUP_GET_SCKPTS_SRC = main_get_SCKPTS_pre_BandUP.f90
 BANDUP_SRC_OBJ = $(patsubst %.f90, %.o, $(BANDUP_SRC))
@@ -126,6 +126,7 @@ BANDUP_GET_SCKPTS_SRC_OBJ = $(patsubst %.f90, %.o, $(BANDUP_GET_SCKPTS_SRC))
 BANDUP_EXE = BandUP.x
 BANDUP_GET_SCKPTS_EXE = get_SCKPTS_pre_BandUP.x
 PYTHON_INTERF_SYMLNK = $(BandUP_root_dir)/bandup
+SOURCE_DOC_SYMLNK = $(source_doc_dir)/html/bandup_source_doc.html
 # First rule: "make" will build this rule if no target is specified
 bandup: all
 all: $(BANDUP_GET_SCKPTS_EXE) $(BANDUP_EXE) $(PYTHON_INTERF_SYMLNK)
@@ -150,10 +151,11 @@ OBJ := cla.o kinds.o constants_and_types_mod.o cla_wrappers_mod.o \
        $(QE_READ_WF_OBJ) $(CASTEP_READ_WF_OBJ) \
        write_vasp_files_mod.o strings_mod.o io_routines_mod.o $(C2XSF_C_OBJS)
 
-# Rules to make the executables individually
+# Rules to make the main targets individually
 main: $(BANDUP_EXE)
 prebandup: $(BANDUP_GET_SCKPTS_EXE)
 python: $(PYTHON_INTERF_SYMLNK)
+sourcedoc: $(SOURCE_DOC_SYMLNK)
 # Rules for dependencies
 cla.o: kinds.o
 lists_and_seqs_mod.o: constants_and_types_mod.o
@@ -197,6 +199,9 @@ $(BANDUP_GET_SCKPTS_EXE): $(BANDUP_GET_SCKPTS_SRC_OBJ) $(OBJ)
 $(PYTHON_INTERF_SYMLNK): | prebandup main
 	ln -s $(BandUP_python_dir)/bandup $@
 
+$(SOURCE_DOC_SYMLNK): | doxydoc
+	ln -s $(source_doc_dir)/html/index.html $@
+
 %.o: %.f90
 	$(FC) $(FCFLAGS) -$(FPP) $(FPPFLAGS) -c $<
 
@@ -207,10 +212,11 @@ $(PYTHON_INTERF_SYMLNK): | prebandup main
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) -c $<
 
 # Utility targets
-.PHONY: all sourcedoc clean veryclean print
+.PHONY: all doxydoc clean veryclean print
 
-sourcedoc:
+doxydoc:
 	export BANDUPDIR=$(BandUP_root_dir);\
+	export BANDUP_GIT_INFO=$(GIT_TAG);\
 	export DOXIGENOUTDIR=$(source_doc_dir);\
 	mkdir -p $(source_doc_dir);\
 	doxygen
