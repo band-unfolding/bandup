@@ -17,7 +17,7 @@
 module write_vasp_files
 use constants_and_types
 use strings
-use math
+use lists_and_seqs, only: append
 use general_io
 implicit none
 PRIVATE

@@ -2,7 +2,9 @@
 #### BandUP: Band Unfolding code for Plane-wave based calculations             
 ###### Copyright (C) 2013-2017 Paulo V. C. Medeiros - pvm20@cam.ac.uk 
 ###### Please visit <http://www.ifm.liu.se/theomod/compphys/band-unfolding>
-<!-- =========================================================== -->           
+
+<!-- =========================================================== -->
+## Introduction          
 
 **First and foremost, thank you for your interest in BandUP and for
 considering to contribute to it**. We greatly appreciate the valuable
@@ -125,7 +127,7 @@ Now you can safely modify the code.
       no obvious bugs.
    5. Push your changes *to your remote fork*:
 
-                git push origin your_branch
+                git push -u origin your_branch
                 
    6. Create a pull request from your branch into the official repo's
       `devel`. You do this via GitHub's online interface (the process
@@ -188,7 +190,7 @@ with the remote one:
       
    6. Finally, push your branch:
 
-                git push origin your_branch
+                git push -u origin your_branch
 
 <!-- =========================================================== -->
 ## B: After you submit your changes 

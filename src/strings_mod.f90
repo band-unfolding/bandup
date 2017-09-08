@@ -1,21 +1,22 @@
-!    Copyright (C) 2013-2015 Paulo V. C. Medeiros
-!
-!    This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
-!
-!    BandUP is free software: you can redistribute it and/or modify
-!    it under the terms of the GNU General Public License as published by
-!    the Free Software Foundation, either version 3 of the License, or
-!    (at your option) any later version.
-!
-!    BandUP is distributed in the hope that it will be useful,
-!    but WITHOUT ANY WARRANTY; without even the implied warranty of
-!    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!    GNU General Public License for more details.
-!
-!    You should have received a copy of the GNU General Public License
-!    along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
+!! Copyright (C) 2013-2017 Paulo V. C. Medeiros
+!!
+!! This file is part of BandUP:
+!! Band Unfolding code for Plane-wave based calculations.
+!!
+!! BandUP is free software: you can redistribute it and/or modify
+!! it under the terms of the GNU General Public License as published by
+!! the Free Software Foundation, either version 3 of the License, or
+!! (at your option) any later version.
+!!
+!! BandUP is distributed in the hope that it will be useful,
+!! but WITHOUT ANY WARRANTY; without even the implied warranty of
+!! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!! GNU General Public License for more details.
+!!
+!! You should have received a copy of the GNU General Public License
+!! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
-!===============================================================================
+!==============================================================================
 ! MODULE: strings
 !
 !> @author
@@ -23,16 +24,15 @@
 !
 ! DESCRIPTION: 
 !> Provides basic methods to operate with strings.
-!===============================================================================
+!==============================================================================
 
 module strings
 use constants_and_types
-use math
 implicit none
 PRIVATE
 PUBLIC :: lower_case, upper_case, split, compact
 
-!===============================================================================
+!==============================================================================
 !> Splits the input string and puts the result in the output array.
 !> Assumes spaces as separators. 
 !> If the output array is of type *type*, then the interface will assume that 
@@ -40,19 +40,20 @@ PUBLIC :: lower_case, upper_case, split, compact
 !!
 !! @param[in] string Input string
 !! @param[out] splitted_string Output array
-!===============================================================================
+!==============================================================================
 interface split
-  module procedure split_string_into_strings, split_string_into_integers, split_string_into_floats
+  module procedure split_string_into_strings, split_string_into_integers, &
+                   split_string_into_floats
 end interface split
 
 contains
 
-!===============================================================================
+!==============================================================================
 !> Returns a lower-case version of the input string.
 !! Based on the extended ASCII table (see http://www.ascii-code.com)
 !!
 !! @param[in] input_string String of arbitrary length.
-!===============================================================================
+!==============================================================================
 function lower_case(input_string) result(rtn)
 implicit none
 character(len=*), intent(in) :: input_string
@@ -71,12 +72,12 @@ integer :: i
 
 end function lower_case
 
-!===============================================================================
+!==============================================================================
 !> Returns an upper-case version of the input string.
 !! Based on the extended ASCII table (see http://www.ascii-code.com)
 !!
 !! @param[in] input_string String of arbitrary length.
-!===============================================================================
+!==============================================================================
 function upper_case(input_string) result(rtn)
 implicit none
 character(len=*), intent(in) :: input_string
@@ -95,13 +96,14 @@ integer :: i
 
 end function upper_case
 
-!===============================================================================
+!==============================================================================
 !> Returns the number of occurancies of a given substring in a given string.
 !!
 !! @param[in] string Input string
 !! @param[in] substring Substring to be searched
-!===============================================================================
-recursive function count_occurencies_substring(string, substring) result(occ_count)
+!==============================================================================
+recursive function count_occurencies_substring(string, substring) &
+result(occ_count)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
 character(len=*), intent(in) :: substring, string
@@ -114,22 +116,25 @@ integer :: occ_count, new_start, pos_substr_in_str
         new_start = pos_substr_in_str + len(substring)
         if(new_start <= len(string))then
             occ_count = occ_count + &
-                        count_occurencies_substring(string(new_start:),substring)
+                        count_occurencies_substring(&
+                            string(new_start:), substring &
+                        )
         endif
     endif 
 
 end function count_occurencies_substring
 
-!===============================================================================
+!==============================================================================
 !> Removes leading spaces, trailing blanks and double spaces from the input
 !! string.
 !!
 !! @param[in, out] io_string String of arbitrary length.
-!===============================================================================
+!==============================================================================
 subroutine compact(io_string)
 implicit none
 character(len=*), intent(inout) :: io_string
-integer i,num_spaces_excluded,end_of_io_string,selected_position,new_end_of_io_string
+integer :: i, num_spaces_excluded, end_of_io_string, selected_position, &
+           new_end_of_io_string
 
     io_string = trim(adjustl(io_string))
     if(len_trim(io_string) < 2)then
@@ -152,13 +157,13 @@ integer i,num_spaces_excluded,end_of_io_string,selected_position,new_end_of_io_s
 
 end subroutine compact
 
-!===============================================================================
+!==============================================================================
 !> Splits the input string and puts the result in an array of strings.
 !> Assumes spaces as separators.
 !!
 !! @param[in] string Input string
 !! @param[out] splitted_string Output array of strings
-!===============================================================================
+!==============================================================================
 subroutine split_string_into_strings(string, splitted_string)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
@@ -175,21 +180,23 @@ integer :: n_components, alloc_stat, icomp
         splitted_string = ''   
     else
         n_components = 1 + &
-                       count_occurencies_substring(string=trim(adjustl(aux_string)), substring=' ')
+                       count_occurencies_substring(&
+                           string=trim(adjustl(aux_string)), substring=' ' &
+                       )
         allocate(splitted_string(1:n_components))
         read(aux_string,*)(splitted_string(icomp), icomp=1,n_components)
     endif
 
 end subroutine split_string_into_strings
 
-!===============================================================================
+!==============================================================================
 !> Splits the input string and puts the result in an array of integers.
 !> Assumes spaces as separators. Assumes that the input string contains only
 !! integer numbers. 
 !!
 !! @param[in] string Input string
 !! @param[out] splitted_string Output array of integers
-!===============================================================================
+!==============================================================================
 subroutine split_string_into_integers(string, splitted_string)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
@@ -207,21 +214,23 @@ integer :: n_components, alloc_stat, icomp
         return
     else
         n_components = 1 + &
-                       count_occurencies_substring(string=trim(adjustl(aux_string)), substring=' ')
+                       count_occurencies_substring(&
+                           string=trim(adjustl(aux_string)), substring=' ' &
+                       )
         allocate(splitted_string(1:n_components))
         read(aux_string,*)(splitted_string(icomp), icomp=1,n_components)
     endif
 
 end subroutine split_string_into_integers
 
-!===============================================================================
+!==============================================================================
 !> Splits the input string and puts the result in an array of floats.
 !> Assumes spaces as separators. Assumes that the input string contains only
 !! real numbers. 
 !!
 !! @param[in] string Input string
 !! @param[out] splitted_string Output array of floats
-!===============================================================================
+!==============================================================================
 subroutine split_string_into_floats(string, splitted_string)
 !! Copyright (C) 2014 Paulo V. C. Medeiros
 implicit none
@@ -239,7 +248,9 @@ integer :: n_components, alloc_stat, icomp
         return
     else
         n_components = 1 + &
-                       count_occurencies_substring(string=trim(adjustl(aux_string)), substring=' ')
+                       count_occurencies_substring(&
+                           string=trim(adjustl(aux_string)), substring=' ' &
+                       )
         allocate(splitted_string(1:n_components))
         read(aux_string,*)(splitted_string(icomp), icomp=1,n_components)
     endif

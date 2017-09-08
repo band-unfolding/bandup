@@ -93,7 +93,7 @@
 
 module read_vasp_wavecar
 use constants_and_types
-use math
+use math, only: cross, angle, norm
 use general_io, only: available_io_unit
 !$ use omp_lib
 implicit none

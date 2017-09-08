@@ -17,7 +17,7 @@
 module read_vasp_files
 use constants_and_types
 use strings
-use math
+use crystals, only: create_crystal
 use general_io
 implicit none
 PRIVATE

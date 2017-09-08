@@ -1,6 +1,7 @@
 !! Copyright (C) 2015 Paulo V. C. Medeiros
 !!
-!! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+!! This file is part of BandUP:
+!! Band Unfolding code for Plane-wave based calculations.
 !!
 !! BandUP is free software: you can redistribute it and/or modify
 !! it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
-!===============================================================================
+!==============================================================================
 ! MODULE: read_abinit_wavefunctions
 !
 !> @author
@@ -24,11 +25,12 @@
 ! DESCRIPTION: 
 !> Provides routines to read info from ABINIT's wavefunctions (WFK files)
 !! into BandUP's wavefunction object.
-!===============================================================================
+!==============================================================================
 module read_abinit_wavefunctions
 use general_io
 use constants_and_types
-use math
+use units, only: to_angstrom, to_ev
+use math, only: cross, norm
 implicit none
 PRIVATE
 PUBLIC :: read_abinit_wfk_file, read_abinit_wfk_header
@@ -52,7 +54,8 @@ character(len=6) :: codvsn
 character(len=132) :: title
 integer :: headform, fform, bantot, date, intxc, ixc, natom, nkpt, nspden, &
            nspinor, nsppol, nsym, npsp, ntypat, occopt, pertcase, usepaw, &
-           usewvl, pspso, pspdat, pspcod, pspxc, lmn_size, ipsp, ikpt, alloc_stat
+           usewvl, pspso, pspdat, pspcod, pspxc, lmn_size, ipsp, ikpt, &
+           alloc_stat
 integer, dimension(1:3) :: ngfft
 integer, dimension(:), allocatable :: istwfk, nband, npwarr, so_psp, symafm, &
                                       typat, nrhoijsel
@@ -147,7 +150,7 @@ type(pw_wavefunction) :: aux_wf
         aux_wf = wf
         ! Reconstructing coordinates of translations
         deallocate(aux_wf%G_frac, aux_wf%G_cart, stat=alloc_stat)
-        allocate(aux_wf%G_frac(1:npw_gamma_aux), aux_wf%G_cart(1:npw_gamma_aux))
+        allocate(aux_wf%G_frac(1:npw_gamma_aux),aux_wf%G_cart(1:npw_gamma_aux))
         do ipw=1, npw
             aux_wf%G_frac(ipw)%coord(:) = wf%G_frac(ipw)%coord(:)
             aux_wf%G_cart(ipw)%coord(:) = wf%G_cart(ipw)%coord(:)
@@ -179,7 +182,8 @@ end subroutine reconstruct_gamma_point_wf
 subroutine read_abinit_wfk_file(wf, file, ikpt, read_coeffs, iostat)
 ! Copyright (C) 2015 Paulo V. C. Medeiros
 ! Written based on the information found at
-! www.abinit.org/documentation/helpfiles/for-v7.0/users/abinit_help.html#wavefctfile
+! www.abinit.org/documentation/helpfiles/for-v7.0/users/
+! abinit_help.html#wavefctfile
 implicit none
 ! Mandatory input and output variables
 type(pw_wavefunction), intent(inout) :: wf
@@ -194,7 +198,8 @@ integer :: i_spin, n_kpt, i_kpt, chosen_kpt, nband, iband, npw, &
            ipw, nspinor, alloc_stat, io_unit
 integer, dimension(:,:), allocatable :: kg ! plane wave reduced coordinates
 real(kind=dp) :: b1mag, b2mag, b3mag, inner_prod
-real(kind=dp), dimension(1:3) :: a1, a2, a3, b1, b2, b3 ! Direct and rec. latt. vecs.
+! Direct and rec. latt. vecs.
+real(kind=dp), dimension(1:3) :: a1, a2, a3, b1, b2, b3 
 ! ABINIT uses double precision to write the binary file
 real(kind=dp), dimension(:), allocatable :: eigen, occ
 complex(kind=dp), dimension(:,:), allocatable :: cg
@@ -207,9 +212,11 @@ if(present(iostat)) iostat = -1
 
 io_unit = available_io_unit() 
 open(unit=io_unit, file=file,form='unformatted', recl=1)
-    call read_abinit_wfk_header(unit=io_unit, &
-                                n_sppol=wf%n_spin, n_kpt=n_kpt, A_matrix=wf%A_matrix, &
-                                kpts=all_kpts)
+    call read_abinit_wfk_header(&
+             unit=io_unit, &
+             n_sppol=wf%n_spin, n_kpt=n_kpt, A_matrix=wf%A_matrix, &
+             kpts=all_kpts &
+         )
 
     ! Latt. vecs.
     wf%A_matrix = bohr * wf%A_matrix
@@ -224,10 +231,11 @@ open(unit=io_unit, file=file,form='unformatted', recl=1)
 
     chosen_kpt = ikpt
     if((ikpt > n_kpt).or.(ikpt < 1))then
-        write(*,'(2(A,I0))')"WARNING (read_abinit_wfk_file): Invalid choice of ikpt! &
-                             ikpt should lie between 1 and ", n_kpt, &
-                             ". Reading info for k-point #1 instead of k-point #", &
-                             ikpt
+        write(*,'(2(A,I0))')&
+            "WARNING (read_abinit_wfk_file): Invalid choice of ikpt! &
+            ikpt should lie between 1 and ", n_kpt, &
+            ". Reading info for k-point #1 instead of k-point #", &
+            ikpt
         chosen_kpt = 1
     endif
 
@@ -257,8 +265,12 @@ open(unit=io_unit, file=file,form='unformatted', recl=1)
                 read(io_unit) kg(:,:)
                 read(io_unit) eigen(:), occ(:)
 
-                deallocate(wf%band_energies, wf%band_occupations, stat=alloc_stat)
-                allocate(wf%band_energies(1:nband), wf%band_occupations(1:nband))
+                deallocate(&
+                    wf%band_energies, wf%band_occupations, stat=alloc_stat &
+                )
+                allocate(&
+                    wf%band_energies(1:nband), wf%band_occupations(1:nband) &
+                )
                 wf%band_energies(:) = Hartree * eigen(:)
                 wf%band_occupations(:) = occ(:)
 
@@ -280,15 +292,19 @@ open(unit=io_unit, file=file,form='unformatted', recl=1)
                         read(io_unit) (cg(ipw, iband), ipw=1, npw*nspinor) 
                          
                         ! Chasing huge coeffs
-                        ! I don't know why they appear, but, by taking them out,
+                        ! I don't know why they appear, but by taking them out
                         ! one can normally still get a good qualitative view
-                        inner_prod = abs(dot_product(cg(:, iband), cg(:,iband)))
+                        inner_prod=abs(dot_product(cg(:, iband), cg(:,iband)))
                         if(inner_prod > huge(1.0_kind_cplx_coeffs))then
                             write(*,'(A, I0, A, D12.4, A)') &
-                                '    WARNING: Squared norm of SC wavefunction for band #', iband, &
-                                ' is too big (> ', huge(1.0_kind_cplx_coeffs),').'
-                            write(*, '(A)') '             The coefficients have been set to zero.'
-                            write(*, '(A)') '             Please double-check your results.'
+                                '    WARNING: Squared norm of SC wavefunction &
+                                for band #', iband, &
+                                ' is too big (> ', &
+                                huge(1.0_kind_cplx_coeffs),').'
+                            write(*, '(A)')&
+                                '             The coeffs have been zeroed.'
+                            write(*, '(A)')&
+                                '             Please check your results.'
                             cg(:, iband) = 0.0_dp
                         endif
                     enddo
@@ -300,7 +316,8 @@ open(unit=io_unit, file=file,form='unformatted', recl=1)
                     wf%pw_coeffs(1, :, :) = cg(1:npw,:)
                     if(wf%is_spinor) wf%pw_coeffs(2, :, :) = cg(npw+1:,:)
                     ! Reconstructing gamma-point wavefunctions
-                    if(all(wf%kpt_frac_coords(:) == 0) .and. .not. wf%is_spinor)then
+                    if(all(wf%kpt_frac_coords(:) == 0) .and. &
+                       .not. wf%is_spinor)then
                         call reconstruct_gamma_point_wf(wf)
                     endif
 
