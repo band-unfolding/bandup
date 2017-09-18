@@ -32,11 +32,15 @@ def get_tag_from_source():
 
 def get_latest_git_tag():
     tag = None
-    get_tag_run = Popen(['git', 'describe', '--tags', '--dirty'],
-                           stdout=PIPE, stderr=PIPE)
-    stdout, stderr = get_tag_run.communicate()
-    if(not stderr.strip()):
-        tag = stdout.strip()
+    try:
+        get_tag_run = Popen(['git', 'describe', '--tags', '--dirty'],
+                               stdout=PIPE, stderr=PIPE)
+        stdout, stderr = get_tag_run.communicate()
+        if(not stderr.strip()):
+            tag = stdout.strip()
+    except(OSError):
+        # In case git is not in the user's PATH
+        pass
     return tag
 
 def get_package_version():

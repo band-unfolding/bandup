@@ -32,7 +32,9 @@ use iotk_module  ! Comes along with the espresso package
 use cla_wrappers
 use general_io
 use constants_and_types
-use math
+use units, only: to_ev, to_angstrom
+use crystals, only: get_rec_latt
+use math, only: triple_product, coords_cart_vec_in_new_basis
 implicit none
 PRIVATE
 PUBLIC :: read_qe_evc_file

@@ -1,6 +1,7 @@
 !! Copyright (C) 2013-2017 Paulo V. C. Medeiros
 !!
-!! This file is part of BandUP: Band Unfolding code for Plane-wave based calculations.
+!! This file is part of BandUP:
+!! Band Unfolding code for Plane-wave based calculations.
 !!
 !! BandUP is free software: you can redistribute it and/or modify
 !! it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
 !! You should have received a copy of the GNU General Public License
 !! along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
 
-!===============================================================================
+!==============================================================================
 ! MODULE: general_io
 !
 !> @author
@@ -23,24 +24,24 @@
 !
 ! DESCRIPTION: 
 !> Provides routines and constants to perform general I/O.
-!===============================================================================
+!==============================================================================
 
 module general_io
 use constants_and_types
-use math
 implicit none
 SAVE
 PRIVATE
 PUBLIC :: available_io_unit, file_extension, filename_without_extension, &
           get_file_size_in_bytes, str_len, file_header_BandUP, &
           file_for_pc_reduced_to_prim_cell, file_for_SC_reduced_to_prim_cell, &
-          compiler_version, compilation_time, get_git_info_compiled_files, timestamp
+          compiler_version, compilation_time, get_git_info_compiled_files, &
+          timestamp
 
 character(len=str_len), parameter :: &
-    file_for_pc_reduced_to_prim_cell="BandUP_suggestion_of_pc_&
-                                      for_your_reference_unit_cell.POSCAR", &
-    file_for_SC_reduced_to_prim_cell="BandUP_suggestion_of_smaller_SC_based_on_your_&
-                                      input_SC.POSCAR"
+    file_for_pc_reduced_to_prim_cell=&
+        "BandUP_suggestion_of_pc_for_your_reference_unit_cell.POSCAR", &
+    file_for_SC_reduced_to_prim_cell=&
+        "BandUP_suggestion_of_smaller_SC_based_on_your_input_SC.POSCAR"
 
 !! Functions and subroutines
 CONTAINS 
@@ -49,7 +50,8 @@ function file_header_BandUP() result(header)
 implicit none
 character(len=:), allocatable :: header
 
-    header = "# File created by BandUP ("//trim(adjustl(package_version))//') at '// &
+    header = "# File created by BandUP (" // &
+             trim(adjustl(package_version)) // ') at ' // &
              timestamp()
 
 end function file_header_BandUP
@@ -163,7 +165,8 @@ character(len=127) :: fmt_str, temp_str
     hour = values(5)
     minute = values(6)
     fmt_str = "(I0,':',I0.2,X,'UTC',A,X,'on',X,A,X,I0.2,',',X,I4)"
-    write(temp_str, trim(fmt_str))hour,minute,zone,str_month(values(2)),day,year
+    write(temp_str, trim(fmt_str)) &
+        hour, minute, zone, str_month(values(2)), day, year
     str_time = trim(adjustl(temp_str))
 
 end function timestamp
