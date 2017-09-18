@@ -130,7 +130,8 @@ the `-h` options** discussed above, then please contact us.
                        pip install --upgrade --user matplotlib
          
          should make matplotlib available in your Python install.
-       * Standard python library modules used (just for reference; this list might even be incomplete):
+       * Standard python library modules used (just for reference; 
+         this list might even be incomplete):
        
            * argparse
            * os
@@ -159,12 +160,13 @@ your work, you should:
     (or a modified version of it, if this is the case).
   * **Read and cite the following papers** (and the appropriate
     references therein):
-<p align="center">
-P. V. C. Medeiros, S. Stafström and J. Björk, 
-[Phys. Rev. B **89**, 041407(R) (2014)](http://dx.doi.org/10.1103/PhysRevB.89.041407)  
-P.V.C. Medeiros, S.S. Tsirkin, S. Stafström, J. Björk, 
-[Phys. Rev. B **91**, 041116(R) (2015)](http://dx.doi.org/10.1103/PhysRevB.91.041116)
-</p>
+    
+>> Paulo V. C. Medeiros, Sven Stafström, and Jonas Björk,
+   [Phys. Rev. B **89**, 041407(R) (2014)](
+    http://dx.doi.org/10.1103/PhysRevB.89.041407)  
+>> Paulo V. C. Medeiros, Stepan S. Tsirkin, Sven Stafström, and Jonas Björk,
+   [Phys. Rev. B **91**, 041116(R) (2015)](
+    http://dx.doi.org/10.1103/PhysRevB.91.041116)
 
 An appropriate way of acknowledging the use of BandUP in your
 publications would be, for instance, adding a sentence like: 
