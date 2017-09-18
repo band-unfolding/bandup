@@ -81,7 +81,7 @@ logical, parameter :: calc_spec_func_explicitly = .FALSE., &
 ! Code version. If you modify this with no good reason and without following
 ! what is described in the CONTRIBUTING.md file, then it will be
 ! *very* difficult for me to offer you any support.
-character(len=str_len), parameter :: tag_for_push="3.0.0-beta.5"
+character(len=str_len), parameter :: tag_for_push="3.0.0-beta.6"
 #if defined (__COMMIT_TAG__)
     character(len=str_len), parameter :: &
         version_tag=trim(adjustl(__COMMIT_TAG__))
