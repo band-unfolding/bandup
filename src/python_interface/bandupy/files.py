@@ -244,7 +244,7 @@ def create_bandup_input(args):
                                                  ("dE",args.dE)])
         with open(energy_info_file, 'w') as f:
             f.write(file_header())
-            for k,v in energy_info_file_contents.iteritems():
+            for k,v in energy_info_file_contents.items():
                 f.write("%.5f  # %s \n"%(v,k))
 
     # PC, SC and PC-KPT files
@@ -287,7 +287,7 @@ def create_bandup_input(args):
 
     # Creating/verifying files
     # Wavefunction files will not be copied. Symlinks will be made in this case
-    for source, dest_properties in origin2dest.iteritems():
+    for source, dest_properties in origin2dest.items():
         assert_valid_path(source)
         dest = dest_properties['dest']
         to_be_copied = dest_properties['copy']
@@ -349,7 +349,7 @@ def create_bandup_plot_input(args):
                                                      ("emax",args.emax),
                                                      ("dE",args.dE)])
             with open(energy_info_file, 'w') as f:
-                for k,v in energy_info_file_contents.iteritems():
+                for k,v in energy_info_file_contents.items():
                     f.write("%.5f  ! %s \n"%(v,k))
 
     # PC, SC, PC-KPT, and main input files
@@ -375,7 +375,7 @@ def create_bandup_plot_input(args):
 
     # Creating/verifying files
     # Wavefunction files will not be copied. Symlinks will be made in this case
-    for source, dest_properties in origin2dest.iteritems():
+    for source, dest_properties in origin2dest.items():
         assert_valid_path(source)
         dest = dest_properties['dest']
         to_be_copied = dest_properties['copy']

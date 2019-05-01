@@ -13,7 +13,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with BandUP.  If not, see <http://www.gnu.org/licenses/>.
-from subprocess import Popen, PIPE, STDOUT
+from subprocess import run, STDOUT
 import os
 import sys
 # Imports from within the package
@@ -33,11 +33,11 @@ def run_bandup(args):
     # Running BandUP
     os.chdir(args.results_dir)
     bandup_run_options = [BANDUP_BIN] + args.argv
+    bandup_run = run(bandup_run_options, capture_output=True,
+                     text=True)
+    sys.stdout.write(bandup_run.stdout)
     with open("out_BandUP.dat", 'w') as f:
-        bandup_run = Popen(bandup_run_options, stdout=PIPE, stderr=STDOUT)
-        for line in iter(bandup_run.stdout.readline, ''):
-            sys.stdout.write(line)
-            f.write(line)
+            f.write(bandup_run.stdout)
     if(args.orbitals):
         get_orbital_projections_and_duals(args)
     os.chdir(start_dir)
@@ -47,12 +47,11 @@ def run_pre_bandup_tool(args):
     # Running BandUP pre-unfolding tool
     os.chdir(args.inputs_dir)
     bandup_pre_unf_run_options = [BANDUP_PRE_UNFOLDING_BIN] + args.argv
+    bandup_pre_unf_run = run(bandup_pre_unf_run_options, capture_output=True,
+                             text=True)
+    sys.stdout.write(bandup_pre_unf_run.stdout)
     with open("out_BandUP_get_SCKPTS_pre_unfolding.dat", 'w') as f:
-        bandup_pre_unf_run = Popen(bandup_pre_unf_run_options, 
-                                   stdout=PIPE, stderr=STDOUT)
-        for line in iter(bandup_pre_unf_run.stdout.readline, ''):
-            sys.stdout.write(line)
-            f.write(line)
+        f.write(bandup_pre_unf_run.stdout)
     os.chdir(start_dir)
 
 
