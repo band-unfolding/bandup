@@ -22,7 +22,7 @@ FCFLAGS_for_ifort = -assume byterecl
 # gfortran with GNU extensions (default, but I prefer to set it explicitly)
 FCFLAGS_for_gfortran = -std=gnu -pedantic
 # Shared memory parallelization
-FCFLAGS_for_ifort += -openmp -parallel
+FCFLAGS_for_ifort += -qopenmp -parallel
 FCFLAGS_for_gfortran += -fopenmp
 FCFLAGS_for_nagfor += -openmp
 # Flags for max performance, portability, etc. Comment (or modify) as necessary
