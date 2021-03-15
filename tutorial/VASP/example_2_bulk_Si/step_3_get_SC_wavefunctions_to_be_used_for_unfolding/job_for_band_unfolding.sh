@@ -8,12 +8,12 @@ sc_calc_folder='../step_1_*/'
 CHGCAR=${sc_calc_folder}'/CHGCAR'
 POSCAR=${sc_calc_folder}'/POSCAR'
 # Grid stuff
-NGX=`grep 'dimension x,y,z NGX =' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[5]}'`
-NGY=`grep 'dimension x,y,z NGX =' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[8]}'`
-NGZ=`grep 'dimension x,y,z NGX =' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[11]}'`
-NGXF=`grep 'dimension x,y,z NGXF=' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[4]}'`
-NGYF=`grep 'dimension x,y,z NGXF=' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[6]}'`
-NGZF=`grep 'dimension x,y,z NGXF=' "${sc_calc_folder}/OUTCAR" | head -1 | awk '{split($0,array," ")} END{print array[8]}'`
+NGX=` grep 'dimension x,y,z NGX =' ${sc_calc_folder}/OUTCAR | head -1 | awk '{split($0,array," ")} END{print array[5]}'`
+NGY=` grep 'dimension x,y,z NGX =' ${sc_calc_folder}/OUTCAR | head -1 | awk '{split($0,array," ")} END{print array[8]}'`
+NGZ=` grep 'dimension x,y,z NGX =' ${sc_calc_folder}/OUTCAR | head -1 | awk '{split($0,array," ")} END{print array[11]}'`
+NGXF=`grep 'dimension x,y,z NGXF=' ${sc_calc_folder}/OUTCAR | head -1 | awk '{split($0,array," ")} END{print array[4]}'`
+NGYF=`grep 'dimension x,y,z NGXF=' ${sc_calc_folder}/OUTCAR | head -1 | awk '{split($0,array," ")} END{print array[6]}'`
+NGZF=`grep 'dimension x,y,z NGXF=' ${sc_calc_folder}/OUTCAR | head -1 | awk '{split($0,array," ")} END{print array[8]}'`
 
 # Preparing inputs
 cp $POSCAR POSCAR
