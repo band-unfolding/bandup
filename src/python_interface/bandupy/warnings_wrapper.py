@@ -21,7 +21,8 @@ import sys
 class WarningError(UserWarning):
     pass
 
-def _new_showwarning(message, category = UserWarning, filename = '', lineno = -1):
+def _new_showwarning(message, category = UserWarning, filename = '',
+                     lineno = -1, msg_file=None, line=None):
     if(category==WarningError):
         warn_msg = 'ERROR '
     else:

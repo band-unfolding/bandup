@@ -34,7 +34,7 @@ def run_bandup(args):
     os.chdir(args.results_dir)
     bandup_run_options = [BANDUP_BIN] + args.argv
     with open("out_BandUP.dat", 'w') as f:
-        bandup_run = Popen(bandup_run_options, stdout=PIPE, stderr=STDOUT)
+        bandup_run = Popen(bandup_run_options, stdout=PIPE, stderr=STDOUT,encoding='UTF-8')
         for line in iter(bandup_run.stdout.readline, ''):
             sys.stdout.write(line)
             f.write(line)

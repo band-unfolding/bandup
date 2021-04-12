@@ -133,7 +133,7 @@ def try_to_read_procar(fpath=os.path.join(WORKING_DIR, 'PROCAR'),
                     iatom = 0
                     reading_real_part = True
                 comb_iat_iorbs = [kpt.combined_atom_orb_index(iat=iatom,iorb=i)
-                                  for i in xrange(kpt.n_orbs_per_atom)]
+                                  for i in range(kpt.n_orbs_per_atom)]
                 if(same_line_real_and_imag_phase):
                     try:
                         for i, comb_iat_iorb in enumerate(comb_iat_iorbs):
