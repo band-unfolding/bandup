@@ -139,10 +139,10 @@ class KptInfo(object):
     def bands(self):
         if(self._bands[self._current_ispin] is None):
             self._bands[self._current_ispin] = (
-                [{'number':None, 'ener':None, 'occ':None} for ib in xrange(self.nbands)]
+                [{'number':None, 'ener':None, 'occ':None} for ib in range(self.nbands)]
             )
             if(self._create_ion_proj_norms_dicts):
-                for ib in xrange(self.nbands):
+                for ib in range(self.nbands):
                     self._bands[self._current_ispin][ib]['ion_proj_norms'] = (
                         [{orb:None for orb in self.orbitals} for
                          i in range(self.nions)]
@@ -216,7 +216,7 @@ class KptInfo(object):
                                                            self.current_ispin+1))
         if(self.number==1 and self.current_ispin==0):
             mkdir(outdir)
-            pickle_file = open(pickle_file_name, 'w')
+            pickle_file = open(pickle_file_name, 'wb')
         else:
             pickle_file = open(pickle_file_name, 'a+b')
             mkdir(outdir, ignore_existing=True)
@@ -278,7 +278,7 @@ class KptInfo(object):
         """
 
         if(selected_ion_indices is None): 
-            selected_ion_indices = xrange(self.nions)
+            selected_ion_indices = range(self.nions)
         iorb = self.orb2iorb(orb)
         combined_at_orb_indices = (self.combined_atom_orb_index(iat, iorb=iorb) for 
                                    iat in selected_ion_indices)

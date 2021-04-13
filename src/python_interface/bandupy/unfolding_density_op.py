@@ -150,11 +150,11 @@ def read_unf_dens_ops(
         # Combining itertools and the "next" file method to have both 
         # current and next lines yiedled simultaneously
         f, f_one_step_ahead = itertools.tee(udof)
-        f_one_step_ahead.next()
+        next(f_one_step_ahead)
         f_one_step_ahead = itertools.chain(f_one_step_ahead,[None])
 
         next_line_contains_mat_el = False
-        for iline, (line, next_line) in enumerate(itertools.izip(f, f_one_step_ahead)):
+        for iline, (line, next_line) in enumerate(zip(f, f_one_step_ahead)):
             if('SpinChannel' in line): spin_channel = int(line.split('=')[-1])
             elif('nScBands' in line): nbands = int(line.split('=')[-1])
             elif('emin' in line): emin_parent_grid = float(line.split('=')[1].split()[0])
